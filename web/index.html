@@ -411,37 +411,6 @@ body.killed .pring .fg { stroke: var(--ink-3); }
 body.killed .paused-note { display: block; }
 @media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } }
 
-/* ---------- 7 RULES ---------- */
-.rules .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
-.strike { position: relative; color: var(--ink-3); white-space: nowrap; }
-.strike::after { content: ""; position: absolute; left: -2%; right: -2%; top: 55%; height: .07em; background: var(--coral); transform: scaleX(0); transform-origin: left; transition: transform .7s var(--ease) .2s; }
-.rules.seen .strike::after { transform: scaleX(1); }
-.dials { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.dial { padding: clamp(12px, 2vh, 18px); text-align: center; transition: transform .3s var(--spring); }
-.dial:hover { transform: translateY(-4px); }
-.dial .ring { position: relative; width: min(110px, 12vh, 80%); aspect-ratio: 1; margin: 0 auto; }
-.dial .ring svg { width: 100%; height: 100%; display: block; }
-.dial .ring .mid { position: absolute; inset: 0; display: grid; place-items: center; color: var(--blue-deep); }
-.dial .ring .mid .ic { width: 30%; height: 30%; vertical-align: 0; }
-.dial .rv.cap { stroke: var(--beige); }
-.dial.cap .ring .mid { color: var(--ink); }
-.dial .rg { fill: none; stroke: var(--surface); stroke-width: 10; }
-.dial .rv { fill: none; stroke: var(--blue); stroke-width: 10; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 1.3s var(--ease); }
-body.killed .dial .rv { stroke: var(--ink-3); }
-.dial .val { font-family: var(--f-mono); font-size: 14px; margin-top: 10px; }
-.dial .lbl { font-weight: 700; font-size: 14px; margin-top: 2px; }
-.dial small { display: block; font-size: 12.5px; color: var(--ink-3); }
-.kill { grid-column: 1 / -1; display: flex; align-items: center; gap: 20px; padding: 20px 22px; border-radius: var(--r-card); background: var(--sand); transition: background .3s; }
-body.killed .kill { background: var(--coral-soft); }
-.kill-btn { width: 108px; height: 58px; flex: none; border-radius: 29px; border: 0; background: var(--white); position: relative; box-shadow: inset 0 0 0 1.5px var(--beige); transition: background .3s; }
-.kill-btn::after { content: ""; position: absolute; top: 5px; left: 5px; width: 48px; height: 48px; border-radius: 50%; background: var(--ink); transition: transform .45s var(--spring), background .3s; box-shadow: 0 4px 10px -2px rgba(28,43,51,.4); }
-.kill-btn[aria-checked="true"] { background: var(--coral); box-shadow: none; }
-.kill-btn[aria-checked="true"]::after { transform: translateX(50px); background: var(--white); }
-.kill h4 { font-size: var(--t-xl); }
-.kill p { font-size: var(--t-sm); color: var(--ink-2); }
-@media (max-width: 1000px) { .rules .wrap { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .dials { grid-template-columns: 1fr 1fr; } }
-
 /* ---------- 8 RECORD ---------- */
 #record { padding-bottom: 0; } /* the desk in the image sits right on the next section */
 .record-grid { margin-top: clamp(32px, 5vh, 80px); display: grid; grid-template-columns: 56% minmax(0, 1fr); gap: clamp(20px, 3vw, 56px); align-items: end; }
@@ -571,7 +540,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <a href="#verify">Checks</a>
       <a href="#think">How it thinks</a>
       <a href="#live">Live</a>
-      <a href="#rules">Rules</a>
       <a href="#record">Journal</a>
     </nav>
     <div class="nav-right">
@@ -737,23 +705,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
-<!-- 7 RULES: the AI suggests, the rules decide -->
-<section class="sec rules" id="rules" aria-labelledby="h-rules">
-  <div class="wrap">
-    <div>
-      <span class="kicker">Rules</span>
-      <h2 class="h2" id="h-rules">The AI suggests. <span class="strike">The AI decides.</span><br><span class="blue">The rules decide.</span></h2>
-      <p class="sub">Hard limits sit after the AI. Muse can talk MOOSE out of a trade, never past a limit.</p>
-    </div>
-    <div class="dials" id="dials">
-      <div class="kill">
-        <button class="kill-btn" type="button" role="switch" aria-checked="false" id="killBtn" aria-label="Kill switch"></button>
-        <div><h4 id="killTitle">Kill switch: off</h4><p id="killText">One flip stops every new trade instantly. Try it.</p></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- 8 RECORD: every trade on the record, even the losses -->
 <section class="sec" id="record" aria-labelledby="h-rec">
   <div class="wrap">
@@ -812,7 +763,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <footer>
   <div class="wrap">
     <a class="brand" href="#top"><span class="face" aria-hidden="true"></span>MOOSE<span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
-    <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" href="#follow"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> @moose</a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#rules">Rules</a><a href="#live">Live</a></nav>
+    <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" href="#follow"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> @moose</a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
     <p class="legal">MOOSE, powered by Muse. MOOSE is an automated account run by software; its reasoning uses Meta's Muse Spark model through the public API. Not affiliated with Meta, Robinhood or Pons. Not financial advice. Paper trades are simulated and not onchain. Holdings are disclosed in every trade post. All figures on this page are example data.</p>
   </div>
 </footer>
@@ -1036,24 +987,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     }, 2500);
     setInterval(() => { since++; $("#sync").textContent = since; }, 1000);
   }
-
-  /* ---------- 7 RULES ---------- */
-  const dials = [
-    { l: "Per trade", s: "hard cap per buy", v: "0.05 ETH", u: 1, cap: 1, ic: B("eth") }, { l: "Trading wallet", s: "in use / max", v: "0.10 / 0.15", u: .67, ic: I("wallet") },
-    { l: "Daily loss", s: "then it stops", v: "0.012 / 0.05", u: .24, ic: I("trending-down") }, { l: "Positions", s: "open at once", v: "2 / 3", u: .67, ic: I("layers") },
-    { l: "Slippage", s: "worst price accepted", v: "3% max", u: 1, cap: 1, ic: I("arrow-left-right") }, { l: "New launches", s: "never buys first", v: "3 s wait", u: 1, cap: 1, ic: I("hourglass") },
-  ];
-  const C = 2 * Math.PI * 42;
-  $("#dials").insertAdjacentHTML("afterbegin", dials.map(d => `<div class="card dial ${d.cap ? "cap" : ""}"><div class="ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="rg" cx="50" cy="50" r="42"/><circle class="rv ${d.cap ? "cap" : ""}" cx="50" cy="50" r="42" stroke-dasharray="${C}" stroke-dashoffset="${reduce ? C * (1 - d.u) : C}" data-o="${C * (1 - d.u)}"/></svg><span class="mid" aria-hidden="true">${d.ic}</span></div><div class="val">${d.v}</div><div class="lbl">${d.l}</div><small>${d.s}</small></div>`).join(""));
-  onView($("#rules"), () => { $("#rules").classList.add("seen"); $$(".dial .rv").forEach(c => c.style.strokeDashoffset = c.dataset.o); }, .3);
-  const killBtn = $("#killBtn");
-  killBtn.addEventListener("click", () => {
-    const on = killBtn.getAttribute("aria-checked") !== "true";
-    killBtn.setAttribute("aria-checked", on); document.body.classList.toggle("killed", on);
-    $("#killTitle").textContent = on ? "Kill switch: ON" : "Kill switch: off";
-    $("#killText").textContent = on ? "No new trades. Watching continues. See the header and the live section." : "One flip stops every new trade instantly. Try it.";
-    $("#statusPill").className = "pill " + (on ? "coral" : "green"); $("#statusText").textContent = on ? "paused" : "live · paper";
-  });
 
   /* ---------- 8 RECORD: live feed of floating X posts ---------- */
   const feedPosts = [
