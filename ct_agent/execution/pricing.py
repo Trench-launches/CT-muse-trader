@@ -30,8 +30,10 @@ def curve_buy(quote_in_wei: int, quote_reserve: int, token_reserve: int, fee_bps
     qs, ts = 10 ** quote_decimals, 10 ** token_decimals
     spot = (quote_reserve / qs) / (token_reserve / ts)
     avg = (quote_in_wei / qs) / (out / ts) if out else float("inf")
-    return FillEstimate(quote_in_wei / qs, out / ts, avg, spot, int((avg / spot - 1) * BPS) if out else BPS,
-                        fee / qs, "curve_constant_product")
+    # Price impact is how far the trade itself moves the price (net of fees);
+    # fees and creator tax are reported and limited separately.
+    impact = int(((net / qs) / (out / ts) / spot - 1) * BPS) if out else BPS
+    return FillEstimate(quote_in_wei / qs, out / ts, avg, spot, impact, fee / qs, "curve_constant_product")
 
 
 def curve_sell(tokens_in_wei: int, quote_reserve: int, token_reserve: int, fee_bps: int, tax_bps: int,
@@ -42,8 +44,9 @@ def curve_sell(tokens_in_wei: int, quote_reserve: int, token_reserve: int, fee_b
     qs, ts = 10 ** quote_decimals, 10 ** token_decimals
     spot = (quote_reserve / qs) / (token_reserve / ts)
     avg = (net / qs) / (tokens_in_wei / ts) if tokens_in_wei else 0.0
-    return FillEstimate(net / qs, tokens_in_wei / ts, avg, spot, int((1 - avg / spot) * BPS) if spot else BPS,
-                        fee / qs, "curve_constant_product")
+    gross_avg = (gross / qs) / (tokens_in_wei / ts) if tokens_in_wei else 0.0
+    impact = int((1 - gross_avg / spot) * BPS) if spot else BPS
+    return FillEstimate(net / qs, tokens_in_wei / ts, avg, spot, impact, fee / qs, "curve_constant_product")
 
 
 def pool_estimate(quote_in: float, price_native: float, liquidity_usd: float, eth_usd: float,
@@ -56,11 +59,11 @@ def pool_estimate(quote_in: float, price_native: float, liquidity_usd: float, et
         net = quote_in * (1 - fee_bps / BPS)
         out = r_t * net / (r_q + net)
         avg = quote_in / out
-        return FillEstimate(quote_in, out, avg, price_native, int((avg / price_native - 1) * BPS),
+        return FillEstimate(quote_in, out, avg, price_native, int((net / out / price_native - 1) * BPS),
                             quote_in - net, "pool_estimate_indicative")
     tokens = quote_in  # for sells, first arg is token amount
     gross = r_q * tokens / (r_t + tokens)
     net = gross * (1 - fee_bps / BPS)
     avg = net / tokens
-    return FillEstimate(net, tokens, avg, price_native, int((1 - avg / price_native) * BPS), gross - net,
+    return FillEstimate(net, tokens, avg, price_native, int((1 - gross / tokens / price_native) * BPS), gross - net,
                         "pool_estimate_indicative")

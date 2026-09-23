@@ -149,3 +149,10 @@ def test_screen_blocks_non_eth_quotes_before_the_ai(settings):
     ok = screen_almost_bonded(settings, token="0x1", progress=0.9, phase=0, launch_age_s=600, snipe_window_s=3,
                               fee_bps=100, creator_tax_bps=0, activity=_act(), quote_symbol="ETH")
     assert ok.eligible
+
+
+def test_price_impact_excludes_fees():
+    tiny = curve_buy(10**12, 5 * ETH, 10**27, 400, 300)   # dust trade with 7% fees+tax
+    assert tiny.price_impact_bps <= 1 and tiny.fee_and_tax_quote > 0
+    p = pool_estimate(0.0001, 1e-8, 100_000, 2_700, 700)
+    assert p.price_impact_bps <= 1
