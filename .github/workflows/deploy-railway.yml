@@ -1,0 +1,43 @@
+# Deploys the MOOSE backend to Railway (project "moose", service "moose") on
+# every push to main that touches backend files. Tests must pass first.
+# Uses a Railway project token stored as the RAILWAY_TOKEN repository secret.
+name: Deploy backend to Railway
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ct_agent/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "Dockerfile"
+      - "railway.json"
+      - ".railwayignore"
+      - ".github/workflows/deploy-railway.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: railway-deploy
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g @railway/cli
+      - name: Deploy to Railway
+        run: railway up --service moose --ci
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
