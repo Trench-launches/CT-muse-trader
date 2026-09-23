@@ -412,25 +412,26 @@ body.killed .paused-note { display: block; }
 @media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } }
 
 /* ---------- 8 RECORD ---------- */
-#record { padding-bottom: 0; } /* the desk in the image sits right on the next section */
-.record-grid { margin-top: clamp(32px, 5vh, 80px); display: grid; grid-template-columns: 56% minmax(0, 1fr); gap: clamp(20px, 3vw, 56px); align-items: end; }
-.desk { display: block; width: 100%; height: auto; pointer-events: none; }
-.post-stage { position: relative; height: clamp(440px, calc(var(--fit) - 120px), 660px); margin-bottom: calc(var(--sec-pad) * .8); }
-.ftw { position: absolute; z-index: 2; width: min(420px, 86%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+#record { --stage: clamp(460px, calc(var(--fit) - 160px), 640px); }
+.record-grid { margin-top: clamp(32px, 5vh, 72px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(24px, 4vw, 72px); align-items: center; }
+.desk { display: block; justify-self: center; width: auto; max-width: 100%; height: auto; max-height: var(--stage); pointer-events: none; filter: drop-shadow(0 30px 40px rgba(15,20,25,.06)); }
+.post-stage { position: relative; min-height: var(--stage); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
+.ftw { position: relative; z-index: 2; width: min(420px, 86%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
 .ftw .xtl { border-color: #CFD9DE; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); }
 .ftw .xp { cursor: default; }
 .ftw .xp:hover { background: #FFFFFF; }
 .ftw.pop .xtl { animation: tweetpop .6s var(--spring); }
-.ftw-0 { left: 0; top: 0; --r: -2deg; --d: 7s; }
-.ftw-1 { right: 0; top: 41%; --r: 2deg; --d: 8.5s; --delay: -3s; }
-.ftw-2 { left: 4%; bottom: 0; --r: -1deg; --d: 7.8s; --delay: -5s; }
+.ftw-0 { align-self: flex-start; --r: -2deg; --d: 7s; }
+.ftw-1 { align-self: flex-end; --r: 2deg; --d: 8.5s; --delay: -3s; }
+.ftw-2 { align-self: flex-start; margin-left: 6%; --r: -1deg; --d: 7.8s; --delay: -5s; }
 @keyframes tweetfloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-14px) rotate(calc(var(--r) + 1.2deg)); } }
 @keyframes tweetpop { from { opacity: 0; transform: translateY(40px) scale(.9); } to { opacity: 1; transform: none; } }
 .xp-act.bump { color: #F91880; }
 @media (max-width: 1000px) {
   .record-grid { grid-template-columns: 1fr; }
-  .post-stage { order: -1; height: auto; margin-bottom: 0; display: grid; gap: 14px; }
-  .ftw { position: relative; inset: auto; width: 100%; animation: none; }
+  .desk { max-height: 420px; }
+  .post-stage { min-height: 0; gap: 14px; }
+  .ftw { width: 100%; margin-left: 0; align-self: stretch; animation: none; }
 }
 
 /* ---------- 9 SCORE ---------- */
@@ -485,7 +486,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .hero .sub { margin-top: 10px; }
   .hero-stage { min-height: 280px; }
   .listen-panel { margin-top: 10px; }
-  .post-stage { height: 400px; margin-bottom: 48px; }
+  #record { --stage: 420px; }
   #record .sub { display: none; }
 }
 
@@ -714,7 +715,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <p class="sub">Every decision is sealed in a journal and posted to X by @moose, an automated account.</p>
     </div>
     <div class="record-grid">
-      <img class="desk" src="assets/moose-desk.webp" alt="MOOSE at a laptop, posting to X" width="1152" height="646" loading="lazy">
+      <img class="desk" src="assets/moose-desk.webp" alt="MOOSE at a laptop, posting to X" width="912" height="1000" loading="lazy">
       <div class="post-stage" id="postStage">
         <div class="ftw ftw-0"><div class="xtl"></div></div>
         <div class="ftw ftw-1"><div class="xtl"></div></div>
