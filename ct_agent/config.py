@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     muse_api_key: str = ""
     muse_base_url: str = "https://api.meta.ai/v1"
     muse_model: str = "muse-spark-1.3"
+    # tried in order when the main model answers model_not_found
+    muse_fallback_models: list[str] = Field(default_factory=lambda: ["muse-spark-1.2"])
     muse_timeout_s: float = 60.0
 
     # --- X --------------------------------------------------------------

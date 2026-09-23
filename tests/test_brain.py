@@ -33,3 +33,29 @@ def test_invalid_output_is_rejected_not_trusted():
 def test_render_pack_keeps_numbers_trusted():
     out = render_pack({"progress": 0.9, "evidence": [{"id": 2, "excerpt": "hi"}]})
     assert '"progress": 0.9' in out and "hi" in out.split("<untrusted_evidence>")[1]
+
+
+def test_falls_back_when_model_not_found():
+    import httpx
+    from ct_agent.brain.muse import openai_completer
+
+    seen = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        model = json.loads(req.content)["model"]
+        seen.append(model)
+        if model == "muse-spark-1.3":
+            return httpx.Response(404, json={"error": {"code": "model_not_found", "message": "not found"}})
+        return httpx.Response(200, json={"id": "x", "object": "chat.completion", "created": 0, "model": model,
+                                         "choices": [{"index": 0, "finish_reason": "stop",
+                                                      "message": {"role": "assistant", "content": '{"ok": 1}'}}]})
+
+    import openai
+    real = openai.OpenAI
+    openai.OpenAI = lambda **kw: real(**kw, http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+    try:
+        c = openai_completer("k", "http://fake/v1", "muse-spark-1.3", 10, fallback_models=["muse-spark-1.2"])
+        assert c("sys", "hi", {"type": "object"}, "n") == '{"ok": 1}'
+    finally:
+        openai.OpenAI = real
+    assert seen[0] == "muse-spark-1.3" and seen[-1] == "muse-spark-1.2" and c.last_model == "muse-spark-1.2"

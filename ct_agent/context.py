@@ -40,7 +40,8 @@ def build(settings: Settings | None = None, *, rpc_transport: httpx.BaseTranspor
     market = MarketData(dexscreener_chain=s.dexscreener_chain, gt_network=s.geckoterminal_network,
                         transport=market_transport)
     if completer is None and s.muse_api_key:
-        completer = openai_completer(s.muse_api_key, s.muse_base_url, s.muse_model, s.muse_timeout_s)
+        completer = openai_completer(s.muse_api_key, s.muse_base_url, s.muse_model, s.muse_timeout_s,
+                                     fallback_models=s.muse_fallback_models)
     brain = MuseBrain(completer, s.muse_model)
     x = XClient(bearer_token=s.x_bearer_token, user_token=s.x_user_access_token,
                 monthly_read_budget=s.x_monthly_read_budget, conn=conn, transport=x_transport)

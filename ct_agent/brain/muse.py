@@ -102,22 +102,34 @@ class MuseResult:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
-def openai_completer(api_key: str, base_url: str, model: str, timeout: float) -> Completer:
-    from openai import OpenAI
+def openai_completer(api_key: str, base_url: str, model: str, timeout: float,
+                     fallback_models: list[str] | None = None) -> Completer:
+    from openai import NotFoundError, OpenAI
 
     client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=2)
+    models = [model] + [m for m in (fallback_models or []) if m and m != model]
 
-    # Chat Completions: Meta's Responses endpoint stopped serving muse-spark-1.3
-    # (model_not_found) while chat kept working, and chat is also what
-    # OpenRouter and other OpenAI-compatible providers support.
+    # Chat Completions works with Meta Model API, OpenRouter and other
+    # OpenAI-compatible providers. muse-spark-1.3 intermittently answers
+    # model_not_found, so on that error the next model in the list is tried.
     def complete(instructions: str, input_text: str, schema: dict[str, Any], name: str) -> str:
-        resp = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": instructions}, {"role": "user", "content": input_text}],
-            response_format={"type": "json_schema", "json_schema": {"name": name, "schema": schema, "strict": True}},
-        )
-        return resp.choices[0].message.content or ""
+        for i, m in enumerate(models):
+            try:
+                resp = client.chat.completions.create(
+                    model=m,
+                    messages=[{"role": "system", "content": instructions}, {"role": "user", "content": input_text}],
+                    response_format={"type": "json_schema", "json_schema": {"name": name, "schema": schema, "strict": True}},
+                )
+            except NotFoundError:
+                if i == len(models) - 1:
+                    raise
+                log.warning("muse model %s unavailable, falling back to %s", m, models[i + 1])
+                continue
+            complete.last_model = m
+            return resp.choices[0].message.content or ""
+        raise RuntimeError("no muse model available")
 
+    complete.last_model = model
     return complete
 
 
@@ -141,10 +153,11 @@ class MuseBrain:
         except Exception as exc:  # network, auth, rate limit
             log.warning("muse call failed: %s", exc)
             return MuseResult(None, "", self.model, ph, error=f"muse call failed: {exc}")
+        used = getattr(self.completer, "last_model", self.model)  # records a fallback if one was used
         try:
-            return MuseResult(model_cls.model_validate(json.loads(raw)), raw, self.model, ph)
+            return MuseResult(model_cls.model_validate(json.loads(raw)), raw, used, ph)
         except (json.JSONDecodeError, ValidationError) as exc:
-            return MuseResult(None, raw, self.model, ph, error=f"invalid muse output: {exc}")
+            return MuseResult(None, raw, used, ph, error=f"invalid muse output: {exc}")
 
     def decide(self, pack: dict[str, Any]) -> MuseResult:
         return self._run(SYSTEM, pack, DECISION_SCHEMA, "trade_decision", MuseDecision)
