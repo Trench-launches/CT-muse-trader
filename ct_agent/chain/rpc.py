@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 def redact(url: str) -> str:
     """Hide the API key in provider URLs (…/v2/<key>) before it reaches a log."""
-    return re.sub(r"(/v\d+/)[^/?#\s]+", r"***", url)
+    return re.sub(r"(/v\d+/)[^/?#\s]+", r"\1***", url)
 
 
 class RpcError(RuntimeError):
