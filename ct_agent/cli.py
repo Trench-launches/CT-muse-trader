@@ -8,6 +8,7 @@
   ctagent kill on|off "reason"     stop switch
   ctagent verify-journal           recompute the journal hash chain
   ctagent twitch-subscribe <callback_url> [--bot-user-id ID]
+  ctagent x-login [--no-browser]   authorize posting as @moose (one time)
 """
 from __future__ import annotations
 
@@ -36,6 +37,8 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("state", choices=["on", "off"])
     k.add_argument("reason")
     sub.add_parser("verify-journal")
+    xl = sub.add_parser("x-login")
+    xl.add_argument("--no-browser", action="store_true")
     t = sub.add_parser("twitch-subscribe")
     t.add_argument("callback")
     t.add_argument("--bot-user-id")
@@ -68,11 +71,32 @@ def main(argv: list[str] | None = None) -> int:
         ok, bad = journal_verify(open_db(s.database_path))
         print("journal intact" if ok else f"journal TAMPERED at id {bad}")
         return 0 if ok else 2
+    elif args.cmd == "x-login":
+        return _x_login(s, open_browser=not args.no_browser)
     elif args.cmd == "twitch-subscribe":
         from .sources.twitch import TwitchApi
         api = TwitchApi(s.twitch_client_id, s.twitch_client_secret)
         for ch in s.twitch_channels:
             print(ch, api.subscribe_channel(ch, args.bot_user_id, args.callback, s.twitch_eventsub_secret))
+    return 0
+
+
+def _x_login(s, *, open_browser: bool) -> int:
+    """One-time consent as @moose. Saves the refresh token to .env (never printed)."""
+    from pathlib import Path
+
+    from .sources.x_oauth import XOAuth2, browser_login
+    if not s.x_client_id:
+        print("CT_X_CLIENT_ID is empty: add the OAuth 2.0 Client ID and Secret to .env first")
+        return 1
+    user, refresh = browser_login(XOAuth2(client_id=s.x_client_id, client_secret=s.x_client_secret),
+                                  open_browser=open_browser)
+    env = Path(".env")
+    lines = env.read_text(encoding="utf-8").splitlines() if env.exists() else []
+    lines = [ln for ln in lines if not ln.startswith("CT_X_REFRESH_TOKEN=")]
+    lines.append("CT_X_REFRESH_TOKEN=" + refresh)
+    env.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Connected as @{user}. Saved CT_X_REFRESH_TOKEN to .env; copy it to the server's variables.")
     return 0
 
 
@@ -109,8 +133,9 @@ def _check() -> int:
             report["x_read"] = f"FAILED {exc}"
     else:
         report["x_read"] = "not configured"
-    report["x_post"] = "configured (enabled)" if s.x_user_access_token and s.x_posting_enabled else \
-        ("configured (disabled)" if s.x_user_access_token else "not configured")
+    can_post = ctx.x.can_post
+    report["x_post"] = "configured (enabled)" if can_post and s.x_posting_enabled else \
+        ("configured (disabled)" if can_post else "not configured: run ctagent x-login")
     report["twitch"] = "configured" if s.twitch_client_id and s.twitch_eventsub_secret else "not configured"
     report["live_trading"] = "BLOCKED: " + "; ".join(ctx.live.blockers()) if ctx.live.blockers() else "READY"
     killed, why = ctx.risk.kill_active()

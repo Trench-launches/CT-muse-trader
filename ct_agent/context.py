@@ -15,6 +15,7 @@ from .execution.live import LiveExecutor
 from .execution.risk import RiskManager
 from .market.dex import MarketData
 from .sources.x_api import XClient
+from .sources.x_oauth import XOAuth2
 
 
 @dataclass
@@ -43,7 +44,9 @@ def build(settings: Settings | None = None, *, rpc_transport: httpx.BaseTranspor
         completer = openai_completer(s.muse_api_key, s.muse_base_url, s.muse_model, s.muse_timeout_s,
                                      fallback_models=s.muse_fallback_models)
     brain = MuseBrain(completer, s.muse_model)
-    x = XClient(bearer_token=s.x_bearer_token, user_token=s.x_user_access_token,
+    oauth = XOAuth2(client_id=s.x_client_id, client_secret=s.x_client_secret, conn=conn,
+                    seed_refresh_token=s.x_refresh_token, transport=x_transport) if s.x_client_id else None
+    x = XClient(bearer_token=s.x_bearer_token, user_token=s.x_user_access_token, oauth=oauth,
                 monthly_read_budget=s.x_monthly_read_budget, conn=conn, transport=x_transport)
     risk = RiskManager(s, conn)
     live = LiveExecutor(s, rpc, pons, conn, risk)

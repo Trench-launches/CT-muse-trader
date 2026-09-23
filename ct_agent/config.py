@@ -70,6 +70,17 @@ class Settings(BaseSettings):
     # --- X --------------------------------------------------------------
     x_bearer_token: str = ""        # app-only token for reads
     x_user_access_token: str = ""   # OAuth2 user token for posting
+    # OAuth 1.0a keys from the X developer portal (Consumer Key/Secret and the
+    # @moose Access Token/Secret). These don't expire, so posting never needs a re-login.
+    x_api_key: str = ""
+    x_api_secret: str = ""
+    x_access_token: str = ""
+    x_access_secret: str = ""
+    # OAuth 2.0 app credentials, only needed if the portal won't issue an access token
+    x_client_id: str = ""
+    x_client_secret: str = ""
+    # Written by `ctagent x-login`; the server seeds its token store from it
+    x_refresh_token: str = ""
     x_posting_enabled: bool = False
     x_daily_post_cap: int = 6
     x_max_reads_per_search: int = 50

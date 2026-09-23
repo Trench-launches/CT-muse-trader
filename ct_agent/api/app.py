@@ -84,7 +84,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "journal": {"entries": count("journal"), "chain_intact": ok, "first_bad_id": bad},
             "integrations": {
                 "rpc": s.rpc_url.split("/v2/")[0], "muse": bool(s.muse_api_key), "x_read": bool(s.x_bearer_token),
-                "x_post": bool(s.x_user_access_token) and s.x_posting_enabled,
+                "x_post": bool(s.x_user_access_token or (s.x_client_id and s.x_refresh_token)) and s.x_posting_enabled,
                 "twitch": bool(s.twitch_client_id and s.twitch_eventsub_secret), "news_feeds": len(s.news_feeds),
                 "live_trading_ready": s.trading_mode.value == "live" and s.live_execution_reviewed
                 and bool(s.trading_wallet_private_key),

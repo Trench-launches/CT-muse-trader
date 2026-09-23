@@ -37,9 +37,11 @@ class PostResult:
 
 class XClient:
     def __init__(self, *, bearer_token: str = "", user_token: str = "", monthly_read_budget: int = 20_000,
-                 conn: sqlite3.Connection | None = None, transport: httpx.BaseTransport | None = None):
+                 conn: sqlite3.Connection | None = None, transport: httpx.BaseTransport | None = None,
+                 oauth: Any = None):
         self.bearer = bearer_token
         self.user_token = user_token
+        self.oauth = oauth  # XOAuth2: refreshes the @moose posting token automatically
         self.budget = monthly_read_budget
         self.conn = conn
         self._http = httpx.Client(timeout=20, transport=transport)
@@ -113,11 +115,19 @@ class XClient:
 
     # --- writes -------------------------------------------------------------
 
+    @property
+    def can_post(self) -> bool:
+        return bool(self.user_token) or bool(self.oauth and self.oauth.configured)
+
     def create_post(self, text: str) -> PostResult:
-        if not self.user_token:
-            raise XNotConfigured("CT_X_USER_ACCESS_TOKEN not set")
+        if self.user_token:
+            token = self.user_token
+        elif self.oauth is not None:
+            token = self.oauth.access_token()  # raises XNotConfigured if the login is missing
+        else:
+            raise XNotConfigured("X posting not set up: run `ctagent x-login`")
         r = self._http.post(f"{API}/tweets", json={"text": text},
-                            headers={"authorization": f"Bearer {self.user_token}"})
+                            headers={"authorization": f"Bearer {token}"})
         r.raise_for_status()
         data = r.json()["data"]
         return PostResult(post_id=str(data["id"]), text=data.get("text", text))
