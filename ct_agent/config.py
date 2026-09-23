@@ -83,8 +83,8 @@ class Settings(BaseSettings):
     x_refresh_token: str = ""
     x_posting_enabled: bool = False
     x_daily_post_cap: int = 6
-    x_max_reads_per_search: int = 50
-    x_monthly_read_budget: int = 20_000
+    x_max_reads_per_search: int = 20
+    x_monthly_read_budget: int = 6_000
 
     # --- Twitch ---------------------------------------------------------
     twitch_client_id: str = ""

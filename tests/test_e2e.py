@@ -159,8 +159,24 @@ def test_muse_citing_unknown_evidence_is_gated(tmp_path):
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=_x_transport([]), completer=_muse(ids=[999]))
     index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
     assert d["action"] == "watch" and any("not provided" in g for g in d["gates"])
+
+
+def test_no_evidence_passes_without_calling_muse(tmp_path):
+    ch, hot, _ = _scenario()
+    muse = _muse()
+    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=muse)
+    index_once(ctx)
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert d["action"] == "pass" and muse.calls == []
+    row = rows(ctx.conn, "SELECT model, reasons FROM decisions WHERE token=?", (hot.token,))[0]
+    assert row["model"] == "rule" and "no source" in row["reasons"]
+    assert rows(ctx.conn, "SELECT COUNT(*) c FROM posts")[0]["c"] == 0
 
 
 def test_kill_switch_stops_new_decisions(tmp_path):

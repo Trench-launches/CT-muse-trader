@@ -14,6 +14,7 @@ from typing import Any
 
 from ..chain.abi import ZERO_ADDRESS
 from ..chain.pons import LaunchRecord, Phase
+from ..brain.muse import MuseDecision, MuseResult
 from ..context import Context
 from ..db import journal_append, journal_recent, kv_get, kv_set, rows, tx, utcnow
 from ..execution.live import LiveTradingBlocked
@@ -27,6 +28,7 @@ from .screen import Candidate, activity_for, screen_almost_bonded, screen_migrat
 log = logging.getLogger(__name__)
 ETH = 10**18
 BUY_GRADE_CONFIDENCE = ("verified", "first_party", "reported")
+NO_EVIDENCE = "no source mentions this token yet, so there is nothing to act on"
 
 
 @dataclass
@@ -182,7 +184,14 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     if _recent_decision(ctx, token):
         return {"token": token, "skipped": "cooldown"}
     pack = build_pack(ctx, a)
-    res = ctx.brain.decide(pack)
+    if pack["evidence"]:
+        res = ctx.brain.decide(pack)
+    else:
+        # No source mentions this token, so the evidence rule already makes it
+        # a pass. Recording that without asking Muse saves a paid call per token.
+        res = MuseResult(MuseDecision(action="pass", confidence=1.0, thesis="", reasons=[NO_EVIDENCE], risks=[],
+                                      evidence_ids=[], underfollowed=None, post_angle="", public_line=""),
+                         raw="", model="rule", prompt_hash="")
     gates: list[str] = []
     if res.decision is None:
         action, conf, thesis, reasons, risks, used = "watch", 0.0, "", [res.error or "no decision"], [], []
