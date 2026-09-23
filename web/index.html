@@ -175,7 +175,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: clamp(16px, 2.6vh, 26px); }
 .hero-stage { margin-top: clamp(18px, 3vh, 36px); flex: 1 1 auto; min-height: 200px; width: 100%; }
 .stage-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
-.hero-mascot { position: absolute; left: 50%; bottom: -3%; height: 104%; transform: translateX(-50%); mix-blend-mode: multiply; z-index: 2; pointer-events: none; }
+.hero-mascot { position: absolute; left: 50%; bottom: -3%; height: 104%; transform: translateX(-50%); z-index: 2; pointer-events: none; }
 .hero-mascot img { height: 100%; width: auto; max-width: none; animation: bob 4.8s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-8px) rotate(-1deg); } }
 .float { position: absolute; z-index: 3; padding: 12px 14px; border-radius: 16px; background: var(--white); box-shadow: var(--shadow); font-size: var(--t-sm); display: grid; gap: 6px; transition: transform .6s var(--ease); min-width: 0; }
@@ -228,7 +228,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes flow { to { stroke-dashoffset: -28; } }
 .hub { position: relative; z-index: 2; justify-self: center; text-align: center; }
 .hub .ring { width: clamp(120px, 12vw, 170px); aspect-ratio: 1; border-radius: 50%; background: var(--white); box-shadow: var(--shadow), 0 0 0 12px rgba(255,255,255,.55), 0 0 0 26px rgba(255,255,255,.3); display: grid; place-items: center; margin: 0 auto; overflow: hidden; }
-.hub .ring img { width: 128%; max-width: none; mix-blend-mode: multiply; transform: translateY(8%); }
+.hub .ring img { width: 128%; max-width: none; transform: translateY(8%); }
 .hub p { margin-top: 18px; font-family: var(--f-mono); font-size: 12.5px; color: var(--ink-2); }
 .lead { position: relative; z-index: 2; background: var(--white); border-radius: var(--r-card); box-shadow: var(--shadow); padding: 20px; }
 .lead h4 { font-size: var(--t-xl); margin: 10px 0 6px; }
@@ -242,21 +242,32 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .verify .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
 .verify-panel { padding: clamp(20px, 3vw, 40px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; align-items: center; height: clamp(340px, var(--fit), 600px); }
 .token-card { position: relative; z-index: 2; padding: 22px; }
-.token-card .top { display: flex; align-items: center; gap: 12px; }
+.token-card .top { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .token-av { width: 50px; height: 50px; position: relative; flex: none; }
 .token-av .rh { position: absolute; right: -4px; bottom: -4px; font-size: 11px; box-shadow: 0 0 0 2px var(--white); }
 .token-card h4 { font-size: var(--t-xl); }
-.token-card small { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
-.stamps { display: grid; gap: 8px; margin-top: 18px; }
-.stamp { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 12px; background: var(--surface); font-size: 14.5px; transition: background .3s, transform .35s var(--spring); }
-.stamp .si { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--white); color: var(--ink-2); flex: none; transition: all .3s var(--spring); }
-.stamp .si > .ic { width: 16px; height: 16px; vertical-align: 0; }
-.stamp .si .rh { font-size: 13px; }
-.stamp.pass { background: var(--green-soft); } .stamp.pass .si { background: var(--green); color: var(--white); transform: scale(1.08); }
-.stamp.fail { background: var(--coral-soft); animation: shake .4s; } .stamp.fail .si { background: var(--coral); color: var(--white); }
-.stamp.skip { opacity: .4; }
+.heard { display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 13px; color: var(--ink-2); }
+.heard .src-ic { width: 20px; height: 20px; border-radius: 6px; }
+.heard .src-ic .ic { width: 11px; height: 11px; }
+.stamps { display: grid; margin-top: 6px; }
+.stamp { display: grid; grid-template-columns: 36px minmax(0, 1fr) 24px; align-items: center; gap: 14px; padding: 11px 0; font-size: 15px; transition: opacity .3s; }
+.stamp + .stamp { border-top: 1px solid var(--line); }
+.stamp .si { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); transition: background .3s, color .3s; }
+.stamp .si > .ic { width: 17px; height: 17px; vertical-align: 0; }
+.stamp .si .rh { font-size: 14px; }
+.stamp .stt { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 2px var(--line); color: var(--white); transition: background .3s, box-shadow .3s, transform .35s var(--spring); }
+.stamp .stt .ic { width: 13px; height: 13px; vertical-align: 0; }
+.stamp.pass .stt { background: var(--blue); box-shadow: none; transform: scale(1.08); }
+.stamp.fail .stt { background: var(--coral); box-shadow: none; }
+.stamp.fail .si { background: var(--coral-soft); color: var(--coral); }
+.stamp.fail { animation: shake .4s; }
+.stamp.skip { opacity: .35; }
 @keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
-.verdict { margin-top: 14px; font-size: 14px; min-height: 2.8em; }
+.verdict { margin-top: 12px; font-size: 14px; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface); color: var(--ink-2); min-height: 48px; transition: background .3s, color .3s; }
+.verdict .ic { width: 18px; height: 18px; vertical-align: 0; flex: none; }
+.verdict b { color: var(--ink); }
+.verdict.ok { background: var(--blue-soft); color: var(--blue-deep); } .verdict.ok b { color: var(--blue-deep); }
+.verdict.no { background: var(--coral-soft); color: var(--ink); } .verdict.no .ic, .verdict.no b { color: var(--coral); }
 .pile { position: relative; z-index: 2; background: rgba(255,255,255,.92); border-radius: var(--r-card); box-shadow: var(--shadow); padding: 14px 16px 6px; }
 .pile-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
 .pile-h h5 { margin: 0; font-family: var(--f-body); font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
@@ -350,14 +361,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pring span { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--f-mono); font-size: 11.5px; font-weight: 500; }
 body.killed .pring .fg { stroke: var(--ink-3); }
 /* holding */
-.hold { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.hold b { font-weight: 700; font-size: 15px; }
-.hold .spk { width: 100%; height: 38px; overflow: visible; }
-.hold .pl { font-family: var(--f-display); font-size: clamp(26px, 2.4vw, 34px); letter-spacing: -0.04em; line-height: 1; text-align: right; min-width: 3.4ch; }
-.hold-total { display: flex; align-items: baseline; gap: 10px; }
-.hold-total .big { font-family: var(--f-display); font-size: clamp(34px, 3.4vw, 48px); letter-spacing: -0.05em; line-height: 1; }
-.hold-total small { color: var(--ink-3); font-size: 13px; }
-.up { color: var(--green); } .down { color: var(--coral); }
+.ptile { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "coin name pl" "spark spark spark"; align-items: center; gap: 8px 12px; padding: 14px; border-radius: 18px; background: var(--surface); border: 1px solid transparent; transition: border-color .2s, transform .3s var(--spring); }
+.ptile:hover { border-color: var(--line); transform: translateY(-2px); }
+.ptile .coinav { grid-area: coin; }
+.ptile .nm { grid-area: name; min-width: 0; }
+.ptile .nm b { display: block; font-weight: 700; font-size: 15px; }
+.ptile .nm small { font-size: 12.5px; color: var(--ink-3); }
+.ptile .plp { grid-area: pl; font-family: var(--f-display); font-weight: 500; font-size: 20px; letter-spacing: -0.02em; padding: 4px 12px; border-radius: var(--r-pill); }
+.ptile.up .plp { background: var(--green-soft); color: var(--green); }
+.ptile.down .plp { background: var(--coral-soft); color: var(--coral); }
+.ptile .spk { grid-area: spark; width: 100%; height: 34px; overflow: visible; }
 /* posting */
 .lc .xtl { border-color: var(--line); }
 #nextPost { margin-block: auto; }
@@ -459,7 +472,7 @@ body.killed .kill { background: var(--coral-soft); }
 .cta-panel h2 { font-size: var(--t-h2); position: relative; z-index: 2; }
 .cta-panel .sub { position: relative; z-index: 2; }
 .cta-panel .ctas { justify-content: flex-start; position: relative; z-index: 2; }
-.cta-mascot { position: relative; z-index: 2; justify-self: center; height: clamp(200px, 38vh, 380px); mix-blend-mode: multiply; }
+.cta-mascot { position: relative; z-index: 2; justify-self: center; height: clamp(200px, 38vh, 380px); }
 .cta-mascot img { height: 100%; width: auto; max-width: none; transition: transform .5s var(--spring); }
 .cta-panel:hover .cta-mascot img { transform: rotate(-5deg) scale(1.04); }
 footer { padding-block: 32px 40px; font-size: 13.5px; color: var(--ink-2); }
@@ -624,14 +637,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     </div>
     <div class="panel verify-panel" style="background:var(--panel-cool)">
       <div class="card token-card">
-        <div class="top"><span class="token-av"><span class="coinav" data-coin="blue" style="width:50px;height:50px"></span><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><div><h4 id="tkAddr">0x47a3…94d4</h4><small id="tkSrc">heard on a Twitch stream</small></div></div>
+        <div class="top"><span class="token-av"><span class="coinav" data-coin="blue" style="width:50px;height:50px"></span><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><div><h4 id="tkAddr">0x47a3…94d4</h4><span class="heard"><span class="src-ic" id="tkIc" style="background:#9146FF"><svg class="ic"><use href="#b-twitch"/></svg></span><span id="tkSrc">Heard on a Twitch stream</span></span></div></div>
         <div class="stamps" id="stamps">
-          <div class="stamp"><span class="si"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span>On Robinhood Chain, not another chain</div>
-          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-factory"/></svg></span>A real launch from the Pons factory</div>
-          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-droplets"/></svg></span>Trading in the genuine pool, not a copycat</div>
-          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-newspaper"/></svg></span>Backed by an independent source</div>
+          <div class="stamp"><span class="si"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><span>On Robinhood Chain</span><span class="stt"></span></div>
+          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-factory"/></svg></span><span>Launched by the Pons factory</span><span class="stt"></span></div>
+          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-droplets"/></svg></span><span>Genuine pool, not a copycat</span><span class="stt"></span></div>
+          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-newspaper"/></svg></span><span>Backed by an independent source</span><span class="stt"></span></div>
         </div>
-        <p class="verdict" id="verdict" aria-live="polite">Press the button to run the checks.</p>
+        <p class="verdict" id="verdict" aria-live="polite"><svg class="ic"><use href="#i-shield-check"/></svg><span>Four checks before anything reaches the AI.</span></p>
       </div>
       <div class="pile"><div class="pile-h"><h5>Recent results</h5><small id="pileCount">5 of 1,284 today</small></div><div id="pile"></div></div>
     </div>
@@ -672,7 +685,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       </article>
       <article class="lc">
         <div class="lc-h"><h4><span class="ic-b"><svg class="ic"><use href="#i-wallet"/></svg></span>Holding</h4><span class="pill sand">paper</span></div>
-        <div class="hold-total"><span class="big up" id="holdTotal">+0.0%</span><small>on 0.10 ETH</small></div>
         <div id="posList" style="display:grid;gap:10px"></div>
         <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> 0x7a3f…c19e</span><span>2 of 3 slots</span></div>
       </article>
@@ -892,15 +904,17 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const runLead = async () => {
     if (running) return; running = true; runBtn.disabled = true;
     const L = leads[li++ % leads.length], wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
-    $("#tkAddr").textContent = L.a; $("#tkSrc").textContent = "heard on " + L.src.replace(/^heard on /, "");
-    stamps.forEach((s, i) => { s.className = "stamp"; s.querySelector(".si").innerHTML = stampIcons[i]; });
-    verdict.textContent = "Checking…";
+    $("#tkAddr").textContent = L.a; const SRCI = { x: [B("x"), "#000"], tw: [B("twitch"), "#9146FF"], news: [I("newspaper"), "#0064E0"] }[L.k];
+    $("#tkIc").innerHTML = SRCI[0]; $("#tkIc").style.background = SRCI[1];
+    $("#tkSrc").textContent = { "heard on a Twitch stream": "Heard on a Twitch stream", "posted on X": "Posted on X", "stream chat": "Said in Twitch chat", "5 posts on X": "5 posts on X", "a news article": "In a news article" }[L.src] || L.src;
+    stamps.forEach(s => { s.className = "stamp"; s.querySelector(".stt").innerHTML = ""; });
+    verdict.className = "verdict"; verdict.innerHTML = `${I("shield-check")}<span>Checking…</span>`;
     for (let i = 0; i < 4; i++) {
       await wait(520);
-      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".si").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.innerHTML = `<b>Stopped at check ${i + 1}.</b> ${L.why}. It will never reach the AI.`; break; }
-      stamps[i].className = "stamp pass"; stamps[i].querySelector(".si").innerHTML = I("check");
+      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".stt").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.className = "verdict no"; verdict.innerHTML = `${I("circle-stop")}<span><b>Stopped.</b> ${L.why}. It never reaches the AI.</span>`; break; }
+      stamps[i].className = "stamp pass"; stamps[i].querySelector(".stt").innerHTML = I("check");
     }
-    if (L.fail === -1) verdict.innerHTML = "<b>Passed all four.</b> Now it's allowed into MOOSE's briefing.";
+    if (L.fail === -1) { verdict.className = "verdict ok"; verdict.innerHTML = `${I("shield-check")}<span><b>All four passed.</b> Sent to the AI.</span>`; }
     addPile(L); checkedToday++; $("#pileCount").textContent = `${pile.children.length} of ${fmt(checkedToday)} today`; running = false; runBtn.disabled = false;
   };
   runBtn.addEventListener("click", runLead);
@@ -958,18 +972,16 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     { s: "ANONPAD", p: 100, st: "graduated", c: "white" }, { s: "JOLLY", p: 88, st: "passed", c: "beige" },
   ];
   const positions = [
-    { s: "HATCH", entry: .05, c: "blue", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
-    { s: "MOSS", entry: .05, c: "beige", hist: [.05, .0492, .0488, .0495, .0479, .0468, .0472, .0455, .0449, .0437] },
+    { s: "HATCH", entry: .05, c: "blue", age: "18m", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
+    { s: "MOSS", entry: .05, c: "beige", age: "3h", hist: [.05, .0492, .0488, .0495, .0479, .0468, .0472, .0455, .0449, .0437] },
   ];
   const RC = 2 * Math.PI * 19;
-  const spark = h => { const mn = Math.min(...h), mx = Math.max(...h), W = 120, H = 38, up = h.at(-1) >= h[0];
+  const spark = (h, up) => { const mn = Math.min(...h), mx = Math.max(...h), W = 120, H = 34;
     const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
     return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
     $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, w.c === "white")}<div><b>$${w.s}</b><small class="${w.st === "bought" ? "bought" : ""}">${w.st}</small></div><div class="pring ${w.p >= 100 ? "done" : ""}"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19" stroke-dasharray="${RC}" stroke-dashoffset="${RC * (1 - w.p / 100)}"/></svg><span>${w.p}%</span></div></div>`).join("");
-    $("#posList").innerHTML = positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100; return `<div class="hold">${coinAv(p.c, 32)}<div><b>$${p.s}</b>${spark(p.hist)}</div><span class="pl ${pl >= 0 ? "up" : "down"}">${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%</span></div>`; }).join("");
-    const inv = positions.reduce((a, p) => a + p.entry, 0), now = positions.reduce((a, p) => a + p.hist.at(-1), 0), tot = (now / inv - 1) * 100;
-    const ht = $("#holdTotal"); ht.textContent = `${tot >= 0 ? "+" : ""}${tot.toFixed(1)}%`; ht.className = "big " + (tot >= 0 ? "up" : "down");
+    $("#posList").innerHTML = positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(2)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
   };
   renderLive();
   $("#nextPost").innerHTML = `<div class="xtl">${xPost({ t: "2m", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." })}</div>`;
