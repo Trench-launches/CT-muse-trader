@@ -5,9 +5,11 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY ct_agent ./ct_agent
-RUN pip install --no-cache-dir . && useradd -m -u 10001 agent && mkdir -p /app/data && chown agent /app/data
+RUN pip install --no-cache-dir . && mkdir -p /app/data
 
-USER agent
-VOLUME ["/app/data"]
+# Persistent data lives in /app/data. On Railway, attach a volume there (Railway
+# rejects the Dockerfile VOLUME keyword); with docker compose it's a named volume.
+# Runs as root because Railway mounts volumes as root.
 EXPOSE 8000
-CMD ["ctagent", "api", "--host", "0.0.0.0", "--port", "8000"]
+# Every worker plus the API, each in its own supervised process.
+CMD ["ctagent", "run-all"]

@@ -4,6 +4,7 @@ outage in one (e.g. X down) cannot stop or corrupt another (e.g. trading).
 from __future__ import annotations
 
 import logging
+import os
 import signal
 import subprocess
 import sys
@@ -92,9 +93,15 @@ def run_all() -> None:
     def start(n: str) -> None:
         procs[n] = subprocess.Popen([sys.executable, "-m", "ct_agent.cli", "run", n])
 
+    # On a host like Railway the platform sets PORT and the API must listen on
+    # all interfaces; locally it stays on 127.0.0.1:8000.
+    api_cmd = [sys.executable, "-m", "ct_agent.cli", "api",
+               "--host", os.environ.get("CT_API_HOST", "0.0.0.0" if "PORT" in os.environ else "127.0.0.1"),
+               "--port", os.environ.get("PORT", "8000")]
+
     for n in WORKERS:
         start(n)
-    procs["api"] = subprocess.Popen([sys.executable, "-m", "ct_agent.cli", "api"])
+    procs["api"] = subprocess.Popen(api_cmd)
     signal.signal(signal.SIGINT, _handle_stop)
     signal.signal(signal.SIGTERM, _handle_stop)
     try:
@@ -104,7 +111,7 @@ def run_all() -> None:
                     log.warning("process %s exited with %s; restarting in 5s", n, p.returncode)
                     time.sleep(5)
                     if n == "api":
-                        procs[n] = subprocess.Popen([sys.executable, "-m", "ct_agent.cli", "api"])
+                        procs[n] = subprocess.Popen(api_cmd)
                     else:
                         start(n)
             time.sleep(2)
