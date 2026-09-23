@@ -1,4 +1,4 @@
-"""Muse Spark via Meta Model API (OpenAI-compatible Responses API).
+"""Muse Spark via Meta Model API (OpenAI-compatible Chat Completions).
 
 Muse only ever sees the briefing pack we build. It keeps nothing between
 calls: "memory" is the journal excerpts we retrieve and include each time.
@@ -107,15 +107,16 @@ def openai_completer(api_key: str, base_url: str, model: str, timeout: float) ->
 
     client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=2)
 
+    # Chat Completions: Meta's Responses endpoint stopped serving muse-spark-1.3
+    # (model_not_found) while chat kept working, and chat is also what
+    # OpenRouter and other OpenAI-compatible providers support.
     def complete(instructions: str, input_text: str, schema: dict[str, Any], name: str) -> str:
-        resp = client.responses.create(
+        resp = client.chat.completions.create(
             model=model,
-            instructions=instructions,
-            input=input_text,
-            store=False,
-            text={"format": {"type": "json_schema", "name": name, "schema": schema, "strict": True}},
+            messages=[{"role": "system", "content": instructions}, {"role": "user", "content": input_text}],
+            response_format={"type": "json_schema", "json_schema": {"name": name, "schema": schema, "strict": True}},
         )
-        return resp.output_text
+        return resp.choices[0].message.content or ""
 
     return complete
 
