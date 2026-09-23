@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # --- Robinhood Chain ------------------------------------------------
     chain_id: int = 4663
     rpc_url: str = "https://rpc.mainnet.chain.robinhood.com"  # public, rate limited
+    # Log scans (eth_getLogs). Alchemy free tier allows only 10 blocks per query,
+    # so by default these go to the public node, which allows 10,000 logs per query.
+    logs_rpc_url: str = "https://rpc.mainnet.chain.robinhood.com"
     explorer_url: str = "https://robinhoodchain.blockscout.com"
     pons_v2_factory: str = "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e"
     # First block to index from. 0 means "start near head" on first run.

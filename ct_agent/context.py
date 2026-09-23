@@ -35,7 +35,7 @@ def build(settings: Settings | None = None, *, rpc_transport: httpx.BaseTranspor
           completer=None) -> Context:
     s = settings or get_settings()
     conn = open_db(s.database_path)
-    rpc = RpcClient(s.rpc_url, timeout=s.rpc_timeout_s, transport=rpc_transport)
+    rpc = RpcClient(s.rpc_url, timeout=s.rpc_timeout_s, transport=rpc_transport, logs_url=s.logs_rpc_url or None)
     pons = PonsV2(rpc, s.pons_v2_factory, log_chunk=s.log_chunk_blocks)
     market = MarketData(dexscreener_chain=s.dexscreener_chain, gt_network=s.geckoterminal_network,
                         transport=market_transport)

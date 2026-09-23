@@ -7,12 +7,18 @@ from __future__ import annotations
 
 import itertools
 import logging
+import re
 import time
 from typing import Any
 
 import httpx
 
 log = logging.getLogger(__name__)
+
+
+def redact(url: str) -> str:
+    """Hide the API key in provider URLs (…/v2/<key>) before it reaches a log."""
+    return re.sub(r"(/v\d+/)[^/?#\s]+", r"***", url)
 
 
 class RpcError(RuntimeError):
@@ -24,8 +30,11 @@ class RpcError(RuntimeError):
 
 class RpcClient:
     def __init__(self, url: str, *, timeout: float = 20.0, retries: int = 4,
-                 transport: httpx.BaseTransport | None = None):
+                 transport: httpx.BaseTransport | None = None, logs_url: str | None = None):
         self.url = url
+        # eth_getLogs can go to a different node: Alchemy's free tier caps log
+        # queries at 10 blocks (about one second of Robinhood Chain).
+        self.logs_url = logs_url or url
         self.retries = retries
         self._ids = itertools.count(1)
         self._http = httpx.Client(timeout=timeout, transport=transport)
@@ -33,19 +42,29 @@ class RpcClient:
     def close(self) -> None:
         self._http.close()
 
-    def request(self, method: str, params: list[Any]) -> Any:
+    def request(self, method: str, params: list[Any], url: str | None = None) -> Any:
+        target = url or self.url
         payload = {"jsonrpc": "2.0", "id": next(self._ids), "method": method, "params": params}
         delay = 1.0
         for attempt in range(self.retries + 1):
             try:
-                resp = self._http.post(self.url, json=payload)
+                resp = self._http.post(target, json=payload)
                 if resp.status_code == 429 or resp.status_code >= 500:
                     raise httpx.HTTPStatusError("retryable", request=resp.request, response=resp)
-                resp.raise_for_status()
+                if resp.status_code >= 400:
+                    # Providers report limits (e.g. block-range caps) as 4xx with a
+                    # JSON-RPC error body; surface the message so callers can adapt.
+                    try:
+                        err = resp.json().get("error") or {}
+                    except ValueError:
+                        err = {}
+                    raise RpcError(err.get("message") or f"{method}: HTTP {resp.status_code} from {redact(target)}",
+                                   err.get("code"), err.get("data"))
                 body = resp.json()
             except (httpx.TransportError, httpx.HTTPStatusError) as exc:
                 if attempt == self.retries:
-                    raise RpcError(f"{method} failed after retries: {exc}") from exc
+                    status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else type(exc).__name__
+                    raise RpcError(f"{method} failed after retries ({status}) from {redact(target)}") from None
                 time.sleep(delay)
                 delay *= 2
                 continue
@@ -74,7 +93,7 @@ class RpcClient:
                     break
                 except (httpx.TransportError, httpx.HTTPStatusError) as exc:
                     if attempt == self.retries:
-                        raise RpcError(f"batch failed after retries: {exc}") from exc
+                        raise RpcError(f"batch failed after retries from {redact(self.url)}") from None
                     time.sleep(delay)
                     delay *= 2
             if isinstance(body, dict):  # provider rejected batching: fall back
@@ -138,7 +157,7 @@ class RpcClient:
         f: dict[str, Any] = {"topics": topics, "fromBlock": hex(from_block), "toBlock": hex(to_block)}
         if address:
             f["address"] = address
-        return self.request("eth_getLogs", [f])
+        return self.request("eth_getLogs", [f], url=self.logs_url)
 
     def get_logs_chunked(self, *, address: str | list[str] | None, topics: list[Any], from_block: int,
                          to_block: int, chunk: int) -> list[dict[str, Any]]:
