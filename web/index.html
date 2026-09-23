@@ -168,12 +168,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (max-width: 520px) { .nav-right .btn { display: none; } }
 
 /* ---------- 1 HERO ---------- */
-.hero { height: calc(100svh - 64px); min-height: 560px; max-height: 1040px; padding-block: clamp(20px, 4.5vh, 56px) var(--sec-pad); display: flex; }
+.hero { min-height: calc(100svh - 64px); max-height: 1200px; padding-block: clamp(20px, 4.5vh, 56px) var(--sec-pad); display: flex; }
 .hero .wrap { display: flex; flex-direction: column; align-items: center; }
 .hero h1 { font-size: var(--t-h1); margin-top: 14px; }
 .hero .sub { margin-top: 16px; }
 .ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: clamp(16px, 2.6vh, 26px); }
-.hero-stage { margin-top: clamp(18px, 3vh, 36px); flex: 1 1 auto; min-height: 200px; width: 100%; }
+.hero-stage { margin-top: clamp(18px, 3vh, 36px); flex: 1 1 auto; min-height: clamp(300px, 38vh, 460px); width: 100%; }
 .stage-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
 .hero-mascot { position: absolute; left: 50%; bottom: -3%; height: 104%; transform: translateX(-50%); z-index: 2; pointer-events: none; }
 .hero-mascot img { height: 100%; width: auto; max-width: none; animation: bob 4.8s ease-in-out infinite; transform-origin: 50% 100%; }
@@ -514,7 +514,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .h2 { margin-top: 10px; }
   .hero h1 { font-size: clamp(40px, 8.4vh, 96px); }
   .hero .sub { margin-top: 10px; }
-  .hero-stage { min-height: 150px; }
+  .hero-stage { min-height: 280px; }
   .listen-panel { margin-top: 10px; }
   .post-stage { height: 400px; margin-bottom: 48px; }
   #record .sub { display: none; }
