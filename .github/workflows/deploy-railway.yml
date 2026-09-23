@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Railway CLI (retries: the release download sometimes drops)
+      - name: "Install Railway CLI (retried, the release download sometimes drops)"
         run: |
           for i in 1 2 3 4; do npm install -g @railway/cli && exit 0; echo "retry $i"; sleep $((i * 10)); done
           exit 1
