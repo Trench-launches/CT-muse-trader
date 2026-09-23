@@ -41,6 +41,12 @@ def _fit(parts_required: list[str], optional: list[str]) -> str:
     return body[:LIMIT]
 
 
+def _s(text: str) -> str:
+    """One sentence ending in exactly one full stop (the AI's text may already end in one)."""
+    text = text.strip().rstrip(".").strip()
+    return f"{text}." if text and text[-1] not in "!?" else text
+
+
 def _short(addr: str) -> str:
     return addr  # full address: readers must be able to verify the exact contract
 
@@ -63,7 +69,7 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
         else "after migration to its Pons V4 pool"
     required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain: {size} @ {entry}. CA {_short(token)}."]
     optional = [
-        f"Risk: {risk}.",
+        f"Risk: {_s(risk)}",
         f"Saw {catalyst} {stage}, buys accelerating over {window}.",
         "Not onchain, simulated fill." if mode == "paper" else "",
         "I'll log the exit too.",
@@ -78,20 +84,20 @@ def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, exit_price
     verb = "PAPER SOLD" if mode == "paper" else "SOLD"
     result = f"{'+' if pnl_pct >= 0 else ''}{pnl_pct:.1f}%"
     required = [f"{verb} ${symbol} @ {exit_price}, {result}. CA {_short(token)}."]
-    optional = [f"Why: {reason}.", "Loss logged, not hidden." if pnl_pct < 0 else "",
+    optional = [f"Why: {_s(reason)}", "Loss logged, not hidden." if pnl_pct < 0 else "",
                 "Simulated, not onchain." if mode == "paper" else ""]
     return Draft("trade_exit", _fit(required, optional), token, f"exit:{mode}:{position_id}")
 
 
 def pass_note(*, symbol: str, token: str, reason: str, decision_id: int) -> Draft:
-    return Draft("pass", _fit([f"Passing on ${symbol} ({_short(token)})."], [f"{reason}."]), token,
+    return Draft("pass", _fit([f"Passing on ${symbol} ({_short(token)})."], [_s(reason)]), token,
                  f"pass:{decision_id}")
 
 
 def watch_note(*, symbol: str, token: str, thesis: str, risk: str, decision_id: int, holds: bool = False,
                mode: str = "paper") -> Draft:
     return Draft("watch", _fit([f"Watching ${symbol} on Robinhood Chain. CA {_short(token)}."],
-                               [f"{thesis}.", f"What would make me wrong: {risk}.",
+                               [_s(thesis), f"What would make me wrong: {_s(risk)}",
                                 disclosure(holds=holds, mode=mode, own_token=False)]), token, f"watch:{decision_id}")
 
 

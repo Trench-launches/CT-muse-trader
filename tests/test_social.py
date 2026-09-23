@@ -79,3 +79,8 @@ def test_crash_recovery_marks_unknown(db):
     db.execute("UPDATE posts SET status='sending'")
     assert recover_interrupted(db) == 1
     assert rows(db, "SELECT status FROM posts")[0]["status"] == "unknown"
+
+
+def test_no_double_full_stops():
+    d = compose.pass_note(symbol="T", token=CA, reason="No real news is driving this.", decision_id=1)
+    assert ".." not in d.body and d.body.endswith("No real news is driving this.")
