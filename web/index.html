@@ -489,7 +489,7 @@ body.killed .kill { background: var(--coral-soft); }
 .cta-mascot { position: relative; z-index: 2; justify-self: center; height: clamp(200px, 38vh, 380px); }
 .cta-mascot img { height: 100%; width: auto; max-width: none; transition: transform .5s var(--spring); }
 .cta-panel:hover .cta-mascot img { transform: rotate(-5deg) scale(1.04); }
-footer { padding-block: 32px 40px; font-size: 13.5px; color: var(--ink-2); }
+footer { padding-block: 0 40px; /* the section above already provides the gap */ font-size: 13.5px; color: var(--ink-2); }
 footer .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 40px; border-top: 1px solid var(--line); padding-top: 28px; }
 footer nav { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
 footer nav a { text-decoration: none; } footer nav a:hover { color: var(--blue); }
