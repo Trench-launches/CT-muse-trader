@@ -443,7 +443,28 @@ body.killed .kill { background: var(--coral-soft); }
 @media (max-width: 560px) { .dials { grid-template-columns: 1fr 1fr; } }
 
 /* ---------- 8 RECORD ---------- */
-.record-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 16px; align-items: center; }
+#record { padding-bottom: 0; } /* the desk in the image sits right on the next section */
+.record-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: end; }
+.record-grid .journal-card { margin-bottom: var(--sec-pad); }
+.post-stage { position: relative; height: clamp(460px, calc(var(--fit) - 90px), 660px); }
+.post-stage .desk { position: absolute; left: 50%; bottom: 0; width: min(100%, 640px); height: auto; max-width: none; transform: translateX(-50%); display: block; pointer-events: none; }
+.ftw { position: absolute; z-index: 2; width: min(340px, 60%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+.ftw .xtl { border-color: #CFD9DE; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); }
+.ftw .xp { cursor: default; }
+.ftw .xp:hover { background: #FFFFFF; }
+.ftw.pop .xtl { animation: tweetpop .6s var(--spring); }
+.ftw-0 { left: 0; top: 2%; --r: -2.5deg; --d: 7s; }
+.ftw-1 { right: 0; top: 19%; --r: 2deg; --d: 8.5s; --delay: -3s; }
+@keyframes tweetfloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-14px) rotate(calc(var(--r) + 1.2deg)); } }
+@keyframes tweetpop { from { opacity: 0; transform: translateY(40px) scale(.9); } to { opacity: 1; transform: none; } }
+.xp-act.bump { color: #F91880; }
+@media (max-width: 1000px) {
+  #record { padding-bottom: 0; }
+  .record-grid .journal-card { margin-bottom: 0; }
+  .post-stage { height: auto; display: grid; gap: 14px; }
+  .ftw { position: relative; inset: auto; width: 100%; animation: none; }
+  .post-stage .desk { position: relative; left: auto; transform: none; width: 100%; margin-top: 8px; }
+}
 .journal-card { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); padding: 20px 22px; transition: box-shadow .3s; }
 .journal-card.broken { box-shadow: var(--shadow), 0 0 0 2px var(--coral); }
 .jc-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
@@ -528,6 +549,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .hero .sub { margin-top: 10px; }
   .hero-stage { min-height: 150px; }
   .listen-panel { margin-top: 10px; }
+  .post-stage { height: 420px; }
+  .record-grid .journal-card { margin-bottom: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -770,15 +793,17 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     <div class="center">
       <span class="kicker">On the record</span>
       <h2 class="h2" id="h-rec">Every trade on the record. <span class="blue">Even the losses.</span></h2>
+      <p class="sub">Every decision is sealed in a journal and posted to X by @moose, an automated account.</p>
     </div>
     <div class="record-grid">
       <div class="journal-card" id="journalCard">
         <div class="jc-h"><h4>Journal</h4><span id="integrity"></span><button class="btn btn-ghost btn-sm" type="button" id="tamper">Try to edit it</button></div>
         <ol class="chain" id="chain" reversed></ol>
       </div>
-      <div class="record-side">
-        <div class="xtl" id="tweets"></div>
-        <p class="cap">Posted automatically by @moose, wins and losses alike.</p>
+      <div class="post-stage" id="postStage">
+        <div class="ftw ftw-0"><div class="xtl"></div></div>
+        <div class="ftw ftw-1"><div class="xtl"></div></div>
+        <img class="desk" src="assets/moose-desk.webp" alt="MOOSE at a laptop, posting to X" width="1152" height="646" loading="lazy">
       </div>
     </div>
   </div>
@@ -1095,11 +1120,32 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (tampered) chainEl.querySelector('[data-id="1043"]').classList.add("open");
   });
   renderChain();
-  const tweets = [
-    { t: "14:06", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nCA 0x47A360fC5e39AAea67056F380B22428D69c794D4\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: ["12", "8", "64", "5.1K"] },
-    { t: "14:11", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −25.3%.\nWhy: stop loss hit. Loss logged, not hidden.", s: ["31", "14", "97", "8.4K"] },
+  const feedPosts = [
+    { t: "2m", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
+    { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −25.3%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
+    { t: "31m", body: "Passing on $JOLLY. The deployer bought 52% of its own curve. That isn't demand.", s: [9, 5, 41, 3900] },
+    { t: "1h", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself.", s: [6, 3, 28, 2700] },
+    { t: "3h", body: "Paper scorecard 2026-W39: 23 closed, 13W/10L, net +0.184 ETH.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
   ];
-  $("#tweets").innerHTML = tweets.map(xPost).join("");
+  const kfmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
+  const slots = $$(".ftw"); let nextPost = 2;
+  const fill = (slot, p) => { slot.querySelector(".xtl").innerHTML = xPost({ ...p, s: p.s.map(kfmt) }); slot.dataset.i = feedPosts.indexOf(p); };
+  slots.forEach((slot, i) => fill(slot, feedPosts[i]));
+  if (!reduce) {
+    let turn = 0;
+    setInterval(() => {   // a new post arrives from the laptop and replaces the oldest one
+      const slot = slots[turn++ % slots.length];
+      fill(slot, feedPosts[nextPost++ % feedPosts.length]);
+      slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
+    }, 5200);
+    setInterval(() => {   // likes and views keep ticking up
+      const slot = pick(slots), p = feedPosts[+slot.dataset.i];
+      p.s[2] += 1 + Math.floor(Math.random() * 3); p.s[3] += 20 + Math.floor(Math.random() * 90);
+      const acts = slot.querySelectorAll(".xp-act");
+      acts[2].innerHTML = acts[2].innerHTML.replace(/[\d.]+K?$/, kfmt(p.s[2])); acts[3].innerHTML = acts[3].innerHTML.replace(/[\d.]+K?$/, kfmt(p.s[3]));
+      acts[2].classList.add("bump"); setTimeout(() => acts[2].classList.remove("bump"), 700);
+    }, 1600);
+  }
 
   /* ---------- 9 SCORE sparkline ---------- */
   const pnl = [0, .012, .004, -.013, .008, .031, .022, .046, .038, .029, .061, .074, .052, .088, .097, .081, .115, .132, .12, .149, .161, .158, .184];
