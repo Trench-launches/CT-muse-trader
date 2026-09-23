@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="CT_", extra="ignore")
 
     # --- identity -------------------------------------------------------
-    agent_name: str = "CT Agent"
+    agent_name: str = "MOOSE"
     agent_ticker: str = ""  # set once the owner picks one
     agent_token_address: str = ""  # the project's own token, once launched
     treasury_address: str = ""     # public treasury/creator-fee wallet, for disclosure only
