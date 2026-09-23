@@ -114,25 +114,32 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .coinav svg { width: 100%; height: 100%; display: block; }
 .onchain { display: inline-flex; align-items: center; gap: 6px; }
 
-/* X post, drawn like a real post on x.com */
-.xpost { --xink: #0F1419; --xgrey: #536471; --xblue: #1D9BF0; background: var(--white); border: 1px solid #EFF3F4; border-radius: 16px; padding: 12px 16px 6px; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 10px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--xink); text-align: left; transition: background .2s; }
-.xpost:hover { background: #F7F9F9; }
-.xpost .face { width: 40px; height: 40px; }
+/* X post, 1:1 with a light-mode post in the x.com timeline */
+.xtl { background: #FFFFFF; border: 1px solid #EFF3F4; border-radius: 16px; overflow: hidden; text-align: left; }
+.xp { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 0 12px; padding: 12px 16px 4px; font-family: "TwitterChirp", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0F1419; background: #FFFFFF; transition: background-color .2s; cursor: pointer; }
+.xp + .xp { border-top: 1px solid #EFF3F4; }
+.xp:hover { background: #F7F7F7; }
+.xp .face { width: 40px; height: 40px; box-shadow: none; }
 .xp-head { display: flex; align-items: center; gap: 4px; font-size: 15px; line-height: 20px; min-width: 0; }
-.xp-head b { font-weight: 700; white-space: nowrap; }
-.xp-head .h { color: var(--xgrey); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.xp-head .xmark { margin-left: auto; color: var(--xink); display: inline-grid; }
-.xp-head .xmark .ic { width: 18px; height: 18px; vertical-align: 0; }
-.xp-auto { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--xgrey); line-height: 16px; }
-.xp-auto .ic { width: 14px; height: 14px; vertical-align: 0; }
-.xp-text { font-size: 15px; line-height: 20px; margin-top: 4px; white-space: pre-line; overflow-wrap: anywhere; }
-.xp-text .tag { color: var(--xblue); }
-.xp-text .ca { font-family: var(--f-mono); font-size: 13px; color: var(--xblue); }
-.xp-actions { display: flex; justify-content: space-between; max-width: 420px; margin-top: 10px; color: var(--xgrey); font-size: 13px; }
-.xp-actions span { display: inline-flex; align-items: center; gap: 4px; padding: 6px 0; border-radius: 99px; transition: color .15s; }
-.xp-actions .ic { width: 18px; height: 18px; vertical-align: 0; }
-.xp-actions .r:hover { color: var(--xblue); } .xp-actions .rt:hover { color: #00BA7C; } .xp-actions .lk:hover { color: #F91880; } .xp-actions .vw:hover { color: var(--xblue); }
-.xp-status { grid-column: 2; margin: 2px 0 6px; font-size: 12.5px; }
+.xp-name { font-weight: 700; color: #0F1419; white-space: nowrap; }
+.xp-name:hover { text-decoration: underline; }
+.xp-meta { color: #536471; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xp-more { margin-left: auto; color: #536471; display: inline-grid; place-items: center; width: 34px; height: 34px; margin-block: -7px; margin-right: -8px; border-radius: 50%; transition: background .2s, color .2s; }
+.xp-more:hover { background: rgba(29,155,240,.1); color: #1D9BF0; }
+.xp-more .ic { width: 18.75px; height: 18.75px; vertical-align: 0; }
+.xp-text { font-size: 15px; line-height: 20px; font-weight: 400; color: #0F1419; white-space: pre-line; overflow-wrap: anywhere; margin-top: 2px; }
+.xp-text .tag { color: #1D9BF0; }
+.xp-text .ca { color: inherit; } /* X shows raw addresses as plain text */
+.xp-actions { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0 -8px; max-width: 425px; color: #536471; font-size: 13px; line-height: 16px; }
+.xp-act { display: inline-flex; align-items: center; gap: 2px; min-width: 0; transition: color .2s; }
+.xp-act .hit { display: inline-grid; place-items: center; width: 34.75px; height: 34.75px; border-radius: 50%; transition: background .2s; }
+.xp-act .ic { width: 18.75px; height: 18.75px; vertical-align: 0; stroke-width: 1.75; }
+.xp-act.r:hover { color: #1D9BF0; } .xp-act.r:hover .hit { background: rgba(29,155,240,.1); }
+.xp-act.rt:hover { color: #00BA7C; } .xp-act.rt:hover .hit { background: rgba(0,186,124,.1); }
+.xp-act.lk:hover { color: #F91880; } .xp-act.lk:hover .hit { background: rgba(249,24,128,.1); }
+.xp-act.vw:hover { color: #1D9BF0; } .xp-act.vw:hover .hit { background: rgba(29,155,240,.1); }
+.xp-end { display: flex; }
+.xp-end .xp-act:hover { color: #1D9BF0; } .xp-end .xp-act:hover .hit { background: rgba(29,155,240,.1); }
 .face { width: 34px; height: 34px; border-radius: 50%; background: var(--sand) url("assets/moose.png") 50% 24% / 250% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
 
 /* coins (placeholder decor until the generated 3D coins arrive) */
@@ -321,34 +328,49 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (max-width: 1000px) { .think .wrap { grid-template-columns: 1fr; } .chat-panel { height: 560px; } }
 
 /* ---------- 6 LIVE ---------- */
-.live-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
-.live-grid .card { display: flex; flex-direction: column; min-height: 0; max-height: max(240px, calc(var(--fit) - 236px)); overflow: hidden; }
-.live-grid .card-body { padding: 0 18px 16px; overflow-y: auto; }
-.wl { display: grid; }
-.wl-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); transition: background .4s; }
-.wl-row.bump { background: linear-gradient(90deg, var(--blue-soft), transparent); }
-.tav { width: 34px; height: 34px; }
-.wl-row b { font-weight: 700; font-size: 14.5px; }
-.wl-row .track { grid-column: 2; height: 6px; border-radius: 3px; background: var(--surface); position: relative; }
-.wl-row .track i { position: absolute; inset: 0 auto 0 0; background: var(--blue); border-radius: 3px; transition: width .9s var(--ease); }
-.wl-row .track::after { content: ""; position: absolute; left: 85%; top: -3px; bottom: -3px; width: 1.5px; background: var(--ink-3); opacity: .5; }
-.wl-row .meta { grid-row: 1 / span 2; grid-column: 3; text-align: right; font-size: 12.5px; }
-.pos { padding: 14px 0; border-top: 1px solid var(--line); display: grid; gap: 6px; }
-.pos .l1 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-.pos .pl { font-family: var(--f-display); font-size: 34px; letter-spacing: -0.04em; line-height: 1; }
-.pos small { color: var(--ink-3); font-size: 12.5px; }
+.live-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; text-align: left; }
+.lc { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.lc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lc-h h4 { font-family: var(--f-display); font-weight: 500; font-size: var(--t-xl); letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
+.lc-h .ic-b { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); }
+.lc-h .ic-b .ic { width: 17px; height: 17px; vertical-align: 0; }
+.lc-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
+.lc-foot .onchain .ic { color: var(--ink-3); }
+/* watching */
+.wrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 6px 8px; margin-inline: -8px; border-radius: 14px; transition: background .5s; }
+.wrow.bump { background: var(--blue-soft); }
+.wrow b { display: block; font-weight: 700; font-size: 15px; }
+.wrow small { font-size: 12.5px; color: var(--ink-3); }
+.wrow small.bought { color: var(--blue); font-weight: 600; }
+.pring { position: relative; width: 44px; height: 44px; }
+.pring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.pring .bg { fill: none; stroke: var(--surface); stroke-width: 4; }
+.pring .fg { fill: none; stroke: var(--blue); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .9s var(--ease); }
+.pring.done .fg { stroke: var(--beige); }
+.pring span { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--f-mono); font-size: 11.5px; font-weight: 500; }
+body.killed .pring .fg { stroke: var(--ink-3); }
+/* holding */
+.hold { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.hold b { font-weight: 700; font-size: 15px; }
+.hold .spk { width: 100%; height: 38px; overflow: visible; }
+.hold .pl { font-family: var(--f-display); font-size: clamp(26px, 2.4vw, 34px); letter-spacing: -0.04em; line-height: 1; text-align: right; min-width: 3.4ch; }
+.hold-total { display: flex; align-items: baseline; gap: 10px; }
+.hold-total .big { font-family: var(--f-display); font-size: clamp(34px, 3.4vw, 48px); letter-spacing: -0.05em; line-height: 1; }
+.hold-total small { color: var(--ink-3); font-size: 13px; }
 .up { color: var(--green); } .down { color: var(--coral); }
-.nextpost { border: 1px solid var(--line); border-radius: 16px; padding: 14px; font-size: 14.5px; display: grid; gap: 10px; }
-.nextpost .who { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
-.nextpost .who b { color: var(--ink); }
-.queue-list { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; }
-.queue-list div { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-2); }
+/* posting */
+.lc .xtl { border-color: var(--line); }
+#nextPost { margin-block: auto; }
+.lc .xp { padding-inline: 14px; cursor: default; }
+.lc .xp:hover { background: #FFFFFF; }
+.post-dots { display: flex; gap: 5px; }
+.post-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.post-dots i.on { background: var(--blue); }
 .live-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin-top: 18px; font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
 .live-foot .ok { color: var(--green); }
 .paused-note { display: none; margin-top: 16px; text-align: center; }
 body.killed .paused-note { display: block; }
-body.killed .live-grid .track i { background: var(--ink-3); }
-@media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } .live-grid .card { max-height: none; } }
+@media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } }
 
 /* ---------- 7 RULES ---------- */
 .rules .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
@@ -382,37 +404,37 @@ body.killed .kill { background: var(--coral-soft); }
 @media (max-width: 560px) { .dials { grid-template-columns: 1fr 1fr; } }
 
 /* ---------- 8 RECORD ---------- */
-.record-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 16px; align-items: stretch; }
-.journal-panel { padding: clamp(18px, 2.5vw, 30px); display: flex; flex-direction: column; gap: 14px; }
-.jr-head { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-.jr-head .btns { margin-left: auto; display: flex; gap: 8px; }
-.chain { position: relative; z-index: 2; list-style: none; margin: 0; padding: 0 0 0 28px; display: grid; gap: 8px; }
-.chain::before { content: ""; position: absolute; left: 9px; top: 14px; bottom: 14px; width: 2px; background: var(--blue); opacity: .35; border-radius: 2px; }
+.record-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 16px; align-items: center; }
+.journal-card { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); padding: 20px 22px; transition: box-shadow .3s; }
+.journal-card.broken { box-shadow: var(--shadow), 0 0 0 2px var(--coral); }
+.jc-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.jc-h h4 { font-family: var(--f-display); font-weight: 500; font-size: var(--t-xl); letter-spacing: -0.02em; }
+.jc-h .btn { margin-left: auto; }
+.seal { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: var(--r-pill); background: var(--green-soft); color: var(--green); }
+.seal .ic { width: 14px; height: 14px; vertical-align: 0; }
+.seal.bad { background: var(--coral-soft); color: var(--coral); }
+.chain { list-style: none; margin: 0; padding: 6px 0 0; position: relative; }
+.chain::before { content: ""; position: absolute; left: 15px; top: 26px; bottom: 26px; width: 2px; background: var(--line); }
 .entry { position: relative; }
-.entry::before { content: ""; position: absolute; left: -25px; top: 16px; width: 12px; height: 12px; border-radius: 4px; background: var(--white); border: 2px solid var(--blue); transition: all .3s; }
-.entry.bad::before { border-color: var(--coral); background: var(--coral); }
-.entry button { all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; background: var(--white); border-radius: 14px; padding: 11px 14px; box-shadow: 0 1px 2px rgba(28,43,51,.06); border: 1px solid transparent; transition: border-color .2s, transform .25s var(--spring); }
-.entry button:hover { transform: translateX(3px); border-color: var(--line); }
-.entry.bad button { border-color: var(--coral); background: #FFF8F8; }
-.e-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
-.e-top .time, .e-top .id { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
-.e-top .id { margin-left: auto; }
-.e-hash { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-2); word-break: break-all; }
-.entry.open .e-hash { display: grid; gap: 3px; }
+.entry button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 9px 8px 9px 0; border-radius: 12px; transition: background .2s; }
+.entry button:hover { background: var(--surface); }
+.node { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--white); position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--white); }
+.node .ic { width: 15px; height: 15px; vertical-align: 0; }
+.node.t-ok { background: var(--green-soft); color: var(--green); }
+.node.t-no { background: var(--surface); color: var(--ink-3); }
+.node.t-ai { background: var(--blue); color: var(--white); }
+.node.t-fill { background: var(--blue-soft); color: var(--blue-deep); }
+.node.t-loss { background: var(--coral-soft); color: var(--coral); }
+.e-txt { font-size: 14.5px; }
+.e-time { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
+.entry.bad .node { background: var(--coral); color: var(--white); }
+.entry.bad .e-txt { color: var(--coral); }
+.e-hash { display: none; grid-column: 2 / -1; font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); word-break: break-all; padding-bottom: 4px; }
+.entry.open .e-hash { display: grid; gap: 2px; }
 .e-hash .bad { color: var(--coral); }
-.integrity { font-size: 14px; }
-.tweets { display: grid; gap: 14px; align-content: start; }
-.tweets .xpost { box-shadow: var(--shadow); border-color: transparent; }
-.tweet { padding: 18px; display: grid; gap: 12px; transition: transform .35s var(--spring); }
-.tweet:hover { transform: translateY(-4px) rotate(-.4deg); }
-.tw-head { display: flex; gap: 10px; align-items: center; }
-.tw-head .face { width: 40px; height: 40px; }
-.tw-head b { display: block; font-weight: 700; } .tw-head small { font-size: 13px; color: var(--ink-3); }
-.tw-head .pill { margin-left: auto; }
-.tweet p { font-size: 15px; }
-.tweet .ca { font-family: var(--f-mono); font-size: 12.5px; color: var(--blue-deep); word-break: break-all; }
-.tweet.loss { box-shadow: var(--shadow), inset 0 3px 0 var(--coral); }
-.tweet.win { box-shadow: var(--shadow), inset 0 3px 0 var(--green); }
+.record-side { display: grid; gap: 10px; }
+.record-side .cap { font-size: 13px; color: var(--ink-3); text-align: center; }
+.record-side .xtl { box-shadow: var(--shadow); border-color: transparent; }
 @media (max-width: 1000px) { .record-grid { grid-template-columns: 1fr; } }
 
 /* ---------- 9 SCORE ---------- */
@@ -561,7 +583,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   <div class="wrap">
     <div>
       <span class="kicker">Always on</span>
-      <p class="giant" id="h-scale"><span id="bigCount" style="font-variant-numeric:tabular-nums">3,544</span><small>new tokens launched on Pons, on <span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Robinhood Chain, today. No human can read them all. MOOSE does.</small></p>
+      <p class="giant" id="h-scale"><span id="bigCount" style="font-variant-numeric:tabular-nums">3,544</span><small>new tokens launched on Pons, on Robinhood Chain, today. No human can read them all. MOOSE does.</small></p>
       <div class="funnel" id="funnel">
         <div><span>Launched today</span><b id="fn0">3,544</b><i class="fb" style="transform:scaleX(1)"></i></div>
         <div><span>Close to graduating</span><b>212</b><i class="fb" data-s=".42" style="opacity:.75"></i></div>
@@ -642,21 +664,22 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     <h2 class="h2" id="h-live">Here it is, working right now.</h2>
     <p class="sub">What it's watching, what it's holding and what it'll post next. The same data backs every post.</p>
     <p class="paused-note"><span class="pill coral">Kill switch on: still watching, no new trades</span></p>
-    <div class="live-grid" style="text-align:left">
-      <article class="card">
-        <div class="card-h"><h4>Watchlist</h4><span class="example">example data</span></div>
-        <div class="card-body"><div class="wl" id="wl"></div></div>
+    <div class="live-grid">
+      <article class="lc">
+        <div class="lc-h"><h4><span class="ic-b"><svg class="ic"><use href="#i-eye"/></svg></span>Watching</h4><span class="example">example</span></div>
+        <div id="wl"></div>
+        <div class="lc-foot"><span>Curve progress to graduation</span><span class="num">85% = almost bonded</span></div>
       </article>
-      <article class="card">
-        <div class="card-h"><h4>Open positions</h4><span class="pill grey"><svg class="ic"><use href="#i-wallet"/></svg> 0x7a3f…c19e · paper</span></div>
-        <div class="card-body" id="posList"></div>
+      <article class="lc">
+        <div class="lc-h"><h4><span class="ic-b"><svg class="ic"><use href="#i-wallet"/></svg></span>Holding</h4><span class="pill sand">paper</span></div>
+        <div class="hold-total"><span class="big up" id="holdTotal">+0.0%</span><small>on 0.10 ETH</small></div>
+        <div id="posList" style="display:grid;gap:10px"></div>
+        <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> 0x7a3f…c19e</span><span>2 of 3 slots</span></div>
       </article>
-      <article class="card">
-        <div class="card-h"><h4 class="onchain"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> Next post</h4><span class="pill blue">queued</span></div>
-        <div class="card-body">
-          <div id="nextPost"></div>
-          <div class="queue-list"><div><span>PAPER BUY $HATCH</span><span class="pill blue">sent</span></div><div><span>Weekly scorecard</span><span class="pill grey">Monday</span></div><div><span>Posts today</span><span class="num">4 / 6</span></div></div>
-        </div>
+      <article class="lc">
+        <div class="lc-h"><h4><span class="ic-b" style="background:#000;color:#fff"><svg class="ic"><use href="#b-x"/></svg></span>Posting next</h4><span class="pill blue">in 2 min</span></div>
+        <div id="nextPost"></div>
+        <div class="lc-foot"><span>4 of 6 posts today</span><span class="post-dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
       </article>
     </div>
     <div class="live-foot"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Robinhood Chain · block <b class="num" id="blk">70,556,234</b></span><span>synced <b class="num" id="sync">1</b>s ago</span><span class="ok">journal intact ✓</span><span>mode: paper</span></div>
@@ -688,11 +711,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <h2 class="h2" id="h-rec">Every trade on the record. <span class="blue">Even the losses.</span></h2>
     </div>
     <div class="record-grid">
-      <div class="panel grid-bg journal-panel" style="background:var(--panel-warm)">
-        <div class="jr-head"><span class="integrity" id="integrity"></span><div class="btns"><button class="btn btn-ghost btn-sm" type="button" id="tamper">Try editing an old entry</button><button class="btn btn-ghost btn-sm" type="button" id="restore" hidden>Put it back</button></div></div>
+      <div class="journal-card" id="journalCard">
+        <div class="jc-h"><h4>Journal</h4><span id="integrity"></span><button class="btn btn-ghost btn-sm" type="button" id="tamper">Try to edit it</button></div>
         <ol class="chain" id="chain" reversed></ol>
       </div>
-      <div class="tweets" id="tweets"></div>
+      <div class="record-side">
+        <div class="xtl" id="tweets"></div>
+        <p class="cap">Posted automatically by @moose, wins and losses alike.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -753,7 +779,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const RH = `<span class="rh" aria-hidden="true">${B("robinhood")}</span>`;
   /* an X post, laid out like a real post on x.com */
   const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>');
-  const xPost = p => `<article class="xpost"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><b>MOOSE</b><span class="h">@moose · ${p.t}</span><span class="xmark" aria-label="Posted on X">${B("x")}</span></div><div class="xp-auto">${I("bot")} Automated</div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions"><span class="r">${I("message-circle")}${p.s ? p.s[0] : ""}</span><span class="rt">${I("repeat-2")}${p.s ? p.s[1] : ""}</span><span class="lk">${I("heart")}${p.s ? p.s[2] : ""}</span><span class="vw">${I("chart-no-axes-column")}${p.s ? p.s[3] : ""}</span><span>${I("bookmark")}${I("share")}</span></div></div></article>`;
+  const xAct = (cls, icon, n) => `<span class="xp-act ${cls}"><span class="hit">${I(icon)}</span>${n || ""}</span>`;
+  const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@moose · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   const onView = (el, fn, t = .35) => { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { fn(); o.disconnect(); } }, { threshold: t }); o.observe(el); };
 
   addEventListener("scroll", () => $("#nav").classList.toggle("scrolled", scrollY > 8), { passive: true });
@@ -927,22 +954,31 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 
   /* ---------- 6 LIVE ---------- */
   const watch = [
-    { s: "HATCH", p: 91, b: 38, st: ["solid-blue", "bought"] }, { s: "PIXEL", p: 87, b: 17, st: ["sand", "watching"] },
-    { s: "ANONPAD", p: 100, b: 21, st: ["blue", "graduated"] }, { s: "DOAI", p: 100, b: 12, st: ["sand", "watching"] }, { s: "JOLLY", p: 88, b: 29, st: ["ink", "passed"] },
+    { s: "HATCH", p: 91, st: "bought", c: "blue" }, { s: "PIXEL", p: 87, st: "watching", c: "beige" },
+    { s: "ANONPAD", p: 100, st: "graduated", c: "white" }, { s: "JOLLY", p: 88, st: "passed", c: "beige" },
   ];
-  const positions = [{ s: "HATCH", entry: .05, mark: .0561, age: "18m", rule: "stop −25% · target +60%" }, { s: "MOSS", entry: .05, mark: .0437, age: "3h 12m", rule: "stop −25% · max 24h" }];
+  const positions = [
+    { s: "HATCH", entry: .05, c: "blue", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
+    { s: "MOSS", entry: .05, c: "beige", hist: [.05, .0492, .0488, .0495, .0479, .0468, .0472, .0455, .0449, .0437] },
+  ];
+  const RC = 2 * Math.PI * 19;
+  const spark = h => { const mn = Math.min(...h), mx = Math.max(...h), W = 120, H = 38, up = h.at(-1) >= h[0];
+    const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
+    return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
-    $("#wl").innerHTML = watch.map((w, i) => `<div class="wl-row ${i === bumpI ? "bump" : ""}"><span class="tav" aria-hidden="true">${coinAv(["blue", "beige", "white", "blue", "beige"][i % 5], 34, i === 2)}</span><b>$${w.s}</b><div class="meta"><span class="pill ${w.st[0]}">${w.st[1]}</span><div class="num" style="color:var(--ink-3);margin-top:4px">${w.b} buys/5m</div></div><span class="track"><i style="width:${w.p}%"></i></span></div>`).join("");
-    $("#posList").innerHTML = positions.map(p => { const pl = (p.mark / p.entry - 1) * 100; return `<div class="pos"><div class="l1"><b class="onchain">${coinAv(p.s === "HATCH" ? "blue" : "beige", 26)}$${p.s}</b><span class="pl ${pl >= 0 ? "up" : "down"}">${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%</span></div><small class="num onchain"><svg class="ic eth"><use href="#b-eth"/></svg>${p.entry.toFixed(3)} ETH in · worth ${p.mark.toFixed(4)} · held ${p.age}</small><small>${p.rule}</small></div>`; }).join("");
+    $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, w.c === "white")}<div><b>$${w.s}</b><small class="${w.st === "bought" ? "bought" : ""}">${w.st}</small></div><div class="pring ${w.p >= 100 ? "done" : ""}"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19" stroke-dasharray="${RC}" stroke-dashoffset="${RC * (1 - w.p / 100)}"/></svg><span>${w.p}%</span></div></div>`).join("");
+    $("#posList").innerHTML = positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100; return `<div class="hold">${coinAv(p.c, 32)}<div><b>$${p.s}</b>${spark(p.hist)}</div><span class="pl ${pl >= 0 ? "up" : "down"}">${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%</span></div>`; }).join("");
+    const inv = positions.reduce((a, p) => a + p.entry, 0), now = positions.reduce((a, p) => a + p.hist.at(-1), 0), tot = (now / inv - 1) * 100;
+    const ht = $("#holdTotal"); ht.textContent = `${tot >= 0 ? "+" : ""}${tot.toFixed(1)}%`; ht.className = "big " + (tot >= 0 ? "up" : "down");
   };
   renderLive();
-  $("#nextPost").innerHTML = xPost({ t: "queued", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." });
+  $("#nextPost").innerHTML = `<div class="xtl">${xPost({ t: "2m", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." })}</div>`;
   let blk = 70556234, since = 1;
   if (!reduce) {
     setInterval(() => {
       blk += Math.floor(rnd(8, 14)); since = 0; $("#blk").textContent = fmt(blk);
-      watch.forEach(w => { if (w.p < 100) w.p = Math.max(80, Math.min(99, w.p + Math.round(rnd(-1, 2)))); w.b = Math.max(3, w.b + Math.round(rnd(-3, 4))); });
-      positions.forEach(p => { p.mark = Math.max(.02, p.mark * (1 + rnd(-.02, .022))); });
+      watch.forEach(w => { if (w.p < 100) w.p = Math.max(80, Math.min(99, w.p + Math.round(rnd(-1, 2)))); });
+      positions.forEach(p => { p.hist.push(Math.max(.02, p.hist.at(-1) * (1 + rnd(-.02, .022)))); if (p.hist.length > 14) p.hist.shift(); });
       renderLive(Math.floor(rnd(0, watch.length)));
     }, 2500);
     setInterval(() => { since++; $("#sync").textContent = since; }, 1000);
@@ -969,25 +1005,31 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   /* ---------- 8 RECORD (real hash chain in the browser) ---------- */
   const h53 = (str, seed) => { let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed; for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); } h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909); return (h2 >>> 0).toString(16).padStart(8, "0") + (h1 >>> 0).toString(16).padStart(8, "0"); };
   const hash = s => h53(s, 1) + h53(s, 2) + h53(s, 3) + h53(s, 4);
+  const TYPE = { ok: "badge-check", no: "x", ai: "sparkles", fill: "wallet", loss: "trending-down" };
   const entries = [
-    { id: 1043, t: "14:02:07", k: ["grey", "lead"], x: "Rejected 0x9c1e…0b7a: it's a Solana token." },
-    { id: 1044, t: "14:04:57", k: ["green", "lead"], x: "Verified 0x47a3…94d4 as a Pons launch." },
-    { id: 1045, t: "14:06:12", k: ["solid-blue", "decision"], x: "BUY $HATCH at 0.72 confidence." },
-    { id: 1046, t: "14:06:13", k: ["blue", "paper fill"], x: "PAPER BUY 0.05 ETH of $HATCH. Not onchain." },
-    { id: 1048, t: "14:11:02", k: ["coral", "paper exit"], x: "PAPER SOLD $NEZU at −25.3%. Stop loss." },
+    { id: 1043, t: "14:02", k: "no", x: "Rejected 0x9c1e…0b7a: a Solana token" },
+    { id: 1044, t: "14:04", k: "ok", x: "Verified 0x47a3…94d4 as a Pons launch" },
+    { id: 1045, t: "14:06", k: "ai", x: "Decided to buy $HATCH (0.72)" },
+    { id: 1046, t: "14:06", k: "fill", x: "Paper bought 0.05 ETH of $HATCH" },
+    { id: 1048, t: "14:11", k: "loss", x: "Paper sold $NEZU, −25.3%" },
   ];
   const orig = entries.map(e => e.x);
   let prev0 = "0".repeat(64); entries.forEach(e => { e.prev = prev0; e.h = hash(prev0 + "|" + e.t + "|" + e.x); prev0 = e.h; });
-  const chainEl = $("#chain");
+  const chainEl = $("#chain"); let tampered = false;
   const renderChain = () => {
     let prev = "0".repeat(64), brokenAt = null;
     const rows = entries.map(e => { const ex = hash(prev + "|" + e.t + "|" + e.x), ok = ex === e.h && e.prev === prev; if (!ok && brokenAt === null) brokenAt = e.id; prev = e.h; return { e, bad: brokenAt !== null, ex }; });
-    chainEl.innerHTML = rows.slice().reverse().map(({ e, bad, ex }) => `<li class="entry ${bad ? "bad" : ""}" data-id="${e.id}"><button type="button" aria-expanded="false"><div class="e-top"><span class="pill ${e.k[0]}">${e.k[1]}</span><span>${e.x}</span><span class="id">#${e.id} · ${e.t}</span></div><div class="e-hash"><span>links to · ${e.prev.slice(0, 28)}…</span><span>sealed as · ${e.h.slice(0, 28)}…</span>${bad ? `<span class="bad">recomputed · ${ex.slice(0, 28)}… ✕ no match</span>` : ""}</div></button></li>`).join("");
-    $("#integrity").innerHTML = brokenAt ? `<span class="pill coral"><span class="dot"></span>broken at #${brokenAt}</span> the edit can't be hidden` : `<span class="pill green"><span class="dot"></span>intact</span> ${entries.length} entries verified in your browser`;
+    chainEl.innerHTML = rows.slice().reverse().map(({ e, bad, ex }) => `<li class="entry ${bad ? "bad" : ""}" data-id="${e.id}"><button type="button" aria-expanded="false"><span class="node t-${e.k}">${I(bad ? "x" : TYPE[e.k])}</span><span class="e-txt">${e.x}</span><span class="e-time">${e.t}</span><span class="e-hash"><span>#${e.id} · sealed ${e.h.slice(0, 24)}…</span>${bad ? `<span class="bad">recomputed ${ex.slice(0, 24)}… no match</span>` : `<span>links to ${e.prev.slice(0, 24)}…</span>`}</span></button></li>`).join("");
+    $("#integrity").innerHTML = brokenAt ? `<span class="seal bad">${I("x")} Broken at #${brokenAt}</span>` : `<span class="seal">${I("shield-check")} Intact</span>`;
+    $("#journalCard").classList.toggle("broken", !!brokenAt);
   };
   chainEl.addEventListener("click", e => { const li = e.target.closest(".entry"); if (!li) return; li.classList.toggle("open"); li.querySelector("button").setAttribute("aria-expanded", li.classList.contains("open")); });
-  $("#tamper").addEventListener("click", () => { entries[0].x = "Verified 0x9c1e…0b7a as a Pons launch."; renderChain(); $("#tamper").hidden = true; $("#restore").hidden = false; chainEl.querySelector('[data-id="1043"]').classList.add("open"); });
-  $("#restore").addEventListener("click", () => { entries.forEach((e, i) => e.x = orig[i]); renderChain(); $("#tamper").hidden = false; $("#restore").hidden = true; });
+  $("#tamper").addEventListener("click", () => {
+    tampered = !tampered;
+    if (tampered) { entries[0].x = "Verified 0x9c1e…0b7a as a Pons launch"; } else { entries.forEach((e, i) => e.x = orig[i]); }
+    renderChain(); $("#tamper").textContent = tampered ? "Undo the edit" : "Try to edit it";
+    if (tampered) chainEl.querySelector('[data-id="1043"]').classList.add("open");
+  });
   renderChain();
   const tweets = [
     { t: "14:06", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nCA 0x47A360fC5e39AAea67056F380B22428D69c794D4\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: ["12", "8", "64", "5.1K"] },
