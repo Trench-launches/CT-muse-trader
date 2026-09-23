@@ -110,7 +110,7 @@ def authorize_url(client_id: str, challenge: str, state: str, redirect_uri: str 
         "state": state, "code_challenge": challenge, "code_challenge_method": "S256"})
 
 
-def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int = 300) -> tuple[str, str]:
+def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int = 900) -> tuple[str, str]:
     """Run the consent flow on 127.0.0.1:8765. Returns (username, refresh_token)."""
     verifier, challenge = pkce_pair()
     state = secrets.token_urlsafe(24)
@@ -144,7 +144,7 @@ def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int =
         webbrowser.open(url)
     try:
         if not done.wait(timeout_s):
-            raise TimeoutError("no response from X within 5 minutes")
+            raise TimeoutError("no response from X within 15 minutes")
     finally:
         server.shutdown()
     if "code" not in result:
