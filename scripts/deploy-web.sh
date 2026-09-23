@@ -7,7 +7,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="$(mktemp -d)"
-trap 'cd "$ROOT"; rm -rf "$TMP"' EXIT  # leave the folder first; Windows can't delete the current directory
+trap 'cd "$ROOT"; rm -rf "$TMP" 2>/dev/null || true' EXIT  # Windows may still hold the folder briefly; leftover temp files are harmless
 mkdir -p "$TMP/.vercel"
 cp -r "$ROOT/web" "$TMP/web"
 cp "$ROOT/vercel.json" "$TMP/"
