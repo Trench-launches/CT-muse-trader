@@ -131,3 +131,13 @@ def test_x_search_budget_and_citations(db):
     x.budget = 10
     with pytest.raises(XBudgetExceeded):  # 1 used + up to 10 more would exceed 10
         x.search_recent("pons", max_results=10)
+
+
+def test_news_summary_html_is_stripped(db):
+    rss = b"""<?xml version="1.0"?><rss version="2.0"><channel><title>W</title>
+      <item><title>Robinhood Chain is live</title><link>https://example.com/b</link>
+      <description>&lt;p&gt;&lt;a href="https://x.y"&gt;Mainnet&lt;/a&gt; &amp;amp; more&lt;/p&gt;</description></item>
+    </channel></rss>"""
+    ingest_feed(db, "https://example.com/feed2", fetch=lambda u: rss)
+    text = rows(db, "SELECT excerpt FROM sources WHERE origin_url='https://example.com/b'")[0]["excerpt"]
+    assert "<" not in text and "Mainnet" in text and "& more" in text

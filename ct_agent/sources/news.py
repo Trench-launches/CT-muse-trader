@@ -8,7 +8,9 @@ everything else is "reported".
 from __future__ import annotations
 
 import calendar
+import html
 import logging
+import re
 import sqlite3
 from datetime import datetime, timezone
 from typing import Any, Callable
@@ -19,6 +21,13 @@ import httpx
 from .store import SourceIn, add_source
 
 log = logging.getLogger(__name__)
+
+
+def _plain(html_text: str) -> str:
+    """Feed summaries are often HTML; keep only readable text for storage and the AI."""
+    text = re.sub(r"<(script|style)\b.*?</\1>", " ", html_text, flags=re.S | re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
 
 
 def parse_feed_spec(spec: str) -> tuple[str, bool]:
@@ -49,7 +58,7 @@ def ingest_feed(conn: sqlite3.Connection, spec: str,
     created = 0
     for e in parsed.entries:
         link = e.get("link")
-        text = " ".join(filter(None, [e.get("title"), e.get("summary")]))
+        text = " ".join(filter(None, [e.get("title"), _plain(e.get("summary") or "")]))
         if not link or not text:
             continue
         _, new = add_source(conn, SourceIn(
