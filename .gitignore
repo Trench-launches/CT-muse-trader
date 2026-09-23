@@ -6,3 +6,6 @@ data/*.db
 data/*.db-*
 .pytest_cache/
 *.egg-info/
+
+.vercel
+.env*

@@ -1,0 +1,5 @@
+# Only the static landing page is deployed. The Python backend, data and
+# virtualenv never leave this machine.
+/*
+!/web
+!/vercel.json

@@ -25,8 +25,11 @@
   --green-soft: #E4F6EA;
   --coral: #E5484D;
   --coral-soft: #FDEBEC;
-  --amber: #B7791F;
-  --amber-soft: #FBF1DE;
+  --sand-ink: #8A6F4E;   /* text on sand */
+  --sand-deep: #EADBC4;
+  /* legacy aliases: anything that was amber is now the mascot's sand */
+  --amber: var(--sand-ink);
+  --amber-soft: var(--sand);
   --panel: linear-gradient(135deg, #DCEBFF 0%, #F1F6FF 48%, #F8EEE1 100%);
   --panel-cool: linear-gradient(160deg, #E4F0FF 0%, #F6F9FF 60%, #FFFFFF 100%);
   --panel-warm: linear-gradient(160deg, #F8EEE1 0%, #FBF7F1 60%, #FFFFFF 100%);
@@ -84,7 +87,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pill.green { background: var(--green-soft); color: var(--green); }
 .pill.coral { background: var(--coral-soft); color: var(--coral); }
 .pill.blue { background: var(--blue-soft); color: var(--blue-deep); }
-.pill.amber { background: var(--amber-soft); color: var(--amber); }
+.pill.amber, .pill.sand { background: var(--sand); color: var(--sand-ink); }
+.pill.ink { background: var(--ink); color: var(--white); }
+.pill.solid-blue { background: var(--blue); color: var(--white); }
 .pill.grey { background: var(--surface); color: var(--ink-2); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
 .dot.pulse { animation: pulse 1.8s infinite; }
@@ -101,7 +106,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .rh .ic { width: .95em; height: .95em; vertical-align: 0; }
 .xl { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 30%; background: #000; color: #fff; flex: none; vertical-align: -0.35em; }
 .xl .ic { width: .8em; height: .8em; vertical-align: 0; }
-.eth { width: .95em; height: .95em; color: #627EEA; vertical-align: -0.12em; }
+.eth { width: .95em; height: .95em; color: var(--ink-2); vertical-align: -0.12em; }
+.onchain .rh { vertical-align: 0; }
 .chip-ic { display: inline-grid; place-items: center; border-radius: 10px; color: var(--white); flex: none; }
 .chip-ic .ic { width: 55%; height: 55%; vertical-align: 0; }
 .coinav { flex: none; display: inline-block; filter: drop-shadow(0 3px 5px rgba(0,60,140,.18)); }
@@ -268,6 +274,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pick .sym { font-family: var(--f-display); font-size: var(--t-xl); letter-spacing: -0.02em; }
 .pick .why { font-size: 13.5px; opacity: .7; }
 .pick .pill { margin-left: auto; }
+.pick[aria-selected="true"] .pill.ink { background: rgba(255,255,255,.16); }
 .chat-panel { padding: clamp(14px, 2vw, 28px); height: clamp(400px, var(--fit), 660px); display: flex; }
 .chat { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; background: rgba(255,255,255,.9); border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
 .chat-h { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
@@ -281,14 +288,31 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .msg.att { align-self: flex-start; background: var(--white); border: 1px solid var(--line); display: flex; gap: 12px; align-items: center; padding: 10px 14px; }
 .msg.att .chip-ic { width: 36px; height: 36px; }
 .msg .note-ic { color: var(--amber); margin-right: 6px; }
-.msg.att small { display: block; color: var(--ink-3); font-size: 12px; font-family: var(--f-mono); }
-.msg.verdict-msg { align-self: stretch; max-width: none; background: var(--white); border: 1px solid var(--line); border-radius: 18px; display: grid; gap: 10px; }
-.vm-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.vm-top .meter { flex: 1; min-width: 80px; height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
-.vm-top .meter i { display: block; height: 100%; background: var(--blue); }
-.vm-risk { font-size: 14px; background: var(--coral-soft); border-radius: 10px; padding: 8px 12px; }
-.vm-risk b { color: var(--coral); }
-.vm-gates { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg.att small { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12px; font-family: var(--f-mono); margin-top: 2px; }
+.msg.att small .rh { font-size: 10px; }
+.msg.verdict-msg { align-self: stretch; max-width: none; padding: 0; overflow: hidden; background: var(--white); border: 1px solid #D6E6FA; border-radius: 22px; box-shadow: 0 16px 36px -22px rgba(0,100,224,.45); }
+.vd-head { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(115deg, var(--blue-soft) 0%, #F5F9FF 55%, var(--sand) 100%); border-bottom: 1px solid #E3ECF7; }
+.vd-act { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: var(--r-pill); font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: .03em; color: var(--white); box-shadow: 0 6px 14px -8px rgba(28,43,51,.5); flex: none; }
+.vd-act .ic { width: 16px; height: 16px; vertical-align: 0; }
+.vd-act.buy { background: var(--blue); } .vd-act.watch { background: var(--sand-deep); color: var(--ink); } .vd-act.pass { background: var(--ink); }
+.vd-conf { flex: 1; min-width: 0; }
+.vd-label { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.vd-label b { font-family: var(--f-display); font-size: 22px; letter-spacing: -0.03em; color: var(--ink); font-weight: 500; text-transform: none; }
+.vd-bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.85); box-shadow: inset 0 0 0 1px rgba(0,100,224,.08); margin-top: 6px; overflow: hidden; }
+.vd-bar i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #4DA8FF, var(--blue-deep)); }
+.vd-body { padding: 14px 16px 16px; display: grid; gap: 12px; }
+.vd-risk { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; background: var(--sand); border-radius: 14px; padding: 12px 14px; }
+.vd-risk .ri { width: 32px; height: 32px; border-radius: 10px; background: var(--white); color: var(--coral); display: grid; place-items: center; box-shadow: 0 2px 6px -3px rgba(138,111,78,.5); }
+.vd-risk .ri .ic { width: 16px; height: 16px; vertical-align: 0; }
+.vd-risk .vd-label { color: var(--sand-ink); }
+.vd-risk p { font-size: 14.5px; margin-top: 3px; line-height: 1.45; }
+.vd-gates { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.vd-gates .vd-label { width: 100%; margin-bottom: 2px; }
+.gate { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 10px; font-size: 12.5px; font-weight: 600; border: 1px solid var(--line); background: var(--white); color: var(--ink); }
+.gate .ic { width: 14px; height: 14px; vertical-align: 0; }
+.gate.ok .ic { color: var(--blue); }
+.gate.no { background: var(--ink); border-color: var(--ink); color: var(--white); }
+.gate.no .ic { color: #FF8088; }
 .typing { align-self: flex-start; background: var(--surface); border-radius: 20px; padding: 13px 16px; display: flex; gap: 5px; }
 .typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); animation: tdot 1s infinite; }
 .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
@@ -467,6 +491,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /> <polyline points="16 6 12 2 8 6" /> <line x1="12" x2="12" y1="2" y2="15" /></symbol>
 <symbol id="i-bot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8" /> <rect width="16" height="12" x="4" y="8" rx="2" /> <path d="M2 14h2" /> <path d="M20 14h2" /> <path d="M15 13v2" /> <path d="M9 13v2" /></symbol>
 <symbol id="i-ellipsis" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1" /> <circle cx="19" cy="12" r="1" /> <circle cx="5" cy="12" r="1" /></symbol>
+<symbol id="i-triangle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /> <path d="M12 9v4" /> <path d="M12 17h.01" /></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /> <path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
 </svg>
 
@@ -522,7 +548,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <small class="onchain"><svg class="ic eth"><use href="#b-eth"/></svg> 0.05 ETH · risk: one wallet is 35% of buys</small>
       </div>
       <div class="float f4" data-depth="-20">
-        <div class="row"><span class="pill coral"><svg class="ic"><use href="#i-circle-stop"/></svg> PASS</span><b>$JOLLY</b></div>
+        <div class="row"><span class="pill ink"><svg class="ic"><use href="#i-circle-stop"/></svg> PASS</span><b>$JOLLY</b></div>
         <small class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> dev wallet bought 52% of the curve</small>
       </div>
     </div>
@@ -629,7 +655,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div class="card-h"><h4 class="onchain"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> Next post</h4><span class="pill blue">queued</span></div>
         <div class="card-body">
           <div id="nextPost"></div>
-          <div class="queue-list"><div><span>PAPER BUY $HATCH</span><span class="pill green">sent</span></div><div><span>Weekly scorecard</span><span class="pill grey">Monday</span></div><div><span>Posts today</span><span class="num">4 / 6</span></div></div>
+          <div class="queue-list"><div><span>PAPER BUY $HATCH</span><span class="pill blue">sent</span></div><div><span>Weekly scorecard</span><span class="pill grey">Monday</span></div><div><span>Posts today</span><span class="num">4 / 6</span></div></div>
         </div>
       </article>
     </div>
@@ -791,7 +817,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   /* ---------- 3 LISTENS ---------- */
   const sources = [
     { ic: B("x"), bg: "#000", who: "@loudtrader", where: "X · 14:01", txt: 'hearing $HATCH gets a big listing 👀 <code>0x47a3…94d4</code>',
-      lead: { h: "$HATCH listing rumour", st: ["amber", "rumour · 1 source"], rows: [["Said by", "5 accounts"], ["All citing", "the same unnamed post"], ["Counted as", "1 claim"]], note: "5 reposts of one rumour count once. It can't trigger a trade alone." } },
+      lead: { h: "$HATCH listing rumour", st: ["sand", "rumour · 1 source"], rows: [["Said by", "5 accounts"], ["All citing", "the same unnamed post"], ["Counted as", "1 claim"]], note: "5 reposts of one rumour count once. It can't trigger a trade alone." } },
     { ic: B("twitch"), bg: "#9146FF", who: "streamer · live", where: "Twitch · 14:04 · 2:05 in", txt: 'the contract is <code>0x47a3…94d4</code>, I\'m in',
       lead: { h: "Contract address heard on stream", st: ["blue", "lead · checking onchain"], rows: [["Heard at", "2:05 into the stream"], ["Address", "0x47a3…94d4"], ["Next step", "4 onchain checks"]], note: "Speech-to-text can mishear. An address is only a lead until the chain confirms it." } },
     { ic: I("newspaper"), bg: "#0064E0", who: "HATCH team blog", where: "News · 13:58", txt: 'HATCH ships v1 on Robinhood Chain. Contract <code>0x47a3…94d4</code>',
@@ -855,21 +881,21 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 
   /* ---------- 5 THINKS (chat) ---------- */
   const talks = [
-    { sym: "$HATCH", act: ["green", "BUY"], why: "Real news + real buying", time: "14:06 UTC", conf: .72,
+    { sym: "$HATCH", act: ["solid-blue", "BUY"], why: "Real news + real buying", time: "14:06 UTC", conf: .72,
       open: "New candidate: $HATCH · curve 91% · 4/4 checks passed",
       bot: ["The team's own post links this exact contract, and the chain confirms it's a real Pons launch in the genuine pool.", "Buyers are speeding up across 5 minutes, 15 minutes and an hour, from 38 different wallets. The creator hasn't bought any."],
       att: [[I("newspaper"), "#0064E0", "HATCH team blog", "first-party · 13:58 UTC"], [I("users"), "#000", "38 buyer wallets / 5 min", "onchain · Robinhood Chain", true]],
       lesson: "Last time I chased a spike like this (#1017) it faded. This one has news behind it, so I'm sizing small.",
       risk: "One wallet is 35% of all buys. If it sells, price drops fast.",
       gates: [["green", "verified source ✓"], ["green", "0.05 ETH cap ✓"], ["green", "slippage 1.9% ✓"]] },
-    { sym: "$TAKO", act: ["amber", "WATCH"], why: "Hot volume, only rumours", time: "13:52 UTC", conf: .58,
+    { sym: "$TAKO", act: ["sand", "WATCH"], why: "Hot volume, only rumours", time: "13:52 UTC", conf: .58,
       open: "New candidate: $TAKO · graduated · genuine pool found",
       bot: ["Volume is triple its daily average on the real pool, with $85k of liquidity. That's interesting.", "But every mention traces back to one account. Five reposts are still one rumour."],
       att: [[B("x"), "#000", "6 posts, 1 origin", "rumour · counted once"]],
       lesson: null,
       risk: "It could be one group trading with itself to look busy.",
       gates: [["coral", "blocked: needs a verified source"], ["green", "screen passed ✓"]] },
-    { sym: "$JOLLY", act: ["coral", "PASS"], why: "The dev bought half of it", time: "13:40 UTC", conf: .81,
+    { sym: "$JOLLY", act: ["ink", "PASS"], why: "The dev bought half of it", time: "13:40 UTC", conf: .81,
       open: "New candidate: $JOLLY · curve 88%",
       bot: ["It looks close to graduating, but the wallet that created it bought 52% of the curve itself.", "7 wallets bought and sold in the same minute. That's not demand."],
       att: [[I("wallet"), "#1C2B33", "Deployer wallet = 52% of buys", "onchain · Robinhood Chain", true]],
@@ -890,22 +916,24 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     for (const a of t.att) { if (!alive()) return; say(`<span class="chip-ic" style="background:${a[1]}">${a[0]}</span><span><b>${a[2]}</b><small class="onchain">${a[4] ? RH : ""}${a[3]}</small></span>`, "att"); await new Promise(r => setTimeout(r, reduce ? 0 : 250)); }
     if (t.lesson) { await typingFor(800); if (!alive()) return; say(`<span class="note-ic">${I("notebook-pen")}</span>` + t.lesson, "bot"); }
     await typingFor(700); if (!alive()) return;
-    say(`<div class="vm-top"><span class="pill ${t.act[0]}">${I(t.act[1] === "BUY" ? "trending-up" : t.act[1] === "WATCH" ? "eye" : "circle-stop")} ${t.act[1]}</span><span class="meter"><i style="width:${t.conf * 100}%"></i></span><span class="num">${t.conf.toFixed(2)}</span></div><div class="vm-risk"><b>What would make me wrong:</b> ${t.risk}</div><div class="vm-gates">${t.gates.map(g => `<span class="pill ${g[0]}">${g[1]}</span>`).join("")}</div>`, "verdict-msg");
+    const act = t.act[1].toLowerCase(), actIc = { buy: "trending-up", watch: "eye", pass: "circle-stop" }[act];
+    say(`<div class="vd-head"><span class="vd-act ${act}">${I(actIc)} ${t.act[1]}</span><div class="vd-conf"><div class="vd-label"><span>Confidence</span><b>${t.conf.toFixed(2)}</b></div><div class="vd-bar"><i style="width:${t.conf * 100}%"></i></div></div></div>`
+      + `<div class="vd-body"><div class="vd-risk"><span class="ri">${I("triangle-alert")}</span><div><div class="vd-label"><span>What would make me wrong</span></div><p>${t.risk}</p></div></div>`
+      + `<div class="vd-gates"><div class="vd-label"><span>Hard rules</span><span>${t.gates.every(g => g[0] === "green") ? "all passed" : "trade blocked"}</span></div>${t.gates.map(g => `<span class="gate ${g[0] === "green" ? "ok" : "no"}">${I(g[0] === "green" ? "check" : "lock")}${g[1].replace(/^blocked: /, "").replace(/ ✓$/, "")}</span>`).join("")}</div></div>`, "verdict-msg");
   };
   picksEl.addEventListener("click", e => { const p = e.target.closest(".pick"); if (p) playTalk(+p.dataset.i); });
   onView($("#think"), () => playTalk(0), .35);
   say(talks[0].open, "sys");
 
   /* ---------- 6 LIVE ---------- */
-  const TCOL = ["#0082FB", "#8A6F4E", "#1C2B33", "#0064E0", "#1E9E4A"];
   const watch = [
-    { s: "HATCH", p: 91, b: 38, st: ["green", "bought"] }, { s: "PIXEL", p: 87, b: 17, st: ["amber", "watching"] },
-    { s: "ANONPAD", p: 100, b: 21, st: ["blue", "graduated"] }, { s: "DOAI", p: 100, b: 12, st: ["amber", "watching"] }, { s: "JOLLY", p: 88, b: 29, st: ["coral", "passed"] },
+    { s: "HATCH", p: 91, b: 38, st: ["solid-blue", "bought"] }, { s: "PIXEL", p: 87, b: 17, st: ["sand", "watching"] },
+    { s: "ANONPAD", p: 100, b: 21, st: ["blue", "graduated"] }, { s: "DOAI", p: 100, b: 12, st: ["sand", "watching"] }, { s: "JOLLY", p: 88, b: 29, st: ["ink", "passed"] },
   ];
   const positions = [{ s: "HATCH", entry: .05, mark: .0561, age: "18m", rule: "stop −25% · target +60%" }, { s: "MOSS", entry: .05, mark: .0437, age: "3h 12m", rule: "stop −25% · max 24h" }];
   const renderLive = (bumpI = -1) => {
-    $("#wl").innerHTML = watch.map((w, i) => `<div class="wl-row ${i === bumpI ? "bump" : ""}"><span class="tav" aria-hidden="true">${coinAv(["blue", "beige", "white", "green", "ink"][i % 5], 34, i === 2)}</span><b>$${w.s}</b><div class="meta"><span class="pill ${w.st[0]}">${w.st[1]}</span><div class="num" style="color:var(--ink-3);margin-top:4px">${w.b} buys/5m</div></div><span class="track"><i style="width:${w.p}%"></i></span></div>`).join("");
-    $("#posList").innerHTML = positions.map(p => { const pl = (p.mark / p.entry - 1) * 100; return `<div class="pos"><div class="l1"><b class="onchain">${coinAv(p.s === "HATCH" ? "blue" : "green", 26)}$${p.s}</b><span class="pl ${pl >= 0 ? "up" : "down"}">${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%</span></div><small class="num onchain"><svg class="ic eth"><use href="#b-eth"/></svg>${p.entry.toFixed(3)} ETH in · worth ${p.mark.toFixed(4)} · held ${p.age}</small><small>${p.rule}</small></div>`; }).join("");
+    $("#wl").innerHTML = watch.map((w, i) => `<div class="wl-row ${i === bumpI ? "bump" : ""}"><span class="tav" aria-hidden="true">${coinAv(["blue", "beige", "white", "blue", "beige"][i % 5], 34, i === 2)}</span><b>$${w.s}</b><div class="meta"><span class="pill ${w.st[0]}">${w.st[1]}</span><div class="num" style="color:var(--ink-3);margin-top:4px">${w.b} buys/5m</div></div><span class="track"><i style="width:${w.p}%"></i></span></div>`).join("");
+    $("#posList").innerHTML = positions.map(p => { const pl = (p.mark / p.entry - 1) * 100; return `<div class="pos"><div class="l1"><b class="onchain">${coinAv(p.s === "HATCH" ? "blue" : "beige", 26)}$${p.s}</b><span class="pl ${pl >= 0 ? "up" : "down"}">${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%</span></div><small class="num onchain"><svg class="ic eth"><use href="#b-eth"/></svg>${p.entry.toFixed(3)} ETH in · worth ${p.mark.toFixed(4)} · held ${p.age}</small><small>${p.rule}</small></div>`; }).join("");
   };
   renderLive();
   $("#nextPost").innerHTML = xPost({ t: "queued", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." });
@@ -944,7 +972,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const entries = [
     { id: 1043, t: "14:02:07", k: ["grey", "lead"], x: "Rejected 0x9c1e…0b7a: it's a Solana token." },
     { id: 1044, t: "14:04:57", k: ["green", "lead"], x: "Verified 0x47a3…94d4 as a Pons launch." },
-    { id: 1045, t: "14:06:12", k: ["green", "decision"], x: "BUY $HATCH at 0.72 confidence." },
+    { id: 1045, t: "14:06:12", k: ["solid-blue", "decision"], x: "BUY $HATCH at 0.72 confidence." },
     { id: 1046, t: "14:06:13", k: ["blue", "paper fill"], x: "PAPER BUY 0.05 ETH of $HATCH. Not onchain." },
     { id: 1048, t: "14:11:02", k: ["coral", "paper exit"], x: "PAPER SOLD $NEZU at −25.3%. Stop loss." },
   ];
