@@ -4,7 +4,9 @@ Policy (X automation rules + the brief):
   * official API only, no browser automation or scraping;
   * original posts only; no automated replies without written approval;
   * the account must carry X's "Automated" label (set in account settings);
-  * every read is paid, so reads go through a monthly budget.
+  * every read is paid, so reads go through a monthly budget. The budget is
+    counted in post-read units ($0.005); an author profile returned with a
+    post is a user read ($0.010), so it counts as 2 units.
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from ..db import kv_get, kv_set
 from .store import SourceIn, add_source
 
 API = "https://api.x.com/2"
+USER_READ_UNITS = 2  # a user read costs twice a post read
 
 
 class XBudgetExceeded(RuntimeError):
@@ -41,7 +44,7 @@ class XClient:
                  oauth: Any = None):
         self.bearer = bearer_token
         self.user_token = user_token
-        self.oauth = oauth  # XOAuth2: refreshes the @moose posting token automatically
+        self.oauth = oauth  # XOAuth2: refreshes the @MooseOnMuse posting token automatically
         self.budget = monthly_read_budget
         self.conn = conn
         self._http = httpx.Client(timeout=20, transport=transport)
@@ -73,15 +76,15 @@ class XClient:
 
     def search_recent(self, query: str, max_results: int = 25) -> list[dict[str, Any]]:
         max_results = max(10, min(100, max_results))
-        self._check_budget(max_results)
+        self._check_budget(max_results * (1 + USER_READ_UNITS))  # worst case: a new author per post
         body = self._get("/tweets/search/recent", {
             "query": query, "max_results": max_results,
             "tweet.fields": "created_at,author_id,public_metrics,referenced_tweets,entities",
             "expansions": "author_id", "user.fields": "username,verified,public_metrics",
         })
         posts = body.get("data") or []
-        self._charge(len(posts))
         users = {u["id"]: u for u in (body.get("includes") or {}).get("users", [])}
+        self._charge(len(posts) + USER_READ_UNITS * len(users))
         for p in posts:
             p["_author"] = users.get(p.get("author_id"), {})
         return posts

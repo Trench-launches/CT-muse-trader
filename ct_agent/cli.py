@@ -8,7 +8,7 @@
   ctagent kill on|off "reason"     stop switch
   ctagent verify-journal           recompute the journal hash chain
   ctagent twitch-subscribe <callback_url> [--bot-user-id ID]
-  ctagent x-login [--no-browser]   authorize posting as @moose (one time)
+  ctagent x-login [--no-browser]   authorize posting as @MooseOnMuse (one time)
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _x_login(s, *, open_browser: bool) -> int:
-    """One-time consent as @moose. Saves the refresh token to .env (never printed)."""
+    """One-time consent as @MooseOnMuse. Saves the refresh token to .env (never printed)."""
     from pathlib import Path
 
     from .sources.x_oauth import XOAuth2, browser_login

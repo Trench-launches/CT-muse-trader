@@ -123,13 +123,14 @@ def test_x_search_budget_and_citations(db):
             "data": [{"id": "1", "text": f"{A} mooning", "author_id": "u1", "created_at": "2026-09-23T00:00:00Z",
                       "entities": {"urls": [{"expanded_url": "https://news.example/story"}]}}],
             "includes": {"users": [{"id": "u1", "username": "trader1"}]}})
-    x = XClient(bearer_token="app", monthly_read_budget=15, conn=db, transport=httpx.MockTransport(h))
+    x = XClient(bearer_token="app", monthly_read_budget=40, conn=db, transport=httpx.MockTransport(h))
     assert x.ingest_search(db, "pons", max_results=10) == 1
     s = rows(db, "SELECT * FROM sources")[0]
     assert s["origin_url"] == "https://x.com/trader1/status/1" and s["cites_url"] == "https://news.example/story"
-    assert x.reads_used() == 1  # charged per post returned, not per post requested
-    x.budget = 10
-    with pytest.raises(XBudgetExceeded):  # 1 used + up to 10 more would exceed 10
+    # charged for what came back: 1 post + 1 author profile (a user read costs 2 post reads)
+    assert x.reads_used() == 3
+    x.budget = 32
+    with pytest.raises(XBudgetExceeded):  # 3 used + worst case 10 posts and 10 authors (30) would exceed 32
         x.search_recent("pons", max_results=10)
 
 

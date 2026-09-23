@@ -1,4 +1,4 @@
-"""OAuth 2.0 (PKCE) user login for posting as @moose, with automatic refresh.
+"""OAuth 2.0 (PKCE) user login for posting as @MooseOnMuse, with automatic refresh.
 
 X user access tokens last two hours. `ctagent x-login` runs the browser consent
 once and yields a refresh token; the server keeps its current token pair in the
@@ -139,7 +139,7 @@ def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int =
     server = http.server.HTTPServer(("127.0.0.1", 8765), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = authorize_url(oauth.client_id, challenge, state)
-    print("Open this link and approve as @moose (it should open automatically):\n" + url, flush=True)
+    print("Open this link and approve as @MooseOnMuse (it should open automatically):\n" + url, flush=True)
     if open_browser:
         webbrowser.open(url)
     try:
