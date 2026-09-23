@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from ..chain.abi import ZERO_ADDRESS
 from ..chain.pons import LaunchRecord, Phase
 from ..context import Context
 from ..db import journal_append, journal_recent, kv_get, kv_set, rows, tx, utcnow
@@ -45,6 +46,17 @@ def _meta(ctx: Context, launch: dict[str, Any]) -> dict[str, Any]:
         ctx.conn.execute("UPDATE launches SET name=?, symbol=?, decimals=? WHERE token=?",
                          (m.name, m.symbol, m.decimals, launch["token"]))
         launch.update(name=m.name, symbol=m.symbol, decimals=m.decimals)
+    if not launch.get("quote_symbol"):
+        # Many Pons launches are priced in Robinhood stock tokens or stablecoins
+        # (GLD, NVDA, META, USDG...), not ETH. Record which, once per token.
+        pair = (launch.get("pair_token") or "").lower()
+        if pair == ZERO_ADDRESS:
+            qs, qd = "ETH", 18
+        else:
+            q = ctx.pons.token_meta(launch["pair_token"])
+            qs, qd = (q.symbol or "ERC20"), q.decimals
+        ctx.conn.execute("UPDATE launches SET quote_symbol=?, quote_decimals=? WHERE token=?", (qs, qd, launch["token"]))
+        launch.update(quote_symbol=qs, quote_decimals=qd)
     return launch
 
 
@@ -67,14 +79,16 @@ def assess_candidates(ctx: Context) -> list[Assessed]:
         if rec.phase != Phase.NOT_GRADUATED:
             conn.execute("UPDATE launches SET last_phase=? WHERE token=?", (int(rec.phase), l["token"]))
             continue
+        l = _meta(ctx, l)
         st = ctx.pons.curve_state(rec.curve)
         conn.execute("UPDATE launches SET last_progress=?, fee_bps=?, creator_tax_bps=? WHERE token=?",
                      (st.progress, st.fee_bps, st.creator_tax_bps, l["token"]))
         act = activity_for(conn, l["token"], l["deployer"], head, bt, s.activity_windows_s)
         c = screen_almost_bonded(s, token=l["token"], progress=st.progress, phase=int(rec.phase),
                                  launch_age_s=(head - l["block_number"]) * bt, snipe_window_s=snipe_s,
-                                 fee_bps=st.fee_bps, creator_tax_bps=st.creator_tax_bps, activity=act)
-        out.append(Assessed(c, _meta(ctx, l), rec))
+                                 fee_bps=st.fee_bps, creator_tax_bps=st.creator_tax_bps, activity=act,
+                                 quote_symbol=l["quote_symbol"])
+        out.append(Assessed(c, l, rec))
 
     migrated = rows(conn, "SELECT * FROM launches WHERE last_phase=2 ORDER BY COALESCE(last_trade_block, block_number) "
                           "DESC LIMIT 25")
@@ -83,6 +97,7 @@ def assess_candidates(ctx: Context) -> list[Assessed]:
         ok, why, rec = ctx.pons.verify_token(l["token"])
         if not ok or rec is None or rec.phase != Phase.POOL_CREATED:
             continue
+        l = _meta(ctx, l)
         pid = l.get("pool_id") or ctx.pons.genuine_pool_id(rec)
         if not l.get("pool_id"):
             conn.execute("UPDATE launches SET pool_id=?, pool_fee=?, tick_spacing=? WHERE token=?",
@@ -98,8 +113,9 @@ def assess_candidates(ctx: Context) -> list[Assessed]:
                             volume_h1_usd=pool.volume_h1_usd if pool else None,
                             liquidity_usd=pool.liquidity_usd if pool else None,
                             volume_h24_usd=pool.volume_h24_usd if pool else None,
-                            fee_bps=fee, creator_tax_bps=rec.creator_tax_bps, activity=None)
-        out.append(Assessed(c, _meta(ctx, l), rec, pool, eth_usd))
+                            fee_bps=fee, creator_tax_bps=rec.creator_tax_bps, activity=None,
+                            quote_symbol=l["quote_symbol"])
+        out.append(Assessed(c, l, rec, pool, eth_usd))
 
     eligible = sorted((a for a in out if a.cand.eligible), key=lambda a: a.cand.score, reverse=True)
     kv_set(conn, "candidates", [{"token": a.cand.token, "symbol": a.launch.get("symbol"), "stage": a.cand.stage,
@@ -212,10 +228,12 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     if action == "buy":
         out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack))
     elif action == "watch" and conf >= 0.6 and res.decision:
-        enqueue(conn, compose.watch_note(symbol=symbol, token=token, thesis=thesis or "on my list",
+        enqueue(conn, compose.watch_note(symbol=symbol, token=token,
+                                         thesis=res.decision.public_line or thesis or "on my list",
                                          risk=(risks or ["unclear"])[0], decision_id=did))
     elif action == "pass" and res.decision and pack["evidence"] and conf >= 0.7:
-        enqueue(conn, compose.pass_note(symbol=symbol, token=token, reason=(reasons or ["not convinced"])[0],
+        enqueue(conn, compose.pass_note(symbol=symbol, token=token,
+                                        reason=res.decision.public_line or (reasons or ["not convinced"])[0],
                                         decision_id=did))
     return out
 

@@ -92,8 +92,10 @@ def activity_for(conn: sqlite3.Connection, token: str, deployer: str, head_block
 
 
 def screen_almost_bonded(s: Settings, *, token: str, progress: float, phase: int, launch_age_s: float,
-                         snipe_window_s: int, fee_bps: int, creator_tax_bps: int, activity: Activity) -> Candidate:
+                         snipe_window_s: int, fee_bps: int, creator_tax_bps: int, activity: Activity,
+                         quote_symbol: str = "ETH") -> Candidate:
     c = Candidate(token=token, stage="almost_bonded", progress=progress, phase=phase, score=0.0)
+    _quote_check(c, quote_symbol)
     if phase != 0:
         c.blockers.append(f"phase {phase} is not the curve phase")
     if progress < s.almost_bonded_ratio:
@@ -108,8 +110,9 @@ def screen_almost_bonded(s: Settings, *, token: str, progress: float, phase: int
 
 def screen_migrated(s: Settings, *, token: str, phase: int, pool_found: bool, volume_h1_usd: float | None,
                     liquidity_usd: float | None, volume_h24_usd: float | None, fee_bps: int,
-                    creator_tax_bps: int, activity: Activity | None) -> Candidate:
+                    creator_tax_bps: int, activity: Activity | None, quote_symbol: str = "ETH") -> Candidate:
     c = Candidate(token=token, stage="migrated", progress=1.0, phase=phase, score=0.0)
+    _quote_check(c, quote_symbol)
     if phase != 2:
         c.blockers.append(f"phase {phase} is not PoolCreated")
     if not pool_found:
@@ -132,6 +135,14 @@ def screen_migrated(s: Settings, *, token: str, phase: int, pool_found: bool, vo
         c.flags.append("1h volume > 5x liquidity: possible wash trading")
     c.score = round(min(heat, 5) + min(liq_ratio, 2) - len(c.flags) * 0.5, 3)
     return c
+
+
+def _quote_check(c: Candidate, quote_symbol: str) -> None:
+    """Risk limits and position sizing are in ETH, so only ETH-priced tokens can be
+    traded. Blocking here stops the AI being asked about untradeable tokens."""
+    c.metrics["quote"] = quote_symbol
+    if quote_symbol != "ETH":
+        c.blockers.append(f"priced in {quote_symbol}; only ETH-priced tokens are supported for now")
 
 
 def _tax_check(s: Settings, c: Candidate, fee_bps: int, creator_tax_bps: int) -> None:

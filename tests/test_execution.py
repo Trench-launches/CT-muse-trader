@@ -140,3 +140,12 @@ def test_activity_requires_acceleration_across_windows(db):
                    (f"0x{n}", 0, "0xT", "0xC", blk, "buy", f"0xb{n}", str(ETH // 10), "1", "0", "0"))
     a = activity_for(db, "0xT", "0xD", head, 0.1, [300, 900, 3600])
     assert a.windows[0].buys == 4 and a.accelerating
+
+
+def test_screen_blocks_non_eth_quotes_before_the_ai(settings):
+    c = screen_migrated(settings, token="0x1", phase=2, pool_found=True, volume_h1_usd=30_000, liquidity_usd=45_000,
+                        volume_h24_usd=240_000, fee_bps=100, creator_tax_bps=0, activity=None, quote_symbol="GLD")
+    assert not c.eligible and any("priced in GLD" in b for b in c.blockers)
+    ok = screen_almost_bonded(settings, token="0x1", progress=0.9, phase=0, launch_age_s=600, snipe_window_s=3,
+                              fee_bps=100, creator_tax_bps=0, activity=_act(), quote_symbol="ETH")
+    assert ok.eligible
