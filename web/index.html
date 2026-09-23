@@ -444,59 +444,26 @@ body.killed .kill { background: var(--coral-soft); }
 
 /* ---------- 8 RECORD ---------- */
 #record { padding-bottom: 0; } /* the desk in the image sits right on the next section */
-.record-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: end; }
-.record-grid .journal-card { margin-bottom: var(--sec-pad); }
-.post-stage { position: relative; height: clamp(460px, calc(var(--fit) - 90px), 660px); }
-.post-stage .desk { position: absolute; left: 50%; bottom: 0; width: min(100%, 640px); height: auto; max-width: none; transform: translateX(-50%); display: block; pointer-events: none; }
-.ftw { position: absolute; z-index: 2; width: min(340px, 60%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+.record-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: 45% minmax(0, 1fr); gap: clamp(20px, 3vw, 56px); align-items: end; }
+.desk { display: block; width: 100%; height: auto; pointer-events: none; }
+.post-stage { position: relative; height: clamp(360px, calc(var(--fit) - 190px), 600px); margin-bottom: calc(var(--sec-pad) * .5); }
+.ftw { position: absolute; z-index: 2; width: min(400px, 74%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
 .ftw .xtl { border-color: #CFD9DE; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); }
 .ftw .xp { cursor: default; }
 .ftw .xp:hover { background: #FFFFFF; }
 .ftw.pop .xtl { animation: tweetpop .6s var(--spring); }
-.ftw-0 { left: 0; top: 2%; --r: -2.5deg; --d: 7s; }
-.ftw-1 { right: 0; top: 19%; --r: 2deg; --d: 8.5s; --delay: -3s; }
+.ftw-0 { left: 0; top: 0; --r: -2deg; --d: 7s; }
+.ftw-1 { right: 0; top: 30%; --r: 2deg; --d: 8.5s; --delay: -3s; }
+.ftw-2 { left: 7%; top: 60%; --r: -1deg; --d: 7.8s; --delay: -5s; }
 @keyframes tweetfloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-14px) rotate(calc(var(--r) + 1.2deg)); } }
 @keyframes tweetpop { from { opacity: 0; transform: translateY(40px) scale(.9); } to { opacity: 1; transform: none; } }
 .xp-act.bump { color: #F91880; }
 @media (max-width: 1000px) {
-  #record { padding-bottom: 0; }
-  .record-grid .journal-card { margin-bottom: 0; }
-  .post-stage { height: auto; display: grid; gap: 14px; }
+  .record-grid { grid-template-columns: 1fr; }
+  .post-stage { order: -1; height: auto; margin-bottom: 0; display: grid; gap: 14px; }
   .ftw { position: relative; inset: auto; width: 100%; animation: none; }
-  .post-stage .desk { position: relative; left: auto; transform: none; width: 100%; margin-top: 8px; }
 }
-.journal-card { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); padding: 20px 22px; transition: box-shadow .3s; }
-.journal-card.broken { box-shadow: var(--shadow), 0 0 0 2px var(--coral); }
-.jc-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.jc-h h4 { font-family: var(--f-display); font-weight: 500; font-size: var(--t-xl); letter-spacing: -0.02em; }
-.jc-h .btn { margin-left: auto; }
-.seal { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: var(--r-pill); background: var(--green-soft); color: var(--green); }
-.seal .ic { width: 14px; height: 14px; vertical-align: 0; }
-.seal.bad { background: var(--coral-soft); color: var(--coral); }
-.chain { list-style: none; margin: 0; padding: 6px 0 0; position: relative; }
-.chain::before { content: ""; position: absolute; left: 15px; top: 26px; bottom: 26px; width: 2px; background: var(--line); }
-.entry { position: relative; }
-.entry button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 9px 8px 9px 0; border-radius: 12px; transition: background .2s; }
-.entry button:hover { background: var(--surface); }
-.node { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--white); position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--white); }
-.node .ic { width: 15px; height: 15px; vertical-align: 0; }
-.node.t-ok { background: var(--green-soft); color: var(--green); }
-.node.t-no { background: var(--surface); color: var(--ink-3); }
-.node.t-ai { background: var(--blue); color: var(--white); }
-.node.t-fill { background: var(--blue-soft); color: var(--blue-deep); }
-.node.t-loss { background: var(--coral-soft); color: var(--coral); }
-.e-txt { font-size: 14.5px; }
-.e-time { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
-.entry.bad .node { background: var(--coral); color: var(--white); }
-.entry.bad .e-txt { color: var(--coral); }
-.e-hash { display: none; grid-column: 2 / -1; font-family: var(--f-mono); font-size: 11px; color: var(--ink-3); word-break: break-all; padding-bottom: 4px; }
-.entry.open .e-hash { display: grid; gap: 2px; }
-.e-hash .bad { color: var(--coral); }
-.record-side { display: grid; gap: 10px; }
-.record-side .cap { font-size: 13px; color: var(--ink-3); text-align: center; }
-.record-side .xtl { box-shadow: var(--shadow); border-color: transparent; }
-@media (max-width: 1000px) { .record-grid { grid-template-columns: 1fr; } }
-
+}
 /* ---------- 9 SCORE ---------- */
 .score { background: var(--ink); color: var(--white); }
 .score .kicker { background: rgba(255,255,255,.1); color: #9CCBFF; }
@@ -549,8 +516,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .hero .sub { margin-top: 10px; }
   .hero-stage { min-height: 150px; }
   .listen-panel { margin-top: 10px; }
-  .post-stage { height: 420px; }
-  .record-grid .journal-card { margin-bottom: 32px; }
+  .post-stage { height: 330px; margin-bottom: 24px; }
+  #record .sub { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -796,14 +763,11 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <p class="sub">Every decision is sealed in a journal and posted to X by @moose, an automated account.</p>
     </div>
     <div class="record-grid">
-      <div class="journal-card" id="journalCard">
-        <div class="jc-h"><h4>Journal</h4><span id="integrity"></span><button class="btn btn-ghost btn-sm" type="button" id="tamper">Try to edit it</button></div>
-        <ol class="chain" id="chain" reversed></ol>
-      </div>
+      <img class="desk" src="assets/moose-desk.webp" alt="MOOSE at a laptop, posting to X" width="1152" height="646" loading="lazy">
       <div class="post-stage" id="postStage">
         <div class="ftw ftw-0"><div class="xtl"></div></div>
         <div class="ftw ftw-1"><div class="xtl"></div></div>
-        <img class="desk" src="assets/moose-desk.webp" alt="MOOSE at a laptop, posting to X" width="1152" height="646" loading="lazy">
+        <div class="ftw ftw-2"><div class="xtl"></div></div>
       </div>
     </div>
   </div>
@@ -1091,35 +1055,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     $("#statusPill").className = "pill " + (on ? "coral" : "green"); $("#statusText").textContent = on ? "paused" : "live · paper";
   });
 
-  /* ---------- 8 RECORD (real hash chain in the browser) ---------- */
-  const h53 = (str, seed) => { let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed; for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); } h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909); return (h2 >>> 0).toString(16).padStart(8, "0") + (h1 >>> 0).toString(16).padStart(8, "0"); };
-  const hash = s => h53(s, 1) + h53(s, 2) + h53(s, 3) + h53(s, 4);
-  const TYPE = { ok: "badge-check", no: "x", ai: "sparkles", fill: "wallet", loss: "trending-down" };
-  const entries = [
-    { id: 1043, t: "14:02", k: "no", x: "Rejected 0x9c1e…0b7a: a Solana token" },
-    { id: 1044, t: "14:04", k: "ok", x: "Verified 0x47a3…94d4 as a Pons launch" },
-    { id: 1045, t: "14:06", k: "ai", x: "Decided to buy $HATCH (0.72)" },
-    { id: 1046, t: "14:06", k: "fill", x: "Paper bought 0.05 ETH of $HATCH" },
-    { id: 1048, t: "14:11", k: "loss", x: "Paper sold $NEZU, −25.3%" },
-  ];
-  const orig = entries.map(e => e.x);
-  let prev0 = "0".repeat(64); entries.forEach(e => { e.prev = prev0; e.h = hash(prev0 + "|" + e.t + "|" + e.x); prev0 = e.h; });
-  const chainEl = $("#chain"); let tampered = false;
-  const renderChain = () => {
-    let prev = "0".repeat(64), brokenAt = null;
-    const rows = entries.map(e => { const ex = hash(prev + "|" + e.t + "|" + e.x), ok = ex === e.h && e.prev === prev; if (!ok && brokenAt === null) brokenAt = e.id; prev = e.h; return { e, bad: brokenAt !== null, ex }; });
-    chainEl.innerHTML = rows.slice().reverse().map(({ e, bad, ex }) => `<li class="entry ${bad ? "bad" : ""}" data-id="${e.id}"><button type="button" aria-expanded="false"><span class="node t-${e.k}">${I(bad ? "x" : TYPE[e.k])}</span><span class="e-txt">${e.x}</span><span class="e-time">${e.t}</span><span class="e-hash"><span>#${e.id} · sealed ${e.h.slice(0, 24)}…</span>${bad ? `<span class="bad">recomputed ${ex.slice(0, 24)}… no match</span>` : `<span>links to ${e.prev.slice(0, 24)}…</span>`}</span></button></li>`).join("");
-    $("#integrity").innerHTML = brokenAt ? `<span class="seal bad">${I("x")} Broken at #${brokenAt}</span>` : `<span class="seal">${I("shield-check")} Intact</span>`;
-    $("#journalCard").classList.toggle("broken", !!brokenAt);
-  };
-  chainEl.addEventListener("click", e => { const li = e.target.closest(".entry"); if (!li) return; li.classList.toggle("open"); li.querySelector("button").setAttribute("aria-expanded", li.classList.contains("open")); });
-  $("#tamper").addEventListener("click", () => {
-    tampered = !tampered;
-    if (tampered) { entries[0].x = "Verified 0x9c1e…0b7a as a Pons launch"; } else { entries.forEach((e, i) => e.x = orig[i]); }
-    renderChain(); $("#tamper").textContent = tampered ? "Undo the edit" : "Try to edit it";
-    if (tampered) chainEl.querySelector('[data-id="1043"]').classList.add("open");
-  });
-  renderChain();
+  /* ---------- 8 RECORD: live feed of floating X posts ---------- */
   const feedPosts = [
     { t: "2m", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
     { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −25.3%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
@@ -1128,7 +1064,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     { t: "3h", body: "Paper scorecard 2026-W39: 23 closed, 13W/10L, net +0.184 ETH.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
   ];
   const kfmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
-  const slots = $$(".ftw"); let nextPost = 2;
+  const slots = $$(".ftw"); let nextPost = 3;
   const fill = (slot, p) => { slot.querySelector(".xtl").innerHTML = xPost({ ...p, s: p.s.map(kfmt) }); slot.dataset.i = feedPosts.indexOf(p); };
   slots.forEach((slot, i) => fill(slot, feedPosts[i]));
   if (!reduce) {
