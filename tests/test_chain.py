@@ -54,3 +54,23 @@ def test_genuine_pool_id_matches_known_mainnet_pool():
     p = make(ch)
     assert p.genuine_pool_id(p.launch_record(t.token)) == \
         "0x6c96006423d90e4aca950b72e50b143db065917b28537c7ca8fe7cd7d6e30022"
+
+
+def test_falls_back_to_backup_node_when_primary_rate_limits():
+    import json
+
+    import httpx
+    hits = []
+
+    def h(req):
+        hits.append(req.url.host)
+        if req.url.host == "primary":
+            return httpx.Response(429)
+        body = json.loads(req.content)
+        if isinstance(body, list):  # batch: one reply per call, like a real node
+            return httpx.Response(200, json=[{"jsonrpc": "2.0", "id": c["id"], "result": "0x10"} for c in body])
+        return httpx.Response(200, json={"jsonrpc": "2.0", "id": body["id"], "result": "0x10"})
+    rpc = RpcClient("http://primary/v2/key", transport=httpx.MockTransport(h), retries=0, logs_url="http://backup")
+    assert rpc.block_number() == 16 and hits == ["primary", "backup"]
+    hits.clear()
+    assert rpc.batch([("eth_blockNumber", [])]) and hits == ["primary", "backup"]

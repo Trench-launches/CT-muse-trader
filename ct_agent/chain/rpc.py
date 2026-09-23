@@ -64,6 +64,11 @@ class RpcClient:
             except (httpx.TransportError, httpx.HTTPStatusError) as exc:
                 if attempt == self.retries:
                     status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else type(exc).__name__
+                    if target != self.logs_url:
+                        # Primary provider exhausted (e.g. Alchemy free-tier throughput):
+                        # answer from the backup node instead of failing the whole cycle.
+                        log.warning("%s: %s from %s, using backup node", method, status, redact(target))
+                        return self.request(method, params, url=self.logs_url)
                     raise RpcError(f"{method} failed after retries ({status}) from {redact(target)}") from None
                 time.sleep(delay)
                 delay *= 2
@@ -74,6 +79,26 @@ class RpcClient:
             return body["result"]
         raise RpcError(f"{method}: unreachable")
 
+    def _post_batch(self, payload: list[dict[str, Any]]) -> Any:
+        targets = [self.url] + ([self.logs_url] if self.logs_url != self.url else [])
+        for n, target in enumerate(targets):
+            delay = 1.0
+            for attempt in range(self.retries + 1):
+                try:
+                    resp = self._http.post(target, json=payload)
+                    if resp.status_code == 429 or resp.status_code >= 500:
+                        raise httpx.HTTPStatusError("retryable", request=resp.request, response=resp)
+                    resp.raise_for_status()
+                    return resp.json()
+                except (httpx.TransportError, httpx.HTTPStatusError):
+                    if attempt == self.retries:
+                        break
+                    time.sleep(delay)
+                    delay *= 2
+            if n + 1 < len(targets):
+                log.warning("batch failed on %s, using backup node", redact(target))
+        raise RpcError(f"batch failed after retries from {redact(targets[-1])}")
+
     def batch(self, calls: list[tuple[str, list[Any]]], size: int = 20) -> list[Any]:
         """JSON-RPC batch. Returns results in order; an item that errored is
         returned as an RpcError instance instead of raising for the lot."""
@@ -82,20 +107,7 @@ class RpcClient:
             chunk = calls[i:i + size]
             ids = [next(self._ids) for _ in chunk]
             payload = [{"jsonrpc": "2.0", "id": ids[j], "method": m, "params": p} for j, (m, p) in enumerate(chunk)]
-            delay = 1.0
-            for attempt in range(self.retries + 1):
-                try:
-                    resp = self._http.post(self.url, json=payload)
-                    if resp.status_code == 429 or resp.status_code >= 500:
-                        raise httpx.HTTPStatusError("retryable", request=resp.request, response=resp)
-                    resp.raise_for_status()
-                    body = resp.json()
-                    break
-                except (httpx.TransportError, httpx.HTTPStatusError) as exc:
-                    if attempt == self.retries:
-                        raise RpcError(f"batch failed after retries from {redact(self.url)}") from None
-                    time.sleep(delay)
-                    delay *= 2
+            body = self._post_batch(payload)
             if isinstance(body, dict):  # provider rejected batching: fall back
                 for m, p in chunk:
                     try:
