@@ -1,0 +1,16 @@
+# Only the backend code is uploaded. Secrets live in Railway Variables.
+.env
+.env.*
+!.env.example
+.railway-token
+.venv/
+data/
+web/
+.vercel/
+scripts/
+tests/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.git/
