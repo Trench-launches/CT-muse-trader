@@ -64,13 +64,13 @@ def disclosure(*, holds: bool, mode: str, own_token: bool) -> str:
 
 
 def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, catalyst: str, progress: float | None,
-                window: str, risk: str, position_id: int, own_token: bool = False) -> Draft:
+                momentum: str, risk: str, position_id: int, own_token: bool = False) -> Draft:
     stage = f"while the curve was {progress * 100:.0f}% complete" if progress is not None and progress < 1 \
         else "after migration to its Pons V4 pool"
     required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain: {size} @ {entry}. CA {_short(token)}."]
     optional = [
         f"Risk: {_s(risk)}",
-        f"Saw {catalyst} {stage}, buys accelerating over {window}.",
+        f"Saw {catalyst} {stage}" + (f", {momentum}." if momentum else "."),
         "Not onchain, simulated fill." if mode == "paper" else "",
         "I'll log the exit too.",
         disclosure(holds=False, mode=mode, own_token=own_token),

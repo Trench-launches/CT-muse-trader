@@ -11,7 +11,7 @@ CA = "0x47A360fC5e39AAea67056F380B22428D69c794D4"
 def _entry(mode="paper", pid=1, risk="one wallet is 35% of buys"):
     return compose.trade_entry(mode=mode, symbol="NEZU", token=CA, size="0.05 ETH", entry="0.0000000021 ETH",
                                catalyst="a first-party launch post (source #12) " * 3, progress=0.91,
-                               window="5m/15m/1h", risk=risk, position_id=pid)
+                               momentum="buys accelerating over 5m/15m/60m", risk=risk, position_id=pid)
 
 
 def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
@@ -19,7 +19,7 @@ def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
     assert d.body.startswith("PAPER BUY $NEZU") and CA in d.body and "Risk:" in d.body
     assert len(d.body) <= 280
     assert compose.trade_entry(mode="live", symbol="N", token=CA, size="s", entry="e", catalyst="c", progress=0.9,
-                               window="w", risk="r", position_id=2).body.startswith("BOUGHT")
+                               momentum="", risk="r", position_id=2).body.startswith("BOUGHT")
 
 
 def test_losses_are_posted():
@@ -30,7 +30,7 @@ def test_losses_are_posted():
 
 def test_own_token_disclosed():
     d = compose.trade_entry(mode="live", symbol="CT", token=CA, size="s", entry="e", catalyst="c", progress=0.9,
-                            window="w", risk="r", position_id=3, own_token=True)
+                            momentum="", risk="r", position_id=3, own_token=True)
     assert "Disclosure: this is my own project token." in d.body
 
 
@@ -84,3 +84,12 @@ def test_crash_recovery_marks_unknown(db):
 def test_no_double_full_stops():
     d = compose.pass_note(symbol="T", token=CA, reason="No real news is driving this.", decision_id=1)
     assert ".." not in d.body and d.body.endswith("No real news is driving this.")
+
+
+def test_entry_post_never_says_none_or_unmeasured_momentum():
+    from ct_agent.strategy.engine import _describe_source
+    src = {"kind": "news", "author": None, "channel": None, "origin_url": "https://www.decrypt.co/x", "confidence": "first_party"}
+    assert _describe_source(src) == "a first-party news post from decrypt.co"
+    d = compose.trade_entry(mode="paper", symbol="T", token=CA, size="0.05 ETH", entry="1e-9 ETH", catalyst="a source",
+                            progress=1.0, momentum="", risk="thin pool", position_id=9)
+    assert "None" not in d.body and "accelerating" not in d.body

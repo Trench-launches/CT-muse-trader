@@ -266,14 +266,31 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
                             stage=a.cand.stage, meta={"evidence_ids": used})
         entry_price, spent = fill.avg_price, fill.quote_in
     cited = [e for e in pack["evidence"] if e["id"] in used]
-    catalyst = f"{cited[0]['kind']} source by {cited[0].get('author') or cited[0].get('channel')}" if cited else "a source"
-    windows = (a.cand.metrics.get("windows") or [])
-    win = "/".join(f"{w['seconds'] // 60}m" for w in windows) or "the last hour"
+    catalyst = _describe_source(cited[0]) if cited else "a verified source"
+    # Only claim momentum that was actually measured (curve tokens); graduated
+    # tokens are screened on pool volume instead, so say that.
+    windows = a.cand.metrics.get("windows") or []
+    if windows and a.cand.metrics.get("accelerating"):
+        momentum = "buys accelerating over " + "/".join(f"{w['seconds'] // 60}m" for w in windows)
+    elif a.cand.metrics.get("volume_heat"):
+        momentum = f"1h volume at {a.cand.metrics['volume_heat']:.1f}x its daily average"
+    else:
+        momentum = ""
     enqueue(conn, compose.trade_entry(mode=mode, symbol=symbol, token=token, size=f"{spent:.4f} ETH",
                                       entry=f"{entry_price:.3g} ETH", catalyst=catalyst, progress=a.cand.progress,
-                                      window=win, risk=risks[0], position_id=pid,
+                                      momentum=momentum, risk=risks[0], position_id=pid,
                                       own_token=token.lower() == s.agent_token_address.lower()))
     return {"entered": True, "position_id": pid}
+
+
+def _describe_source(src: dict[str, Any]) -> str:
+    """Human wording for the post, e.g. 'a first-party news post from decrypt.co'."""
+    from urllib.parse import urlparse
+    who = src.get("author") or src.get("channel") or urlparse(src.get("origin_url") or "").netloc.replace("www.", "")
+    kind = {"news": "news post", "x": "post on X", "twitch_transcript": "stream", "twitch_chat": "stream chat",
+            "manual": "source"}.get(src.get("kind"), "source")
+    grade = "first-party " if src.get("confidence") == "first_party" else ""
+    return f"a {grade}{kind}" + (f" from {who}" if who else "")
 
 
 # --- exits ------------------------------------------------------------------
