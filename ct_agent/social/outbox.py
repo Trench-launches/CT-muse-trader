@@ -1,5 +1,9 @@
 """X outbox: queue, daily cap, idempotency, safe retries.
 
+Order: trade posts (entries, updates, exits, corrections, scorecards) go
+before commentary (watch/pass). A reply waits until the post it threads
+under has been sent; if that parent failed, the reply goes out on its own.
+
 States: pending -> sending -> sent
                            -> pending (retryable error: 429/5xx, attempts < max)
                            -> failed  (permanent 4xx or too many attempts)
@@ -24,14 +28,16 @@ from .compose import Draft
 
 log = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
+# Trade posts go first, in the order they happened; anything else (watch, pass) is commentary.
+TRADE_KINDS = {"trade_entry", "update", "trade_exit", "correction", "scorecard"}
 
 
 def enqueue(conn: sqlite3.Connection, d: Draft) -> tuple[int, bool]:
     existing = conn.execute("SELECT id FROM posts WHERE idempotency_key=?", (d.idempotency_key,)).fetchone()
     if existing:
         return int(existing["id"]), False
-    cur = conn.execute("INSERT INTO posts(idempotency_key,kind,body,ref,created_at) VALUES(?,?,?,?,?)",
-                       (d.idempotency_key, d.kind, d.body, d.ref, utcnow()))
+    cur = conn.execute("INSERT INTO posts(idempotency_key,kind,body,ref,created_at,reply_to_key) VALUES(?,?,?,?,?,?)",
+                       (d.idempotency_key, d.kind, d.body, d.ref, utcnow(), d.reply_to))
     journal_append(conn, "post_queued", {"post_id": cur.lastrowid, "kind": d.kind, "body": d.body,
                                          "key": d.idempotency_key}, ref=d.ref or None)
     return int(cur.lastrowid), True
@@ -61,21 +67,39 @@ def send_pending(conn: sqlite3.Connection, x: XClient, *, enabled: bool, daily_c
         if sent_last_24h(conn) >= daily_cap:
             break
         with tx(conn):
-            row = conn.execute("SELECT * FROM posts WHERE status='pending' ORDER BY id LIMIT 1").fetchone()
-            if not row:
+            picked = _next_sendable(conn)
+            if not picked:
                 break
+            row, parent_x_id = picked
             conn.execute("UPDATE posts SET status='sending', attempts=attempts+1, sent_at=? WHERE id=?",
                          (utcnow(), row["id"]))
-        results.append(_send_one(conn, x, dict(row)))
+        results.append(_send_one(conn, x, row, parent_x_id))
         if results[-1]["status"] not in ("sent",):
             break  # back off on any problem; next cycle retries
     return results
 
 
-def _send_one(conn: sqlite3.Connection, x: XClient, row: dict[str, Any]) -> dict[str, Any]:
+def _next_sendable(conn: sqlite3.Connection) -> tuple[dict[str, Any], str | None] | None:
+    """Highest-priority pending post whose thread parent (if any) is settled."""
+    pending = rows(conn, "SELECT * FROM posts WHERE status='pending'")
+    pending.sort(key=lambda r: (r["kind"] not in TRADE_KINDS, r["id"]))
+    for row in pending:
+        if not row.get("reply_to_key"):
+            return row, None
+        parent = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?",
+                              (row["reply_to_key"],)).fetchone()
+        if parent is None or parent["status"] in ("failed", "cancelled", "unknown"):
+            return row, None  # nothing to thread under: post it on its own
+        if parent["status"] == "sent":
+            return row, parent["x_post_id"]
+        # parent still pending/sending: wait so the thread reads in order
+    return None
+
+
+def _send_one(conn: sqlite3.Connection, x: XClient, row: dict[str, Any], reply_to: str | None = None) -> dict[str, Any]:
     pid, attempts = row["id"], row["attempts"] + 1
     try:
-        res = x.create_post(row["body"])
+        res = x.create_post(row["body"], reply_to=reply_to)
     except XNotConfigured as exc:
         return _set(conn, pid, "pending", str(exc), attempts=row["attempts"])
     except httpx.TimeoutException as exc:

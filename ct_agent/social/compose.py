@@ -21,6 +21,7 @@ class Draft:
     body: str
     ref: str
     idempotency_key: str
+    reply_to: str | None = None  # idempotency_key of the post to thread under
 
 
 def _fit(parts_required: list[str], optional: list[str]) -> str:
@@ -79,6 +80,17 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
     return Draft("trade_entry", _fit(required, optional), token, f"entry:{mode}:{position_id}")
 
 
+def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, stop_pct: float,
+                    target_pct: float, position_id: int) -> Draft:
+    """A milestone update, posted as a reply under the entry post."""
+    body = (f"${symbol} {pnl_pct:+.0f}% since the call, now {price}. Still holding. "
+            f"Exit at -{stop_pct:.0f}% or +{target_pct:.0f}%.")
+    if mode == "paper":
+        body += " Paper position."
+    return Draft("update", body, token, f"update:{mode}:{position_id}:{milestone:+g}",
+                 reply_to=f"entry:{mode}:{position_id}")
+
+
 def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, exit_price: str, reason: str,
                position_id: int) -> Draft:
     verb = "PAPER SOLD" if mode == "paper" else "SOLD"
@@ -86,7 +98,8 @@ def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, exit_price
     required = [f"{verb} ${symbol} @ {exit_price}, {result}. CA {_short(token)}."]
     optional = [f"Why: {_s(reason)}", "Loss logged, not hidden." if pnl_pct < 0 else "",
                 "Simulated, not onchain." if mode == "paper" else ""]
-    return Draft("trade_exit", _fit(required, optional), token, f"exit:{mode}:{position_id}")
+    return Draft("trade_exit", _fit(required, optional), token, f"exit:{mode}:{position_id}",
+                 reply_to=f"entry:{mode}:{position_id}")
 
 
 def pass_note(*, symbol: str, token: str, reason: str, decision_id: int) -> Draft:

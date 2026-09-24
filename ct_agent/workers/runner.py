@@ -47,7 +47,7 @@ WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {
     "indexer": (index_once, 10.0),
     "research": (research_once, 300.0),
     "trader": (trader_once, 60.0),
-    "social": (social_once, 60.0),
+    "social": (social_once, 20.0),
 }
 
 

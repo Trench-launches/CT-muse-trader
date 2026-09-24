@@ -201,3 +201,53 @@ def test_no_muse_means_no_trades(tmp_path):
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
     assert d["action"] == "watch"
     assert rows(ctx.conn, "SELECT COUNT(*) c FROM positions")[0]["c"] == 0
+
+
+def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
+    ch, hot, _ = _scenario()
+    sent: list[dict] = []
+
+    def h(req: httpx.Request) -> httpx.Response:
+        if req.method == "POST" and req.url.path == "/2/tweets":
+            sent.append(json.loads(req.content))
+            return httpx.Response(201, json={"data": {"id": str(1000 + len(sent))}})
+        return httpx.Response(404)
+
+    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=httpx.MockTransport(h), completer=_muse())
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"HOT team ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+    trader_once(ctx)
+    social_once(ctx)
+    assert sent[0]["text"].startswith("PAPER BUY $HOT") and "reply" not in sent[0]
+
+    hot.real_quote = int(5.2 * ETH)  # price up past +25%
+    out = trader_once(ctx)
+    assert out["exits"][0]["action"] == "hold" and out["exits"][0]["pnl_pct"] >= 25, out["exits"]
+    trader_once(ctx)  # same milestone again: no second update
+    social_once(ctx)
+    assert len(sent) == 2
+    assert sent[1]["text"].startswith("$HOT +") and "Still holding" in sent[1]["text"]
+    assert sent[1]["reply"] == {"in_reply_to_tweet_id": "1001"}
+
+    hot.real_quote = int(0.2 * ETH)  # collapse -> stop loss, exit replies under the entry too
+    trader_once(ctx)
+    social_once(ctx)
+    assert sent[-1]["text"].startswith("PAPER SOLD $HOT") and sent[-1]["reply"] == {"in_reply_to_tweet_id": "1001"}
+    assert len(sent) == 3
+
+
+def test_repeat_calls_are_not_reposted(tmp_path):
+    from ct_agent.social import compose
+    from ct_agent.social.outbox import enqueue
+    from ct_agent.strategy.engine import _thread
+    ctx = build(_settings(tmp_path), rpc_transport=FakeChain(head=1).transport(), market_transport=_market(),
+                x_transport=_x_transport([]))
+    tok = addr(0xA1)
+    assert _thread(ctx.conn, tok, "watch") == (False, None)
+    enqueue(ctx.conn, compose.watch_note(symbol="HOT", token=tok, thesis="t", risk="r", decision_id=1))
+    assert _thread(ctx.conn, tok, "watch") == (True, "watch:1")        # same call again: skipped
+    assert _thread(ctx.conn, tok, "pass") == (False, "watch:1")        # new call: threads under it
+    assert _thread(ctx.conn, tok, "trade_entry") == (False, "watch:1")

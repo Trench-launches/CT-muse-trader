@@ -36,6 +36,10 @@ def connect(path: str) -> sqlite3.Connection:
 
 def migrate(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA.read_text(encoding="utf-8"))
+    # Columns added after the first release (CREATE TABLE IF NOT EXISTS won't add them).
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(posts)")}
+    if "reply_to_key" not in cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN reply_to_key TEXT")
 
 
 def open_db(path: str) -> sqlite3.Connection:

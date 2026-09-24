@@ -82,7 +82,8 @@ class Settings(BaseSettings):
     # Written by `ctagent x-login`; the server seeds its token store from it
     x_refresh_token: str = ""
     x_posting_enabled: bool = False
-    x_daily_post_cap: int = 6
+    x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
+    x_update_milestones_pct: list[float] = [25.0, 50.0, -15.0]  # open-position updates, replied under the entry
     x_max_reads_per_search: int = 20
     x_monthly_read_budget: int = 6_000
 

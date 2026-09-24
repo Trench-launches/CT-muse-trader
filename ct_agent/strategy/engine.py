@@ -163,6 +163,21 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
 
 # --- decide & act -----------------------------------------------------------
 
+def _thread(conn, token: str, kind: str) -> tuple[bool, str | None]:
+    """(skip, reply_to_key) for a new call on a token. The same call twice in
+    24h is skipped; a different call (watch -> buy, watch -> pass) is posted as
+    a reply under the previous one so each token reads as one thread."""
+    since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
+    prev = conn.execute("SELECT idempotency_key, kind FROM posts WHERE ref=? AND kind IN ('watch','pass','trade_entry') "
+                        "AND status NOT IN ('failed','cancelled') AND created_at>=? ORDER BY id DESC LIMIT 1",
+                        (token, since)).fetchone()
+    if prev is None:
+        return False, None
+    if prev["kind"] == "trade_entry" and kind != "trade_entry":
+        return True, None  # already in it: milestone updates and the exit cover the token now
+    return prev["kind"] == kind and kind != "trade_entry", prev["idempotency_key"]
+
+
 def _recent_decision(ctx: Context, token: str) -> bool:
     since = (datetime.now(timezone.utc) - timedelta(minutes=ctx.settings.decision_cooldown_min)).isoformat()
     return ctx.conn.execute("SELECT 1 FROM decisions WHERE token=? AND ts>=? LIMIT 1", (token, since)).fetchone() \
@@ -237,13 +252,19 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     if action == "buy":
         out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack))
     elif action == "watch" and conf >= 0.6 and res.decision:
-        enqueue(conn, compose.watch_note(symbol=symbol, token=token,
-                                         thesis=res.decision.public_line or thesis or "on my list",
-                                         risk=(risks or ["unclear"])[0], decision_id=did))
+        skip, parent = _thread(conn, token, "watch")
+        if not skip:
+            d = compose.watch_note(symbol=symbol, token=token, thesis=res.decision.public_line or thesis or "on my list",
+                                   risk=(risks or ["unclear"])[0], decision_id=did)
+            d.reply_to = parent
+            enqueue(conn, d)
     elif action == "pass" and res.decision and pack["evidence"] and conf >= 0.7:
-        enqueue(conn, compose.pass_note(symbol=symbol, token=token,
-                                        reason=res.decision.public_line or (reasons or ["not convinced"])[0],
-                                        decision_id=did))
+        skip, parent = _thread(conn, token, "pass")
+        if not skip:
+            d = compose.pass_note(symbol=symbol, token=token,
+                                  reason=res.decision.public_line or (reasons or ["not convinced"])[0], decision_id=did)
+            d.reply_to = parent
+            enqueue(conn, d)
     return out
 
 
@@ -285,10 +306,12 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
         momentum = f"1h volume at {a.cand.metrics['volume_heat']:.1f}x its daily average"
     else:
         momentum = ""
-    enqueue(conn, compose.trade_entry(mode=mode, symbol=symbol, token=token, size=f"{spent:.4f} ETH",
-                                      entry=f"{entry_price:.3g} ETH", catalyst=catalyst, progress=a.cand.progress,
-                                      momentum=momentum, risk=risks[0], position_id=pid,
-                                      own_token=token.lower() == s.agent_token_address.lower()))
+    d = compose.trade_entry(mode=mode, symbol=symbol, token=token, size=f"{spent:.4f} ETH",
+                            entry=f"{entry_price:.3g} ETH", catalyst=catalyst, progress=a.cand.progress,
+                            momentum=momentum, risk=risks[0], position_id=pid,
+                            own_token=token.lower() == s.agent_token_address.lower())
+    d.reply_to = _thread(conn, token, "trade_entry")[1]  # under an earlier watch/pass, if any
+    enqueue(conn, d)
     return {"entered": True, "position_id": pid}
 
 
@@ -348,6 +371,7 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
                 if r.decision and r.decision.action == "sell" and r.decision.confidence >= 0.6:
                     reason = "thesis review: " + "; ".join(r.decision.reasons)[:120]
         if not reason:
+            _milestone_update(ctx, pos, pnl_pct, fill)
             results.append({"position_id": pos["id"], "pnl_pct": round(pnl_pct, 2), "action": "hold"})
             continue
         symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
@@ -376,6 +400,24 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
                                          exit_price=f"{fill.avg_price:.3g} ETH", reason=reason, position_id=pos["id"]))
         results.append({"position_id": pos["id"], "action": "exit", "reason": reason, "pnl_pct": round(pnl_pct, 2)})
     return results
+
+
+def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: FillEstimate) -> None:
+    """Post once per milestone crossed (e.g. +25%, +50%, -15%), under the entry
+    post. If several are crossed at once, only the furthest one is posted."""
+    s, conn = ctx.settings, ctx.conn
+    key = f"milestones:{pos['id']}"
+    hit = set(kv_get(conn, key, []) or [])
+    crossed = [m for m in s.x_update_milestones_pct
+               if m not in hit and ((m > 0 and pnl_pct >= m) or (m < 0 and pnl_pct <= m))]
+    if not crossed:
+        return
+    kv_set(conn, key, sorted(hit | set(crossed)))
+    m = max(crossed, key=abs)
+    symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
+    enqueue(conn, compose.position_update(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
+                                          price=f"{fill.avg_price:.3g} ETH", milestone=m, stop_pct=s.stop_loss_pct,
+                                          target_pct=s.take_profit_pct, position_id=pos["id"]))
 
 
 def weekly_scorecard(ctx: Context, now: datetime | None = None) -> bool:

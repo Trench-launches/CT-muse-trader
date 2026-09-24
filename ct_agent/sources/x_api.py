@@ -122,14 +122,17 @@ class XClient:
     def can_post(self) -> bool:
         return bool(self.user_token) or bool(self.oauth and self.oauth.configured)
 
-    def create_post(self, text: str) -> PostResult:
+    def create_post(self, text: str, reply_to: str | None = None) -> PostResult:
         if self.user_token:
             token = self.user_token
         elif self.oauth is not None:
             token = self.oauth.access_token()  # raises XNotConfigured if the login is missing
         else:
             raise XNotConfigured("X posting not set up: run `ctagent x-login`")
-        r = self._http.post(f"{API}/tweets", json={"text": text},
+        body: dict[str, Any] = {"text": text}
+        if reply_to:  # replies only ever go under MOOSE's own posts (threads)
+            body["reply"] = {"in_reply_to_tweet_id": reply_to}
+        r = self._http.post(f"{API}/tweets", json=body,
                             headers={"authorization": f"Bearer {token}"})
         r.raise_for_status()
         data = r.json()["data"]

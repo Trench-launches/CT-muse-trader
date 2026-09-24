@@ -186,5 +186,6 @@ CREATE TABLE IF NOT EXISTS posts (
     x_post_id        TEXT,
     last_error       TEXT,
     created_at       TEXT NOT NULL,
-    sent_at          TEXT
+    sent_at          TEXT,
+    reply_to_key     TEXT            -- idempotency_key of the post this one replies to (threads)
 );

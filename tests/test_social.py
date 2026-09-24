@@ -1,3 +1,4 @@
+import json
 import httpx
 
 from ct_agent.db import journal_recent, rows
@@ -93,3 +94,18 @@ def test_entry_post_never_says_none_or_unmeasured_momentum():
     d = compose.trade_entry(mode="paper", symbol="T", token=CA, size="0.05 ETH", entry="1e-9 ETH", catalyst="a source",
                             progress=1.0, momentum="", risk="thin pool", position_id=9)
     assert "None" not in d.body and "accelerating" not in d.body
+
+
+def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
+    enqueue(db, compose.watch_note(symbol="W", token=CA, thesis="t", risk="r", decision_id=1))
+    enqueue(db, _entry(pid=1))
+    enqueue(db, compose.position_update(mode="paper", symbol="NEZU", token=CA, pnl_pct=26, price="1e-9 ETH",
+                                        milestone=25, stop_pct=25, target_pct=60, position_id=1))
+    got: list[dict] = []
+
+    def h(r):
+        got.append(json.loads(r.content))
+        return httpx.Response(201, json={"data": {"id": str(len(got))}})
+    send_pending(db, _x(h), enabled=True, daily_cap=60)
+    assert [g["text"][:9] for g in got] == ["PAPER BUY", "$NEZU +26", "Watching "]
+    assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
