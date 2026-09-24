@@ -75,6 +75,21 @@ def test_daily_loss_limit_blocks_new_entries(db, settings):
     assert not v.ok and any("daily loss" in x for x in v.reasons)
 
 
+def test_trade_size_is_a_share_of_the_account(db, settings):
+    from types import SimpleNamespace
+    from ct_agent.strategy.engine import _trade_size
+    s = settings.model_copy(update={"position_size_pct": 3.0, "paper_starting_balance_eth": 1.0,
+                                    "max_position_eth": 0.5})
+    ctx = SimpleNamespace(settings=s, risk=RiskManager(s, db))
+    assert _trade_size(ctx) == 0.03
+    db.execute("INSERT INTO positions(token,mode,status,quote_symbol,opened_at,entry_quote,entry_tokens,entry_price,"
+               "closed_at,pnl_quote) VALUES('0xa','paper','closed','ETH','2026-01-01',0.05,1,0.05,'2026-01-01',1.0)")
+    assert _trade_size(ctx) == 0.06  # the account doubled, so does the size
+    assert RiskManager(s, db).check_entry(token="0xb", quote_symbol="ETH", mode="paper",
+                                          desired_eth=_trade_size(ctx)).size_eth == 0.06
+    assert _trade_size(SimpleNamespace(settings=settings, risk=RiskManager(settings, db))) is None  # 0% = fixed size
+
+
 def test_live_executor_refuses_by_default(db, settings):
     ch = FakeChain()
     pons = PonsV2(RpcClient("http://fake", transport=ch.transport(), retries=0), FACTORY)

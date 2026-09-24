@@ -253,12 +253,37 @@ def analyse_call(ctx: Context, a: Assessed) -> int:
     return did
 
 
+def account_eth(ctx: Context) -> float | None:
+    """What the account is worth for sizing: live, the wallet's ETH plus open trades at cost; paper, the
+    starting balance plus closed P&L. None if the wallet can't be read."""
+    s, risk = ctx.settings, ctx.risk
+    if s.trading_mode.value == "paper":
+        return risk.paper_cash_eth() + risk.exposure_eth("paper")
+    if not ctx.live.wallet:
+        return None
+    try:
+        return ctx.rpc.get_balance(ctx.live.wallet) / ETH + risk.exposure_eth("live")
+    except Exception as exc:
+        log.warning("wallet balance unavailable: %s", exc)
+        return None
+
+
+def _trade_size(ctx: Context) -> float | None:
+    """position_size_pct of the account (capped by max_position_eth in the risk check), else None = the max."""
+    pct = ctx.settings.position_size_pct
+    if pct <= 0:
+        return None
+    acct = account_eth(ctx)
+    return round(acct * pct / 100, 6) if acct else 0.0
+
+
 def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
     """The +30% rule fired: buy. Only the wallet's safety limits can stop it."""
     s, conn = ctx.settings, ctx.conn
     token, symbol = a.cand.token, a.launch.get("symbol") or "?"
     move = a.call.get("last_move_pct") or 0
-    verdict = ctx.risk.check_entry(token=token, quote_symbol="ETH", mode=s.trading_mode.value)
+    verdict = ctx.risk.check_entry(token=token, quote_symbol="ETH", mode=s.trading_mode.value,
+                                   desired_eth=_trade_size(ctx))
     gates = list(verdict.reasons)
     if a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd:
         gates.append("pool price unavailable this cycle")
@@ -560,7 +585,8 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
             gates.append(f"the deployer still holds {hs['deployer_share']:.0%} of the supply")
         if hs.get("top10_share", 0) > s.max_top10_hold_share:
             gates.append(f"the 10 biggest wallets hold {hs['top10_share']:.0%} of the supply")
-        verdict = ctx.risk.check_entry(token=token, quote_symbol=a.launch.get("quote_symbol") or "", mode=s.trading_mode.value)
+        verdict = ctx.risk.check_entry(token=token, quote_symbol=a.launch.get("quote_symbol") or "", mode=s.trading_mode.value,
+                                       desired_eth=_trade_size(ctx))
         gates.extend(verdict.reasons)
         fill = None
         if not gates:

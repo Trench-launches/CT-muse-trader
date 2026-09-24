@@ -89,7 +89,7 @@ class RiskManager:
         if self.realized_today_eth(mode) <= -self.s.max_daily_loss_eth:
             v.reasons.append(f"daily loss limit {self.s.max_daily_loss_eth} ETH hit")
         headroom = self.s.max_total_exposure_eth - self.exposure_eth(mode)
-        size = min(desired_eth or self.s.max_position_eth, self.s.max_position_eth, headroom)
+        size = min(self.s.max_position_eth if desired_eth is None else desired_eth, self.s.max_position_eth, headroom)
         if mode == TradingMode.PAPER.value:
             size = min(size, self.paper_cash_eth())
         if size <= 0.0005:

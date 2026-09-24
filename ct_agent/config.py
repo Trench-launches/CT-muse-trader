@@ -103,7 +103,10 @@ class Settings(BaseSettings):
     # --- trading & risk -------------------------------------------------
     trading_mode: TradingMode = TradingMode.PAPER
     paper_starting_balance_eth: float = 1.0
-    max_position_eth: float = 0.05
+    max_position_eth: float = 0.05     # hard cap on one trade, whatever the sizing rule says
+    # Size each trade as this % of the account (wallet ETH + open trades at cost; on paper: the paper
+    # balance). 0 = every trade is max_position_eth.
+    position_size_pct: float = 0.0
     max_open_positions: int = 3
     max_total_exposure_eth: float = 0.15
     max_daily_loss_eth: float = 0.05
