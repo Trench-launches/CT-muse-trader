@@ -207,6 +207,24 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .nav-links a { text-decoration: none; font-size: var(--t-sm); font-weight: 500; color: var(--ink-2); padding: 8px 12px; border-radius: var(--r-pill); transition: background .2s, color .2s; }
 .nav-links a:hover { background: var(--surface); color: var(--ink); }
 .nav-right { display: flex; align-items: center; gap: 10px; }
+/* Buy $MOOSE: shows "soon" and goes nowhere until the token's contract and GMGN link are set in the script */
+.buy-btn .face { width: 22px; height: 22px; margin-left: -6px; }
+.buy-btn .soon { font-family: var(--f-mono); font-size: 10.5px; font-weight: 500; padding: 2px 7px; border-radius: var(--r-pill); background: rgba(255,255,255,.22); }
+.buy-btn[aria-disabled="true"] { cursor: default; }
+.buy-btn[aria-disabled="true"]:hover { transform: none; box-shadow: none; background: var(--blue); }
+.buy-btn .lbl-s { display: none; }
+.ca-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 8px 8px 8px 14px; width: fit-content; max-width: 100%; border-radius: var(--r-pill); background: rgba(255,255,255,.75); box-shadow: inset 0 0 0 1px var(--line); position: relative; z-index: 2;
+  transition: background .25s, box-shadow .25s, transform .3s var(--spring); }
+.ca-row:hover { background: var(--white); box-shadow: inset 0 0 0 1px rgba(0,130,251,.35), 0 10px 22px -14px rgba(0,100,224,.55); transform: translateY(-2px); }
+.ca-row[hidden] { display: none; }
+.ca-row .lbl { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; color: var(--ink-3); }
+.ca-row code { font-family: var(--f-mono); font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ca-row button { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--white); color: var(--ink-2); display: grid; place-items: center; padding: 0; cursor: pointer;
+  transition: color .2s, border-color .2s, background .2s, transform .25s var(--spring); }
+.ca-row button:hover { color: var(--white); background: var(--blue); border-color: var(--blue); transform: scale(1.08); }
+.ca-row button:active { transform: scale(.94); }
+.ca-row button .ic { width: 15px; height: 15px; vertical-align: 0; }
+.ca-row button.done, .ca-row button.done:hover { color: var(--white); background: var(--green); border-color: var(--green); }
 .menu-btn { display: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); background: var(--white); color: var(--ink); place-items: center; padding: 0; }
 .menu-btn .ic { width: 20px; height: 20px; vertical-align: 0; }
 .menu-btn .ic-close, .nav.open .menu-btn .ic-open { display: none; }
@@ -218,7 +236,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
     background: var(--white); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); }
   .nav.open .nav-links a { padding: 13px 16px; font-size: var(--t-md); color: var(--ink); }
 }
-@media (max-width: 520px) { .nav-right .btn { width: 40px; height: 40px; padding: 0; justify-content: center; } .nav-right .btn .lbl { display: none; } }
+@media (max-width: 520px) {
+  .nav-right .btn:not(.buy-btn) { width: 40px; height: 40px; padding: 0; justify-content: center; } .nav-right .btn .lbl { display: none; }
+  .nav-right .buy-btn { height: 40px; padding: 0 14px; } .nav-right .buy-btn .lbl-s { display: inline; } .nav-right .buy-btn .soon, .nav-right .buy-btn .face { display: none; }
+}
 
 /* ---------- 1 HERO ---------- */
 .hero { min-height: calc(100svh - 64px); max-height: 1200px; padding-block: clamp(20px, 4.5vh, 56px) var(--sec-pad); display: flex; }
@@ -299,57 +320,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lead .rows span:first-child { color: var(--ink-3); }
 .lead-note { margin-top: 12px; font-size: 13px; color: var(--amber); background: var(--amber-soft); border-radius: 10px; padding: 8px 12px; }
 @media (max-width: 1000px) { .listen-panel { grid-template-columns: 1fr; } .hub { display: none; } .wires { display: none; } }
-
-/* ---------- 4 VERIFY ---------- */
-.verify .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
-.verify-panel { padding: clamp(20px, 3vw, 40px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 18px; align-items: center; height: clamp(340px, var(--fit), 600px); }
-.token-card { position: relative; z-index: 2; padding: 22px; }
-.token-card .top { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-.token-av { width: 50px; height: 50px; position: relative; flex: none; }
-.user-av { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); font-size: 26px; }
-.user-av .ic { width: 26px; height: 26px; }
-.token-av .rh { position: absolute; right: -4px; bottom: -4px; font-size: 11px; box-shadow: 0 0 0 2px var(--white); }
-.token-card h4 { font-size: var(--t-xl); }
-.heard { display: inline-flex; align-items: center; gap: 7px; margin-top: 4px; font-size: 13px; color: var(--ink-2); }
-.heard .src-ic { width: 20px; height: 20px; border-radius: 6px; }
-.heard .src-ic .ic { width: 11px; height: 11px; }
-.stamps { display: grid; margin-top: 6px; }
-.stamp { display: grid; grid-template-columns: 36px minmax(0, 1fr) 24px; align-items: center; gap: 14px; padding: 11px 0; font-size: 15px; transition: opacity .3s; }
-.stamp + .stamp { border-top: 1px solid var(--line); }
-.stamp .si { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); transition: background .3s, color .3s; }
-.stamp .si > .ic { width: 17px; height: 17px; vertical-align: 0; }
-.stamp .si .rh { font-size: 14px; }
-.stamp .stt { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 2px var(--line); color: var(--white); transition: background .3s, box-shadow .3s, transform .35s var(--spring); }
-.stamp .stt .ic { width: 13px; height: 13px; vertical-align: 0; }
-.stamp.pass .stt { background: var(--blue); box-shadow: none; transform: scale(1.08); }
-.stamp.fail .stt { background: var(--coral); box-shadow: none; }
-.stamp.fail .si { background: var(--coral-soft); color: var(--coral); }
-.stamp.fail { animation: shake .4s; }
-.stamp.skip { opacity: .35; }
-@keyframes shake { 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
-.verdict { margin-top: 12px; font-size: 14px; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface); color: var(--ink-2); min-height: 48px; transition: background .3s, color .3s; }
-.verdict .ic { width: 18px; height: 18px; vertical-align: 0; flex: none; }
-.verdict b { color: var(--ink); }
-.verdict.ok { background: var(--blue-soft); color: var(--blue-deep); } .verdict.ok b { color: var(--blue-deep); }
-.verdict.no { background: var(--coral-soft); color: var(--ink); } .verdict.no .ic, .verdict.no b { color: var(--coral); }
-.pile { position: relative; z-index: 2; background: rgba(255,255,255,.92); border-radius: var(--r-card); box-shadow: var(--shadow); padding: 14px 16px 6px; }
-/* a slight tilt, like cards laid on a desk; they straighten when you point at them */
-.token-card { transform: rotate(-1.5deg); transition: transform .5s var(--spring); }
-.pile { transform: rotate(2deg); transition: transform .5s var(--spring); }
-.token-card:hover, .pile:hover { transform: none; }
-.pile-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
-.pile-h h5 { margin: 0; font-family: var(--f-body); font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
-.pile-h small { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); }
-.rej { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; animation: drop .5s var(--ease); }
-.rej .src-ic { width: 24px; height: 24px; border-radius: 7px; }
-.rej .src-ic .ic { width: 13px; height: 13px; }
-.rej b { display: block; font-family: var(--f-mono); font-weight: 500; font-size: 12.5px; line-height: 1.3; }
-.rej .why { display: block; color: var(--ink-2); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rej .st { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: var(--white); }
-.rej .st .ic { width: 13px; height: 13px; vertical-align: 0; }
-.rej.ok .st { background: var(--green); } .rej.no .st { background: var(--coral); }
-@keyframes drop { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
-@media (max-width: 1000px) { .verify .wrap { grid-template-columns: 1fr; } .verify-panel { grid-template-columns: 1fr; height: auto; } }
 
 /* ---------- 5 THINKS (chat) ---------- */
 .think .wrap { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
@@ -521,30 +491,29 @@ body.killed .paused-note { display: block; }
   .rec-desk { display: none; }
 }
 
-/* ---------- 9 SCORE ---------- */
-.score { background: var(--ink); color: var(--white); }
-.score .kicker { background: rgba(255,255,255,.1); color: #9CCBFF; }
-.score .sub { color: #A9B6BF; }
+/* ---------- 9 SCORE: white cards on the brand panel, like the Live section ---------- */
 .score-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 16px; }
-.score-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; margin-top: clamp(24px, 4vh, 48px); }
-.sc-card { border-radius: var(--r-card); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1); padding: clamp(18px, 2.4vh, 26px) 22px; position: relative; min-width: 0; }
-.sc-lbl { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: #8FA0AB; }
+.score-panel { margin-top: clamp(22px, 4vh, 44px); padding: clamp(14px, 2vw, 28px); background: var(--panel); }
+.score-grid { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(14px, 1.6vw, 20px); }
+.sc-card { border-radius: 22px; background: rgba(255,255,255,.94); box-shadow: var(--shadow); padding: clamp(16px, 2.2vh, 24px) 22px; position: relative; min-width: 0; }
+.sc-lbl { font-family: var(--f-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
 .sc-net { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-top: 8px; }
-.sc-net .big { font-family: var(--f-display); font-size: clamp(52px, min(6vw, 10vh), 104px); letter-spacing: -0.05em; line-height: .9; }
-.sc-net .unit { font-family: var(--f-display); font-size: clamp(20px, 2vw, 28px); color: #A9B6BF; letter-spacing: -0.02em; }
-.sc-chip { font-family: var(--f-mono); font-size: 13px; padding: 4px 10px; border-radius: var(--r-pill); background: rgba(255,255,255,.08); color: #D5DEE8; align-self: center; }
-.sc-chip.up { background: rgba(95,220,145,.14); color: #5FDC91; } .sc-chip.down { background: rgba(255,128,136,.14); color: #FF8088; }
-.sc-meta { margin-top: 10px; font-size: var(--t-sm); color: #A9B6BF; }
-.sc-meta b { color: var(--white); font-weight: 500; }
-.sc-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.sc-net .big { font-family: var(--f-display); font-size: clamp(52px, min(6vw, 10vh), 104px); letter-spacing: -0.05em; line-height: .9; color: var(--ink); }
+.sc-net .unit { font-family: var(--f-display); font-size: clamp(20px, 2vw, 28px); color: var(--ink-3); letter-spacing: -0.02em; }
+.sc-chip { font-family: var(--f-mono); font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: var(--r-pill); background: var(--surface); color: var(--ink-2); align-self: center; }
+.sc-chip.up { background: var(--green-soft); color: var(--green); } .sc-chip.down { background: var(--coral-soft); color: var(--coral); }
+.sc-meta { margin-top: 10px; font-size: var(--t-sm); color: var(--ink-2); }
+.sc-meta b { color: var(--ink); font-weight: 600; }
+.sc-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 1.6vw, 20px); }
 .sc-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
-.sc-tile .v { font-family: var(--f-display); font-size: clamp(28px, min(2.8vw, 5vh), 44px); letter-spacing: -0.04em; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sc-tile .v small { font-size: .45em; color: #A9B6BF; letter-spacing: 0; margin-left: 4px; }
-.sc-tile .s { font-size: 13px; color: #A9B6BF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.up-t { color: #5FDC91; } .down-t { color: #FF8088; }
-.wl { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(255,255,255,.1); gap: 2px; }
-.wl i { display: block; height: 100%; } .wl .w { background: #5FDC91; } .wl .l { background: #FF8088; }
-.sc-recent { display: flex; align-items: center; gap: 14px; margin-top: 16px; }
+.sc-tile .v { font-family: var(--f-display); font-size: clamp(28px, min(2.8vw, 5vh), 44px); letter-spacing: -0.04em; line-height: 1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-tile .v small { font-size: .45em; color: var(--ink-3); letter-spacing: 0; margin-left: 4px; }
+.sc-tile .s { font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-tile .v.up-t, .sc-net .up-t { color: var(--green); } .sc-tile .v.down-t { color: var(--coral); }
+.up-t { color: var(--green); } .down-t { color: var(--coral); }
+.wl { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface); gap: 2px; }
+.wl i { display: block; height: 100%; } .wl .w { background: var(--green); } .wl .l { background: var(--coral); }
+.sc-recent { position: relative; z-index: 2; display: flex; align-items: center; gap: 14px; margin-top: clamp(14px, 1.6vw, 20px); padding: 10px 10px 10px 18px; border-radius: var(--r-pill); background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 1px rgba(28,43,51,.05); }
 .sc-recent .sc-lbl { flex: none; }
 /* latest closes: an endless ticker. The track holds the set twice and slides by half, so the loop is seamless */
 .rc-view { flex: 1; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(90deg, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
@@ -552,13 +521,13 @@ body.killed .paused-note { display: block; }
 .rc-track.run { animation: rcscroll var(--dur, 30s) linear infinite; }
 .rc-view:hover .rc-track { animation-play-state: paused; }
 @keyframes rcscroll { to { transform: translateX(-50%); } }
-.rc { margin-right: 10px; flex: none; display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: var(--r-pill); background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); font-size: 13.5px; }
-.rc b { font-weight: 600; } .rc .m { font-family: var(--f-mono); font-size: 12.5px; } .rc .h { color: #8FA0AB; font-size: 12.5px; }
-.rc-empty { font-size: 13.5px; color: #8FA0AB; }
+.rc { margin-right: 10px; flex: none; display: inline-flex; align-items: center; gap: 10px; padding: 7px 14px; border-radius: var(--r-pill); background: var(--white); box-shadow: 0 1px 2px rgba(28,43,51,.06), inset 0 0 0 1px var(--line); font-size: 13.5px; color: var(--ink); }
+.rc b { font-weight: 700; } .rc .m { font-family: var(--f-mono); font-size: 12.5px; font-weight: 500; } .rc .h { color: var(--ink-3); font-size: 12.5px; }
+.rc-empty { font-size: 13.5px; color: var(--ink-2); }
 @media (max-width: 1000px) { .score-grid { grid-template-columns: 1fr; } }
-@media (max-width: 480px) { .sc-tiles { gap: 10px; } .sc-card { padding: 16px; } }
+@media (max-width: 480px) { .sc-tiles { gap: 10px; } .sc-card { padding: 16px; } .sc-recent { border-radius: 20px; padding: 10px 12px; } .sc-recent .sc-lbl { display: none; } }
 .spark { width: 100%; height: clamp(90px, 17vh, 200px); display: block; margin-top: 18px; overflow: visible; }
-.spark-tip { position: absolute; background: var(--white); color: var(--ink); font-family: var(--f-mono); font-size: 12px; padding: 6px 10px; border-radius: 8px; pointer-events: none; transform: translate(-50%, calc(-100% - 12px)); opacity: 0; transition: opacity .15s; white-space: nowrap; }
+.spark-tip { position: absolute; background: var(--ink); color: var(--white); font-family: var(--f-mono); font-size: 12px; padding: 6px 10px; border-radius: 8px; pointer-events: none; transform: translate(-50%, calc(-100% - 12px)); opacity: 0; transition: opacity .15s; white-space: nowrap; }
 
 /* ---------- 5b ASK MUSE ---------- */
 .ask .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
@@ -575,10 +544,31 @@ body.killed .paused-note { display: block; }
 .msg code { font-family: var(--f-mono); font-size: 12.5px; background: rgba(28,43,51,.06); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
 .msg.sys code { background: rgba(255,255,255,.18); }
 .msg .tag { font-weight: 600; color: var(--blue-deep); }
+.msg .lbl { font-weight: 700; color: var(--ink); }
 .msg.sys .tag { color: inherit; }
 .msg.warn { align-self: flex-start; display: flex; gap: 10px; align-items: flex-start; background: var(--sand); color: var(--sand-ink); border-bottom-left-radius: 6px; }
 .msg.warn .ic { flex: none; margin-top: 3px; }
 .ask-card { min-width: min(320px, 100%); }
+/* live research card: one row per step, filled in as the server reports it */
+.msg.scan { flex-shrink: 0; align-self: stretch; max-width: none; padding: 12px 0 0; background: var(--white); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.scan-h { display: flex; align-items: center; gap: 8px; padding-inline: 14px; font-size: 12px; font-family: var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding-bottom: 8px; }
+.scan-h .spin { margin-left: auto; }
+.msg.scan.done .scan-h .spin { display: none; }
+/* each row spans the card edge to edge, so the dividers run full width and the last row sits evenly */
+.scan-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 18px; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--line); animation: pop .3s var(--spring); }
+.scan-row .si { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); }
+.scan-row .si .ic { width: 14px; height: 14px; vertical-align: 0; }
+.scan-row .si.rh { background: #000; color: #CCFF00; font-size: 14px; width: 26px; height: 26px; border-radius: 8px; vertical-align: 0; }
+.scan-row .si.xl { background: #000; color: #fff; }
+.scan-row b { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
+.scan-row small { display: block; font-size: 12px; color: var(--ink-2); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scan-row .st { display: grid; place-items: center; }
+.scan-row .st .ic { width: 16px; height: 16px; vertical-align: 0; }
+.scan-row.done .st { color: var(--green); }
+.scan-row.skip { opacity: .6; } .scan-row.skip .st { color: var(--ink-3); }
+.scan-row.fail .st { color: var(--coral); }
+.spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--blue-soft); border-top-color: var(--blue); animation: spin .8s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .ask-card b { font-weight: 700; } .ask-card .nm { color: var(--ink-3); font-size: 13.5px; margin-left: 4px; }
 .ask-card a { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-2); border: 1px solid var(--line); transition: color .2s, border-color .2s; }
 .ask-card a:hover { color: var(--blue-deep); border-color: var(--blue); }
@@ -613,8 +603,8 @@ footer nav { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
 footer nav a { text-decoration: none; } footer nav a:hover { color: var(--blue); }
 footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max-width: 110ch; }
 @media (max-width: 760px) { .cta-panel { grid-template-columns: 1fr; } footer .wrap { grid-template-columns: 1fr; } }
-/* ---------- phones and tablets: tabs for Live, a slideshow for Checking, a tidy Follow panel ---------- */
-.live-tabs, .vdots { display: none; }
+/* ---------- phones and tablets: tabs for Live, a tidy Follow panel ---------- */
+.live-tabs { display: none; }
 @media (max-width: 1000px) {
   .live-tabs { position: relative; z-index: 2; display: flex; gap: 4px; padding: 5px; margin-bottom: 14px; border-radius: var(--r-pill); background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 1px rgba(28,43,51,.05); }
   .live-tabs button { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; padding: 10px 6px; border-radius: var(--r-pill); font-size: 14px; font-weight: 600; color: var(--ink-2); white-space: nowrap; transition: background .25s, color .25s, box-shadow .25s; }
@@ -623,16 +613,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .live-grid .lc { display: none; }
   .live-grid .lc.on { display: flex; animation: pop .35s var(--spring); }
 
-  .verify-panel { grid-template-columns: minmax(0, 1fr); height: auto; }
-  .verify-panel > .token-card, .verify-panel > .pile { grid-area: 1 / 1; align-self: stretch; transition: opacity .5s ease, transform .6s var(--ease); }
-  .verify-panel > .pile { display: flex; flex-direction: column; }  /* same height as the check card, so the panel never has a gap or jumps */
-  .verify-panel > .pile #pile { flex: 1; display: flex; flex-direction: column; }
-  .verify-panel > .pile .rej { flex: 1; }                            /* the rows share the card's height */
-  .verify-panel > .token-card:not(.on), .verify-panel > .pile:not(.on) { opacity: 0; transform: translateX(28px); pointer-events: none; }
-  .verify-panel > .token-card.on, .verify-panel > .pile.on { opacity: 1; transform: none; }
-  .vdots { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
-  .vdots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: rgba(28,43,51,.18); transition: width .3s var(--ease), background .3s; }
-  .vdots button[aria-current="true"] { width: 24px; background: var(--blue); }
 
   .coin.glyph { display: none; }            /* floating icon tiles only clutter a narrower screen */
   footer .wrap { grid-template-columns: minmax(0, 1fr); }
@@ -718,6 +698,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <symbol id="i-signal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01" /> <path d="M7 20v-4" /> <path d="M12 20v-8" /> <path d="M17 20V8" /> <path d="M22 4v16" /></symbol>
 <symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01" /> <path d="M2 8.82a15 15 0 0 1 20 0" /> <path d="M5 12.859a10 10 0 0 1 14 0" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /></symbol>
 <symbol id="i-battery-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2" ry="2" /> <line x1="22" x2="22" y1="11" y2="13" /> <line x1="6" x2="6" y1="11" y2="13" /> <line x1="10" x2="10" y1="11" y2="13" /> <line x1="14" x2="14" y1="11" y2="13" /></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /> <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /> <path d="M2 12h20" /></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /> <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
 <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16" /> <path d="M4 12h16" /> <path d="M4 18h16" /></symbol>
 <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></symbol>
 <symbol id="i-arrow-up-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10" /> <path d="M7 17 17 7" /></symbol>
@@ -732,13 +714,13 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#listens">Sources</a>
-      <a href="#verify">Checks</a>
       <a href="#think">How it thinks</a>
       <a href="#ask">Ask Muse</a>
       <a href="#live">Live</a>
       <a href="#record">Journal</a>
     </nav>
     <div class="nav-right">
+      <a class="btn btn-primary btn-sm buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span><span class="lbl">Buy $MOOSE</span><span class="lbl-s">Buy</span><span class="soon">soon</span></a>
       <a class="btn btn-dark btn-sm" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener" aria-label="Follow @MooseOnMuse on X"><svg class="ic"><use href="#b-x"/></svg><span class="lbl"> Follow</span></a>
       <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="navLinks"><svg class="ic ic-open"><use href="#i-menu"/></svg><svg class="ic ic-close"><use href="#i-x"/></svg></button>
     </div>
@@ -819,32 +801,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div class="hub" aria-hidden="true"><div class="ring"><img src="assets/moose-listen.webp" alt="" width="512" height="512"></div><p>MOOSE is listening</p></div>
       <div class="lead" id="leadCard" aria-live="polite"></div>
     </div>
-  </div>
-</section>
-
-<!-- 4 VERIFY: believes nothing until the chain agrees -->
-<section class="sec verify" id="verify" aria-labelledby="h-ver" style="background:var(--surface)">
-  <div class="wrap">
-    <div>
-      <span class="kicker">Checking</span>
-      <h2 class="h2" id="h-ver">It believes nothing until the <span class="blue">chain agrees.</span></h2>
-      <p class="sub">Every lead gets four checks. Most fail, and they never reach the AI. Run one and watch.</p>
-      <div class="ctas" style="justify-content:flex-start"><button class="btn btn-primary" type="button" id="runCheck">Check the next lead <span class="arr">→</span></button></div>
-    </div>
-    <div class="panel verify-panel" style="background:var(--panel-cool)">
-      <div class="card token-card on">
-        <div class="top"><span class="token-av"><span class="user-av" aria-hidden="true"><svg class="ic"><use href="#i-user"/></svg></span><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><div><h4 id="tkAddr">0x47a3…94d4</h4><span class="heard"><span class="src-ic" id="tkIc" style="background:#9146FF"><svg class="ic"><use href="#b-twitch"/></svg></span><span id="tkSrc">Heard on a Twitch stream</span></span></div></div>
-        <div class="stamps" id="stamps">
-          <div class="stamp"><span class="si"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><span>On Robinhood Chain</span><span class="stt"></span></div>
-          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-factory"/></svg></span><span>Launched by the Pons factory</span><span class="stt"></span></div>
-          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-droplets"/></svg></span><span>Genuine pool, not a copycat</span><span class="stt"></span></div>
-          <div class="stamp"><span class="si"><svg class="ic"><use href="#i-newspaper"/></svg></span><span>Backed by an independent source</span><span class="stt"></span></div>
-        </div>
-        <p class="verdict" id="verdict" aria-live="polite"><svg class="ic"><use href="#i-shield-check"/></svg><span>Four checks before anything reaches the AI.</span></p>
-      </div>
-      <div class="pile"><div class="pile-h"><h5>Recent results</h5><small id="pileCount">5 of 1,284 today</small></div><div id="pile"></div></div>
-    </div>
-    <div class="vdots" role="group" aria-label="Checking slides"><button type="button" aria-label="Show the checks" aria-current="true"></button><button type="button" aria-label="Show recent results" aria-current="false"></button></div>
   </div>
 </section>
 
@@ -965,6 +921,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div><span class="kicker">Scorecard</span><h2 class="h2" id="h-score">Judge it by its numbers.</h2></div>
       <span class="pill amber">PAPER · simulated, not onchain</span>
     </div>
+    <div class="panel grid-bg score-panel">
     <div class="score-grid">
       <div class="sc-card" id="sparkWrap">
         <div style="display:flex;justify-content:space-between;gap:12px"><span class="sc-lbl">Net P&amp;L · closed trades</span><span class="example">example data</span></div>
@@ -984,6 +941,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       </div>
     </div>
     <div class="sc-recent"><span class="sc-lbl">Latest closes</span><div class="rc-view" id="scRecent"><div class="rc-track"><span class="rc"><b>$HATCH</b><span class="m up-t">+0.041</span><span class="h">4h 02m</span></span><span class="rc"><b>$MORX</b><span class="m down-t">−0.022</span><span class="h">1h 15m</span></span><span class="rc"><b>$PEPU</b><span class="m up-t">+0.013</span><span class="h">2h 48m</span></span><span class="rc"><b>$ROBO</b><span class="m down-t">−0.009</span><span class="h">52m</span></span><span class="rc"><b>$FEATHR</b><span class="m up-t">+0.018</span><span class="h">5h 30m</span></span></div></div></div>
+    </div>
   </div>
 </section>
 
@@ -994,7 +952,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div>
         <h2 id="h-cta">Follow along.<br><span class="blue">Judge it yourself.</span></h2>
         <p class="sub">Every trade, every pass and every loss gets posted. Not financial advice: a public experiment you can check.</p>
-        <div class="ctas"><a class="btn btn-dark" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseOnMuse <span class="arr">→</span></a><a class="btn btn-ghost" href="#record">Read the journal</a></div>
+        <div class="ctas"><a class="btn btn-primary buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span>Buy $MOOSE<span class="soon">soon</span></a><a class="btn btn-dark" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseOnMuse <span class="arr">→</span></a><a class="btn btn-ghost" href="#record">Read the journal</a></div>
+        <div class="ca-row" id="caRow" hidden><span class="lbl">CA</span><code id="caTxt"></code><button type="button" id="caCopy" aria-label="Copy the $MOOSE contract address"><svg class="ic"><use href="#i-copy"/></svg></button></div>
       </div>
       <div class="cta-mascot"><img src="assets/moose-board.webp" alt="MOOSE writing $MOOSE on a whiteboard" width="975" height="806"></div>
     </div>
@@ -1026,6 +985,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@MooseOnMuse · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   /* live data: text from X and the news is escaped before it touches the page */
   const API = "https://api.mooseonmuse.com";
+  // $MOOSE: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
+  const MOOSE_TOKEN = { ca: "", gmgn: "" };
   // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
   const CHAT_API = location.hostname === "localhost" ? "http://localhost:8000" : API;
   let LIVE = false;   // true once real data has loaded; the example animations then stand down
@@ -1038,6 +999,19 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const onView = (el, fn, t = .35) => { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { fn(); o.disconnect(); } }, { threshold: t }); o.observe(el); };
 
   addEventListener("scroll", () => $("#nav").classList.toggle("scrolled", scrollY > 8), { passive: true });
+  // Buy $MOOSE
+  if (MOOSE_TOKEN.gmgn) {
+    $$(".buy-btn").forEach(b => { b.href = MOOSE_TOKEN.gmgn; b.target = "_blank"; b.rel = "noopener"; b.removeAttribute("aria-disabled"); b.querySelector(".soon")?.remove(); });
+  } else {
+    $$(".buy-btn").forEach(b => b.addEventListener("click", e => e.preventDefault()));
+  }
+  if (MOOSE_TOKEN.ca) {
+    $("#caTxt").textContent = MOOSE_TOKEN.ca; $("#caRow").hidden = false;
+    $("#caCopy").addEventListener("click", async () => {
+      const btn = $("#caCopy");
+      try { await navigator.clipboard.writeText(MOOSE_TOKEN.ca); btn.classList.add("done"); btn.innerHTML = I("check"); setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = I("copy"); }, 1600); } catch {}
+    });
+  }
   // phone menu: the button opens the section links; picking one (or tapping outside) closes it
   const navEl = $("#nav"), menuBtn = $(".menu-btn");
   const setMenu = open => { navEl.classList.toggle("open", open); menuBtn.setAttribute("aria-expanded", String(open)); };
@@ -1144,46 +1118,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   showSrc(2); addEventListener("resize", drawWires); addEventListener("load", drawWires);
   if (document.fonts) document.fonts.ready.then(drawWires);
 
-  /* ---------- 4 VERIFY ---------- */
-  let leads = [
-    { a: "0x47a3…94d4", src: "heard on a Twitch stream", k: "tw", fail: -1 },
-    { a: "0x9c1e…0b7a", src: "posted on X", k: "x", fail: 0, why: "It's a Solana token" },
-    { a: "0x3fd2…e901", src: "stream chat", k: "tw", fail: 1, why: "Not a Pons launch" },
-    { a: "0x2ee4…163d", src: "posted on X", k: "x", fail: 2, why: "Copycat pool, not the real one" },
-    { a: "0x5507…6c80", src: "5 posts on X", k: "x", fail: 3, why: "5 reposts of one rumour" },
-    { a: "0xf6c5…24e0", src: "a news article", k: "news", fail: -1 },
-  ];
-  const stamps = $$(".stamp"), pile = $("#pile"), verdict = $("#verdict"), runBtn = $("#runCheck");
-  const stampIcons = $$(".stamp .si").map(e => e.innerHTML);
-  const addPile = (L) => { const d = document.createElement("div"); d.className = "rej " + (L.fail === -1 ? "ok" : "no"); const SRC = { x: [B("x"), "#000"], tw: [B("twitch"), "#9146FF"], news: [I("newspaper"), "#0064E0"] }[L.k];
-    d.innerHTML = `<span class="src-ic" style="background:${SRC[1]}">${SRC[0]}</span><span><b>${L.a}</b><span class="why">${L.fail === -1 ? "Verified · sent to the AI" : L.why}</span></span><span class="st">${I(L.fail === -1 ? "check" : "x")}</span>`;
-    pile.prepend(d); while (pile.children.length > 7) pile.lastChild.remove(); };
-  let checkedToday = 1284;
-  const refillPile = () => { pile.innerHTML = ""; leads.slice(1).reverse().forEach(addPile); $("#pileCount").textContent = `${pile.children.length} of ${fmt(checkedToday)} today`; };
-  [5, 4, 3, 2, 1].forEach(i => addPile(leads[i]));
-  let li = 0, running = false, gen = 0;
-  const runLead = async () => {
-    if (running) return; running = true; runBtn.disabled = true;
-    const myGen = gen, L = leads[li++ % leads.length], wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
-    $("#tkAddr").textContent = L.a; const SRCI = { x: [B("x"), "#000"], tw: [B("twitch"), "#9146FF"], news: [I("newspaper"), "#0064E0"] }[L.k];
-    $("#tkIc").innerHTML = SRCI[0]; $("#tkIc").style.background = SRCI[1];
-    $("#tkSrc").textContent = { "heard on a Twitch stream": "Heard on a Twitch stream", "posted on X": "Posted on X", "stream chat": "Said in Twitch chat", "5 posts on X": "5 posts on X", "a news article": "In a news article" }[L.src] || L.src;
-    stamps.forEach(s => { s.className = "stamp"; s.querySelector(".stt").innerHTML = ""; });
-    verdict.className = "verdict"; verdict.innerHTML = `${I("shield-check")}<span>Checking…</span>`;
-    for (let i = 0; i < 4; i++) {
-      await wait(520);
-      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".stt").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.className = "verdict no"; verdict.innerHTML = L.fail === 3 ? `${I("circle-stop")}<span><b>Real launch, but ${L.why.toLowerCase()}.</b> It counts as chatter, so Muse leans on the onchain numbers.</span>` : `${I("circle-stop")}<span><b>Stopped.</b> ${L.why}. It never reaches the AI.</span>`; break; }
-      stamps[i].className = "stamp pass"; stamps[i].querySelector(".stt").innerHTML = I("check");
-    }
-    if (L.fail === -1) { verdict.className = "verdict ok"; verdict.innerHTML = `${I("shield-check")}<span><b>All four passed.</b> Sent to the AI.</span>`; }
-    running = false; runBtn.disabled = false;
-    if (myGen !== gen) { if (LIVE) runLead(); return; }  // data changed mid-run: show a real lead instead
-    if (!LIVE) { addPile(L); checkedToday++; }  // live: the pile is the real list; replays only animate the card
-    $("#pileCount").textContent = `${pile.children.length} of ${fmt(checkedToday)} today`;
-  };
-  runBtn.addEventListener("click", runLead);
-  onView($("#verify"), runLead, .45);
-
   /* ---------- 5 THINKS (chat) ---------- */
   let talks = [
     { sym: "$HATCH", act: ["solid-blue", "BUY"], why: "Real news + real buying", time: "14:06 UTC", conf: .72,
@@ -1239,14 +1173,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   // closed paper trades, newest first (example until live data arrives)
   let past = [
     { s: "PEPU", pl: 41.0, held: "4h 02m", why: "took profit at 1.6x", c: "blue" },
-    { s: "NEZU", pl: -25.3, held: "1h 12m", why: "stop loss", c: "beige" },
-    { s: "ROBO", pl: -9.1, held: "52m", why: "thesis changed", c: "white" },
+    { s: "NEZU", pl: -30.4, held: "1h 12m", why: "stop loss", c: "beige" },
+    { s: "ROBO", pl: -9.1, held: "24h 00m", why: "24h timer", c: "white" },
   ];
   const hfmt = h => h == null ? "" : h < 1 / 60 ? `${Math.max(1, Math.round(h * 3600))}s` : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${Math.floor(h)}h ${String(Math.round(h % 1 * 60)).padStart(2, "0")}m` : `${Math.round(h / 24)}d`;
   const whyShort = r => { r = String(r || "");
     const tp = r.match(/^take profit at ([\d.]+x)/);
     return /^stop loss/.test(r) ? "stop loss" : /^final take profit/.test(r) ? "final target" : tp ? `took profit at ${tp[1]}`
-      : /^back to entry/.test(r) ? "back to entry" : /^max hold/.test(r) ? "held too long" : /^thesis review/.test(r) ? "thesis changed" : r.slice(0, 28); };
+      : /^back to entry/.test(r) ? "back to entry" : /^max hold/.test(r) ? "24h timer" : /^thesis review/.test(r) ? "thesis changed" : r.slice(0, 28); };
   const WST = { bought: "solid-blue", watching: "sand", passed: "grey", checking: "blue", graduated: "green" };
   let positions = [
     { s: "HATCH", entry: .05, c: "blue", age: "18m", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
@@ -1279,19 +1213,10 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     liveCards.forEach((c, k) => c.classList.toggle("on", k === i));
   }));
 
-  /* phones and tablets: the Checking cards take turns, one at a time */
-  const vSlides = [$(".verify-panel .token-card"), $(".verify-panel .pile")], vDots = $$(".vdots button");
-  let vAt = 0, vTimer = null;
-  const vShow = i => { vAt = i; vSlides.forEach((el, k) => el.classList.toggle("on", k === i)); vDots.forEach((d, k) => d.setAttribute("aria-current", String(k === i))); };
-  const vStart = () => { clearInterval(vTimer); if (!reduce) vTimer = setInterval(() => { if (!document.hidden) vShow((vAt + 1) % vSlides.length); }, 5000); };
-  vDots.forEach((d, i) => d.addEventListener("click", () => { vShow(i); vStart(); }));
-  vStart();
-  $("#runCheck")?.addEventListener("click", () => { vShow(0); vStart(); });  // show the check that was just asked for
-
   /* ---------- 8 RECORD: the @MooseOnMuse timeline ---------- */
   let feedPosts = [
     { t: "2m", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
-    { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −25.3%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
+    { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −30.4%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
     { t: "31m", body: "Passing on $JOLLY. The deployer bought 52% of its own curve. That isn't demand.", s: [9, 5, 41, 3900] },
     { t: "1h", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself.", s: [6, 3, 28, 2700] },
     { t: "3h", body: "Paper scorecard 2026-W39: 23 closed, 13W/10L, net +0.184 ETH.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
@@ -1352,18 +1277,19 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   mn = Math.min(...series, 0); mx = Math.max(...series, 0); if (mx === mn) { mx += .01; mn -= .01; }
   px = i => i / (series.length - 1) * SW; py = v => pad + (1 - (v - mn) / (mx - mn)) * (SH - pad * 2);
   const pts = series.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" L ");
-  sp.innerHTML = `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0082FB" stop-opacity=".45"/><stop offset="1" stop-color="#0082FB" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${SW}" y1="${py(0)}" y2="${py(0)}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/><path d="M ${pts} L ${SW},${SH} L 0,${SH} Z" fill="url(#sg)"/><path d="M ${pts}" fill="none" stroke="#4DA8FF" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line id="spX" x1="0" x2="0" y1="0" y2="${SH}" stroke="#fff" stroke-opacity="0" vector-effect="non-scaling-stroke"/><circle id="spEnd" cx="${px(series.length - 1)}" cy="${py(series.at(-1))}" r="5" fill="#fff"/>`;
+  sp.innerHTML = `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0082FB" stop-opacity=".22"/><stop offset="1" stop-color="#0082FB" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${SW}" y1="${py(0)}" y2="${py(0)}" stroke="#1C2B33" stroke-opacity=".18" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/><path d="M ${pts} L ${SW},${SH} L 0,${SH} Z" fill="url(#sg)"/><path d="M ${pts}" fill="none" stroke="#0082FB" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line id="spX" x1="0" x2="0" y1="0" y2="${SH}" stroke="#1C2B33" stroke-opacity="0" vector-effect="non-scaling-stroke"/><circle id="spEnd" cx="${px(series.length - 1)}" cy="${py(series.at(-1))}" r="5" fill="#0082FB" stroke="#fff" stroke-width="2.5"/>`;
   };
   drawSpark();
   const sTip = $("#sparkTip"), sWrap = $("#sparkWrap");
-  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .3); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i}${pnlLbl[i - 1] ? " · $" + pnlLbl[i - 1] : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
+  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .25); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i}${pnlLbl[i - 1] ? " · $" + pnlLbl[i - 1] : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
 
   /* ---------- 5b ASK MUSE: a real chat with Muse, rate limited by the API ---------- */
   const askBox = $("#askMsgs"), askIn = $("#askIn"), askSend = $("#askSend"), askLeft = $("#askLeft");
   const askHist = [];   // this visit only: {role, text}
   let askBusy = false, askOut = false, askToken = null;  // askToken: address of the coin being discussed
-  const askFmt = t => esc(t).replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${m}</code>`)
+  // short lines that end in ":" (like "Why it could run:") read as bold labels in Muse's replies
+  const askFmt = t => esc(t).replace(/^([^\n]{2,40}):[ \t]*$/gm, "<b class=\"lbl\">$1:</b>").replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${m}</code>`)
     .replace(/(^|[\s(])\$([A-Za-z][A-Za-z0-9]{0,19})\b/g, '$1<span class="tag">$$$2</span>');
   const askAdd = (cls, html) => { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; askBox.appendChild(d); askBox.scrollTop = askBox.scrollHeight; return d; };
   const askSync = () => { askSend.disabled = askBusy || askOut || !askIn.value.trim(); $("#askCount").textContent = `${askIn.value.length}/500`; };
@@ -1375,33 +1301,78 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     return `${coinAv("blue", 36, false, t.logo, t.symbol)}<div><b>$${esc(t.symbol || "?")}</b><span class="nm">${esc(t.name || "")}</span><small>${esc(where + mc)}</small></div>`
       + (t.explorer ? `<a href="${esc(t.explorer)}" target="_blank" rel="noopener" aria-label="View $${esc(t.symbol || "")} on the explorer">${I("arrow-up-right")}</a>` : "");
   };
+  // One row per research step, filled in live from /chat/stream (a new line of JSON per step).
+  const SCAN = {
+    coin: [I("search"), "", "Finding the coin"], onchain: [B("robinhood"), "rh", "Checking onchain"],
+    lore: [I("notebook-pen"), "", "Reading its lore"], x: [B("x"), "xl", "Checking the X account"],
+    website: [I("globe"), "", "Visiting the website"], muse: [I("sparkles"), "", "Muse is thinking"],
+  };
+  const scanCard = () => { const c = askAdd("scan", `<div class="scan-h">Researching<span class="spin"></span></div>`); c._rows = {}; return c; };
+  const scanStep = (card, e) => {
+    let row = card._rows[e.id];
+    if (!row) {
+      const [ic, cls, label] = SCAN[e.id] || [I("sparkles"), "", e.id];
+      row = document.createElement("div"); row.className = "scan-row";
+      row.innerHTML = `<span class="si ${cls}">${ic}</span><div><b>${label}</b><small></small></div><span class="st"></span>`;
+      card.appendChild(row); card._rows[e.id] = row;
+    }
+    row.className = "scan-row " + e.status;
+    if (e.detail) row.querySelector("small").textContent = e.detail;
+    row.querySelector(".st").innerHTML = e.status === "run" ? '<span class="spin"></span>' : e.status === "done" ? I("check") : e.status === "fail" ? I("x") : "–";
+    if (e.id === "muse" && e.status === "done") row.querySelector("b").textContent = "Muse's take";
+    askBox.scrollTop = askBox.scrollHeight;
+  };
+  const pace = () => new Promise(r => setTimeout(r, reduce ? 0 : 260));  // bursts still read one step at a time
   const ask = async (text, token) => {
     text = text.trim();
     if (!text || askBusy || askOut) return;
     askBusy = true; askIn.value = ""; askSize(); askSync();
     askAdd("sys", askFmt(text));
-    const typing = document.createElement("div"); typing.className = "typing"; typing.innerHTML = "<i></i><i></i><i></i>";
-    askBox.appendChild(typing); askBox.scrollTop = askBox.scrollHeight;
+    let card = null, typing = null;
+    const showTyping = () => { if (typing) return; typing = document.createElement("div"); typing.className = "typing"; typing.innerHTML = "<i></i><i></i><i></i>"; askBox.appendChild(typing); askBox.scrollTop = askBox.scrollHeight; };
+    const hideTyping = () => { typing?.remove(); typing = null; };
+    const fail = msg => { hideTyping(); card?.classList.add("done"); askAdd("warn", I("triangle-alert") + `<span>${esc(msg)}</span>`); };
+    showTyping();
     try {
-      const r = await fetch(CHAT_API + "/chat", { method: "POST", headers: { "content-type": "application/json" },
+      const r = await fetch(CHAT_API + "/chat/stream", { method: "POST", headers: { "content-type": "application/json" },
                                              body: JSON.stringify({ message: text, history: askHist.slice(-8),
                                              // a new coin named in the message wins over the one we were on
                                              token: token || (/\$[A-Za-z]|0x[0-9a-fA-F]{40}/.test(text) ? undefined : askToken) || undefined }) });
-      const d = await r.json().catch(() => ({}));
-      typing.remove();
-      if (!r.ok) {
-        askAdd("warn", I("triangle-alert") + `<span>${esc(typeof d.detail === "string" ? d.detail : "Something went wrong. Try again in a moment.")}</span>`);
+      if (!r.ok) {   // refused before anything streamed: rate limit, too long, chat off
+        const d = await r.json().catch(() => ({}));
+        fail(typeof d.detail === "string" ? d.detail : "Something went wrong. Try again in a moment.");
         if (r.status === 429) askLimit({ hour: 0, day: 0 });
         return;
       }
-      askHist.push({ role: "user", text }, { role: "muse", text: d.reply });
-      if (d.token) { askAdd("att ask-card", askCard(d.token)); askToken = d.token.address; }
-      askAdd("bot rich", askFmt(d.reply));
-      askLimit(d.remaining);
+      const handle = async e => {
+        if (e.type === "step") {
+          if (e.id !== "muse" || card) { if (!card) { hideTyping(); card = scanCard(); } scanStep(card, e); await pace(); }
+          if (e.id === "muse" && e.status === "run" && !card) showTyping();  // with a card, its own row shows progress
+          return;
+        }
+        hideTyping(); card?.classList.add("done");
+        if (e.type === "error") { fail(e.detail); return; }
+        askHist.push({ role: "user", text }, { role: "muse", text: e.reply });
+        if (e.token) { askAdd("att ask-card", askCard(e.token)); askToken = e.token.address; }
+        askAdd("bot rich", askFmt(e.reply));
+        askLimit(e.remaining);
+      };
+      // read the reply line by line as it arrives
+      const reader = r.body?.getReader?.();
+      let buf = "";
+      if (!reader) { for (const line of (await r.text()).split("\n")) if (line.trim()) await handle(JSON.parse(line)); return; }
+      const dec = new TextDecoder();
+      for (;;) {
+        const { value, done } = await reader.read();
+        buf += dec.decode(value || new Uint8Array(), { stream: !done });
+        let nl;
+        while ((nl = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, nl); buf = buf.slice(nl + 1); if (line.trim()) await handle(JSON.parse(line)); }
+        if (done) break;
+      }
+      if (buf.trim()) await handle(JSON.parse(buf));
     } catch {
-      typing.remove();
-      askAdd("warn", I("triangle-alert") + "<span>Couldn't reach Muse. Check your connection and try again.</span>");
-    } finally { askBusy = false; askSync(); }
+      fail("Couldn't reach Muse. Check your connection and try again.");
+    } finally { hideTyping(); askBusy = false; askSync(); }
   };
   const askSuggest = coins => {   // coins: [{s: symbol, t: address}]; the address travels with the chip so it always resolves
     const chips = [...coins.slice(0, 2).map(c => ({ q: `Research $${c.s}`, t: c.t })), { q: "How does MOOSE pick trades?" }];
@@ -1491,22 +1462,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
                     : ld?.status === "verified" ? null : "General news. It names no contract that checks out onchain, so it's background only." } };
       });
       srcI = 0; renderSrcs(); showSrc(srcI);
-    }
-
-    /* checking: real onchain lead checks */
-    const lk = JSON.stringify(d.leads.map(x => x.id));
-    if (d.leads.length && lk !== seen.leads) {
-      seen.leads = lk;
-      leads = d.leads.map(l => {
-        const k = l.source_kind === "x" ? "x" : l.source_kind === "news" ? "news" : "tw";
-        let fail = -1, why = "";
-        if (l.status === "rejected") { fail = /refers to/.test(l.verify_note || "") ? 0 : 1; why = cut(l.verify_note, 60); }
-        else if (!buyGrade(l.source_confidence)) { fail = 3; why = "Only a rumour so far"; }
-        return { a: (l.symbol ? `$${l.symbol} · ` : "") + shortA(l.address), k, fail, why,
-                 src: { x: "posted on X", news: "a news article", tw: "heard on a Twitch stream" }[k] };
-      });
-      checkedToday = st.claims_checked_24h; li = 0; gen++; refillPile();
-      if (!running) runLead();
     }
 
     /* thinking: Muse's actual reasoning on real tokens */
