@@ -65,11 +65,11 @@ class MarketData:
             stats = self._dexscreener(token, pid)
             if stats:
                 return stats
-        except (httpx.HTTPError, ValueError) as exc:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:  # bad data skips this token only
             log.warning("dexscreener failed for %s: %s", token, exc)
         try:
             return self._geckoterminal(pid)
-        except (httpx.HTTPError, ValueError) as exc:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:  # bad data skips this token only
             log.warning("geckoterminal failed for %s: %s", pid, exc)
         return None
 
@@ -84,7 +84,7 @@ class MarketData:
                     price_native=_f(p.get("priceNative")),
                     volume_h1_usd=_f(vol.get("h1")), volume_h24_usd=_f(vol.get("h24")),
                     liquidity_usd=_f(liq.get("usd")),
-                    txns_h1=(int(tx.get("buys", 0)) + int(tx.get("sells", 0))) if tx else None,
+                    txns_h1=(int(tx.get("buys") or 0) + int(tx.get("sells") or 0)) if tx else None,  # APIs send null, not 0
                     raw=p,
                 )
         return None
@@ -104,7 +104,7 @@ class MarketData:
             price_native=_f(a.get("base_token_price_quote_token")),
             volume_h1_usd=_f(vol.get("h1")), volume_h24_usd=_f(vol.get("h24")),
             liquidity_usd=_f(a.get("reserve_in_usd")),
-            txns_h1=(int(tx.get("buys", 0)) + int(tx.get("sells", 0))) if tx else None,
+            txns_h1=(int(tx.get("buys") or 0) + int(tx.get("sells") or 0)) if tx else None,  # APIs send null, not 0
             raw=a,
         )
 

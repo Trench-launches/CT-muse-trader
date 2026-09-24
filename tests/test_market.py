@@ -48,3 +48,18 @@ def test_quote_amount_never_mislabels_units():
     assert q.label() == "4.2 ETH"
     assert q.label(4000.0) == "4.2 ETH (~$16,800 indicative)"
     assert MarketData(transport=_handler([])).eth_usd() == 4000.0
+
+
+def test_null_fields_from_market_apis_dont_crash():
+    import httpx
+    from ct_agent.market.dex import MarketData
+    pid = "0x" + "cd" * 32
+
+    def h(req):
+        if "dexscreener" in str(req.url):
+            return httpx.Response(200, json=[])
+        return httpx.Response(200, json={"data": {"attributes": {"address": pid, "base_token_price_quote_token": "1e-8",
+                                                                  "reserve_in_usd": "5000", "volume_usd": {"h1": None},
+                                                                  "transactions": {"h1": {"buys": None, "sells": 3}}}}})
+    st = MarketData(transport=httpx.MockTransport(h)).genuine_pool_stats("0x" + "ab" * 20, pid)
+    assert st.source == "geckoterminal" and st.txns_h1 == 3 and st.price_native == 1e-8
