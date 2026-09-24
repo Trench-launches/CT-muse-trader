@@ -846,7 +846,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     </div>
     <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
       <div class="chat ask-chat">
-        <div class="chat-h"><span class="face"></span><div><b>Muse</b><small>Research for MOOSE</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
+        <div class="chat-h"><span class="face"></span><div><b>Ask Muse</b><small>Robinhood Research</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
         <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
         <div class="ask-sugg" id="askSugg"></div>
         <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
@@ -1336,8 +1336,10 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     try {
       const r = await fetch(CHAT_API + "/chat/stream", { method: "POST", headers: { "content-type": "application/json" },
                                              body: JSON.stringify({ message: text, history: askHist.slice(-8),
-                                             // a new coin named in the message wins over the one we were on
-                                             token: token || (/\$[A-Za-z]|0x[0-9a-fA-F]{40}/.test(text) ? undefined : askToken) || undefined }) });
+                                             // a chip's coin is researched; the coin we were on only rides along as
+                                             // context, and not at all when the message names a new coin
+                                             token: token || undefined,
+                                             context_token: token || /\$[A-Za-z]|0x[0-9a-fA-F]{40}/.test(text) ? undefined : askToken || undefined }) });
       if (!r.ok) {   // refused before anything streamed: rate limit, too long, chat off
         const d = await r.json().catch(() => ({}));
         fail(typeof d.detail === "string" ? d.detail : "Something went wrong. Try again in a moment.");
