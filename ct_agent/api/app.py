@@ -60,6 +60,10 @@ class ChatIn(BaseModel):
     token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
 
 
+class PostIn(BaseModel):
+    text: str = Field(min_length=1, max_length=280)
+
+
 class ResolveIn(BaseModel):
     status: str = Field(pattern="^(sent|pending|cancelled)$")
     x_post_id: str | None = None
@@ -331,6 +335,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"source_id": ingest_transcript(conn, channel=body.channel, url=body.url, offset_s=body.offset_s,
                                                excerpt=body.excerpt, confidence=body.confidence,
                                                spoken_at=body.spoken_at)}
+
+    @app.post("/admin/posts")
+    def queue_post(body: PostIn, who: str = Depends(admin), conn=Depends(db)) -> dict[str, Any]:
+        """Queue a hand-written post (a thesis, an announcement). It goes out through the normal outbox:
+        same daily cap, retries and journal as every other post. The same text is only ever queued once."""
+        import hashlib
+        from ..social.compose import Draft
+        from ..social.outbox import enqueue
+        text = body.text.strip()
+        key = "note:" + hashlib.sha256(text.encode()).hexdigest()[:16]
+        pid, created = enqueue(conn, Draft("note", text, "", key))
+        journal_append(conn, "post_queued_by_hand", {"post_id": pid, "by": who, "text": text, "new": created})
+        return {"id": pid, "queued": created}
 
     @app.post("/admin/posts/{post_id}/resolve")
     def resolve_post(post_id: int, body: ResolveIn, who: str = Depends(admin), conn=Depends(db)) -> dict[str, Any]:

@@ -598,3 +598,15 @@ def test_rug_guards_fail_safe_when_the_chain_cant_be_read(tmp_path):
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
     assert d["action"] == "watch", d
     assert "couldn't check who holds the supply" in d["gates"] and "couldn't check the fees traders have paid" in d["gates"]
+
+
+def test_admin_can_queue_a_hand_written_post(tmp_path):
+    api = TestClient(create_app(_settings(tmp_path)))
+    assert api.post("/admin/posts", json={"text": "gm"}).status_code == 401
+    h = {"authorization": "Bearer admin-secret"}
+    r = api.post("/admin/posts", json={"text": "Thinking about deploying my own coin today."}, headers=h)
+    assert r.status_code == 200 and r.json()["queued"] is True
+    assert api.post("/admin/posts", json={"text": "Thinking about deploying my own coin today."}, headers=h).json()["queued"] is False
+    assert api.post("/admin/posts", json={"text": "x" * 281}, headers=h).status_code == 422
+    pending = api.get("/posts", params={"status": "pending"}).json()
+    assert len(pending) == 1 and pending[0]["kind"] == "note"
