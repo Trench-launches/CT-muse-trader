@@ -180,6 +180,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def decisions(limit: int = 50, conn=Depends(db)) -> list[dict[str, Any]]:
         return _decode(rows(conn, "SELECT * FROM decisions ORDER BY id DESC LIMIT ?", (min(limit, 500),)))
 
+    @app.get("/scanner")
+    def scanner_calls(limit: int = 50, conn=Depends(db)) -> dict[str, Any]:
+        """The smart-money scanner's Robinhood calls as MOOSE sees them: moved how far, and what it did."""
+        calls = rows(conn, "SELECT id, token, symbol, called_at, call_price_usd, status, note, last_move_pct, "
+                           "peak_move_pct, triggered_at, checked_at, decision_id FROM scanner_calls "
+                           "ORDER BY id DESC LIMIT ?", (min(limit, 500),))
+        return {"source": s.candidate_source, "cursor": kv_get(conn, "scanner_cursor"),
+                "trigger_pct": s.scanner_trigger_pct, "window_hours": s.scanner_window_hours, "calls": calls}
+
     @app.get("/positions")
     def positions(status: str | None = None, mode: str | None = None, conn=Depends(db)) -> list[dict[str, Any]]:
         q, a = "SELECT p.*, l.symbol FROM positions p LEFT JOIN launches l ON l.token=p.token WHERE 1=1", []
