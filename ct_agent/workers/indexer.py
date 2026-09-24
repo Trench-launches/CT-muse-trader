@@ -115,4 +115,5 @@ def index_once(ctx: Context, *, max_blocks: int | None = None) -> dict[str, int]
     # 4) retention
     keep_from = head - int(s.trade_retention_hours * 3600 / bt)
     conn.execute("DELETE FROM curve_trades WHERE block_number < ?", (keep_from,))
+    kv_set(conn, "indexer_heartbeat", {"head": head, "at": utcnow()})  # the site's 'synced Ns ago'
     return stats

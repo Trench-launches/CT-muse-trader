@@ -141,6 +141,18 @@ def test_full_paper_cycle(tmp_path):
                     headers={"authorization": "Bearer admin-secret"}).status_code == 200
     assert api.get("/health").json()["kill_switch"]["on"] is True
 
+    # the website's one-call payload: real figures from the same database
+    from ct_agent.api import site as site_mod
+    site_mod._CACHE.clear()
+    r = api.get("/site", headers={"origin": "https://www.mooseonmuse.com"})
+    assert r.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
+    d = r.json()
+    assert d["score"]["closed"] == 1 and d["score"]["losses"] == 1 and len(d["score"]["series"]) == 2
+    assert d["decisions"] and d["decisions"][0]["symbol"] == "HOT" and d["decisions"][0]["evidence"]
+    assert d["posts"][0]["body"].startswith("PAPER SOLD $HOT") and d["kill_switch"]["on"] is True
+    assert d["funnel"]["traded_24h"] == 1 and d["sources"] and d["chain"]["journal_intact"] is True
+    assert "access-control-allow-origin" not in api.get("/site", headers={"origin": "https://evil.example"}).headers
+
 
 def test_rumor_only_cannot_trigger_buy(tmp_path):
     ch, hot, _ = _scenario()

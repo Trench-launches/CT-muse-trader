@@ -401,6 +401,8 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
             journal_append(conn, "mark_failed", {"position_id": pos["id"], "why": venue}, ref=pos["token"])
             continue
         pnl_pct = (fill.quote_in / pos["entry_quote"] - 1) * 100 if pos["entry_quote"] else 0
+        marks = (kv_get(conn, f"marks:{pos['id']}") or [])[-29:]  # recent marks for the site's sparkline
+        kv_set(conn, f"marks:{pos['id']}", marks + [round(fill.quote_in, 8)])
         age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
         reason = None
         if pnl_pct <= -s.stop_loss_pct:

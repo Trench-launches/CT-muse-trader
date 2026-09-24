@@ -11,6 +11,7 @@ import json
 from typing import Any, Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from ..config import Settings, get_settings
@@ -55,6 +56,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="CT Agent API", version="0.1.0",
                   description="Robinhood Chain research and paper-trading agent. Automated account; not financial advice.")
     open_db(s.database_path).close()  # run migrations once at startup
+    # The public website reads the API from the browser. Reads only: no cookies, no admin calls.
+    app.add_middleware(CORSMiddleware, allow_origins=s.site_origins, allow_methods=["GET"], allow_headers=[])
 
     def db() -> Iterator[Any]:
         conn = open_db(s.database_path)
@@ -176,6 +179,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "net_pnl_eth": round(sum(c["pnl_quote"] or 0 for c in closed), 6),
                 "open_exposure_eth": round(risk.exposure_eth(mode), 6),
                 "paper_cash_eth": round(risk.paper_cash_eth(), 6) if mode == "paper" else None}
+
+    @app.get("/site")
+    def site(response: Response, conn=Depends(db)) -> dict[str, Any]:
+        """Everything the public website shows, in one call."""
+        from .site import site_data
+        response.headers["Cache-Control"] = "public, max-age=15"
+        return site_data(conn, s)
 
     @app.get("/outcomes")
     def outcomes(hours: float | None = None, conn=Depends(db)) -> dict[str, Any]:
