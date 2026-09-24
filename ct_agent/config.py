@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     x_bearer_token: str = ""        # app-only token for reads
     x_user_access_token: str = ""   # OAuth2 user token for posting
     # OAuth 1.0a keys from the X developer portal (Consumer Key/Secret and the
-    # @MooseOnMuse Access Token/Secret). These don't expire, so posting never needs a re-login.
+    # @MooseByMuse Access Token/Secret). These don't expire, so posting never needs a re-login.
     x_api_key: str = ""
     x_api_secret: str = ""
     x_access_token: str = ""

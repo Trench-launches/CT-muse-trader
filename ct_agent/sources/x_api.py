@@ -44,7 +44,7 @@ class XClient:
                  oauth: Any = None):
         self.bearer = bearer_token
         self.user_token = user_token
-        self.oauth = oauth  # XOAuth2: refreshes the @MooseOnMuse posting token automatically
+        self.oauth = oauth  # XOAuth2: refreshes the @MooseByMuse posting token automatically
         self.budget = monthly_read_budget
         self.conn = conn
         self._http = httpx.Client(timeout=20, transport=transport)
