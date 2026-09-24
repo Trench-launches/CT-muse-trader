@@ -10,6 +10,8 @@
   ctagent twitch-subscribe <callback_url> [--bot-user-id ID]
   ctagent x-login [--no-browser]   authorize posting as @MooseByMuse (one time)
   ctagent report [--hours 24]      what happened after each call, by variable
+  ctagent wallet                   the trading wallet's address and ETH balance (never the key)
+  ctagent live-test <coin> [--eth 0.002]   one tiny real buy then sell in the coin's ETH pool
 """
 from __future__ import annotations
 
@@ -45,6 +47,10 @@ def main(argv: list[str] | None = None) -> int:
     rp.add_argument("--hours", type=float)
     xl = sub.add_parser("x-login")
     xl.add_argument("--no-browser", action="store_true")
+    sub.add_parser("wallet")
+    lt = sub.add_parser("live-test")
+    lt.add_argument("token")
+    lt.add_argument("--eth", type=float, default=0.002)
     t = sub.add_parser("twitch-subscribe")
     t.add_argument("callback")
     t.add_argument("--bot-user-id")
@@ -83,11 +89,48 @@ def main(argv: list[str] | None = None) -> int:
         _print_report(report(open_db(s.database_path), args.hours))
     elif args.cmd == "x-login":
         return _x_login(s, open_browser=not args.no_browser)
+    elif args.cmd == "wallet":
+        from .context import build
+        ctx = build(s)
+        if not ctx.live.wallet:
+            print("no trading wallet key set (CT_TRADING_WALLET_PRIVATE_KEY)")
+            return 1
+        print(f"trading wallet {ctx.live.wallet}: {ctx.rpc.get_balance(ctx.live.wallet) / 10**18:.6f} ETH")
+    elif args.cmd == "live-test":
+        return _live_test(s, args.token, args.eth)
     elif args.cmd == "twitch-subscribe":
         from .sources.twitch import TwitchApi
         api = TwitchApi(s.twitch_client_id, s.twitch_client_secret)
         for ch in s.twitch_channels:
             print(ch, api.subscribe_channel(ch, args.bot_user_id, args.callback, s.twitch_eventsub_secret))
+    return 0
+
+
+def _live_test(s, token: str, eth: float) -> int:
+    """Prove the live path with real money before switching the bot to live: buy `eth` of a graduated
+    coin in its ETH pool, then sell everything bought. Uses every live gate except the mode switch."""
+    from .config import TradingMode
+    from .context import build
+    from .execution.live import LiveTradingBlocked
+    if eth > 0.01:
+        print("live-test is capped at 0.01 ETH")
+        return 1
+    ctx = build(s.model_copy(update={"trading_mode": TradingMode.LIVE, "live_execution_reviewed": True}))
+    if not ctx.live.wallet:
+        print("no trading wallet key set (CT_TRADING_WALLET_PRIVATE_KEY)")
+        return 1
+    bal = ctx.rpc.get_balance(ctx.live.wallet) / 10**18
+    print(f"wallet {ctx.live.wallet}: {bal:.6f} ETH")
+    try:
+        buy = ctx.live.swap_on_pool(token=token, side="buy", amount_in_wei=int(eth * 10**18))
+        print(f"bought {buy.token_amount / 10**18:,.2f} tokens for {buy.quote_amount / 10**18:.6f} ETH  tx {buy.tx_hash}")
+        sell = ctx.live.swap_on_pool(token=token, side="sell", amount_in_wei=buy.token_amount)
+        print(f"sold {sell.token_amount / 10**18:,.2f} tokens for {sell.quote_amount / 10**18:.6f} ETH  tx {sell.tx_hash}")
+    except LiveTradingBlocked as exc:
+        print(f"blocked: {exc}")
+        return 1
+    after = ctx.rpc.get_balance(ctx.live.wallet) / 10**18
+    print(f"round trip cost {bal - after:.6f} ETH incl. gas and approvals; wallet now {after:.6f} ETH")
     return 0
 
 

@@ -83,8 +83,8 @@ def test_live_executor_refuses_by_default(db, settings):
                                   "no trading wallet key"}
     with pytest.raises(LiveTradingBlocked):
         ex.buy_on_curve(token=addr(1), curve=addr(2), quote_in_wei=ETH // 100, fee_bps=100, tax_bps=0)
-    with pytest.raises(LiveTradingBlocked, match="paper-only"):
-        ex.swap_on_pool()
+    with pytest.raises(LiveTradingBlocked, match="trading mode is paper"):
+        ex.swap_on_pool(token=addr(1), side="buy", amount_in_wei=ETH // 100)
     s2 = Settings(_env_file=None, trading_mode="live", live_execution_reviewed=True,
                   trading_wallet_private_key="0x" + "11" * 32, kill_switch_file=settings.kill_switch_file)
     ex2 = LiveExecutor(s2, pons.rpc, pons, db, RiskManager(s2, db))

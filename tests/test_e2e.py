@@ -42,7 +42,7 @@ def _scenario() -> tuple[FakeChain, FakeToken, FakeToken]:
 def _settings(tmp_path, **kw) -> Settings:
     base = dict(_env_file=None, database_path=str(tmp_path / "e2e.db"), kill_switch_file=str(tmp_path / "KILL"),
                 x_posting_enabled=True, x_user_access_token="user-token", api_admin_token="admin-secret",
-                decision_cooldown_min=0, min_fees_paid_eth=0)  # the thin-chart gate has its own test
+                decision_cooldown_min=0, min_fees_paid_eth=0, candidate_source="pons")  # the thin-chart gate has its own test
     base.update(kw)
     return Settings(**base)
 

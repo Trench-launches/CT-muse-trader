@@ -39,6 +39,7 @@ class Assessed:
     record: LaunchRecord
     pool: Any = None          # PoolStats for migrated
     eth_usd: float | None = None
+    call: dict[str, Any] | None = None  # the scanner call this came from, if any
 
 
 # --- screening --------------------------------------------------------------
@@ -101,35 +102,101 @@ def assess_candidates(ctx: Context) -> list[Assessed]:
                           "DESC LIMIT 25")
     eth_usd = ctx.market.eth_usd() if migrated else None
     for l in migrated:
-        ok, why, rec = ctx.pons.verify_token(l["token"])
-        if not ok or rec is None or rec.phase != Phase.POOL_CREATED:
-            continue
-        l = _meta(ctx, l)
-        pid = l.get("pool_id") or ctx.pons.genuine_pool_id(rec)
-        if not l.get("pool_id"):
-            conn.execute("UPDATE launches SET pool_id=?, pool_fee=?, tick_spacing=? WHERE token=?",
-                         (pid, rec.pool_fee, rec.tick_spacing, l["token"]))
-        pool = ctx.market.genuine_pool_stats(l["token"], pid)
-        if pool:
-            conn.execute("INSERT INTO market_snapshots(token,ts,source,pool_address,price_usd,volume_h1_usd,"
-                         "volume_h24_usd,liquidity_usd,txns_h1) VALUES(?,?,?,?,?,?,?,?,?)",
-                         (l["token"], utcnow(), pool.source, pid, pool.price_usd, pool.volume_h1_usd,
-                          pool.volume_h24_usd, pool.liquidity_usd, pool.txns_h1))
-        fee = l.get("fee_bps") or 100
-        c = screen_migrated(s, token=l["token"], phase=int(rec.phase), pool_found=pool is not None,
-                            volume_h1_usd=pool.volume_h1_usd if pool else None,
-                            liquidity_usd=pool.liquidity_usd if pool else None,
-                            volume_h24_usd=pool.volume_h24_usd if pool else None,
-                            fee_bps=fee, creator_tax_bps=rec.creator_tax_bps, activity=None,
-                            quote_symbol=l["quote_symbol"])
-        out.append(Assessed(c, l, rec, pool, eth_usd))
+        a = _assess_migrated(ctx, l, eth_usd)
+        if a:
+            out.append(a)
+    return _shortlist(ctx, out)
 
+
+def _shortlist(ctx: Context, out: list[Assessed], extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
+    s, conn = ctx.settings, ctx.conn
     eligible = sorted((a for a in out if a.cand.eligible), key=lambda a: a.cand.score, reverse=True)
+    # the research worker reads this list: coins still waiting on their move go on it too, so their X
+    # research is ready by the time they trigger
     kv_set(conn, "candidates", [{"token": a.cand.token, "symbol": a.launch.get("symbol"), "stage": a.cand.stage,
-                                 "score": a.cand.score, "progress": a.cand.progress} for a in eligible[:20]])
+                                 "score": a.cand.score, "progress": a.cand.progress} for a in eligible[:20]]
+           + (extra or []))
     journal_append(conn, "screen_cycle", {"assessed": len(out), "eligible": len(eligible),
                                           "top": [a.cand.token for a in eligible[:5]]})
     return eligible[: s.candidates_per_cycle]
+
+
+def _assess_migrated(ctx: Context, l: dict[str, Any], eth_usd: float | None) -> Assessed | None:
+    """Screen one graduated coin on its genuine Pons pool."""
+    s, conn = ctx.settings, ctx.conn
+    ok, why, rec = ctx.pons.verify_token(l["token"])
+    if not ok or rec is None or rec.phase != Phase.POOL_CREATED:
+        return None
+    l = _meta(ctx, l)
+    pid = l.get("pool_id") or ctx.pons.genuine_pool_id(rec)
+    if not l.get("pool_id"):
+        conn.execute("UPDATE launches SET pool_id=?, pool_fee=?, tick_spacing=?, last_phase=2 WHERE token=?",
+                     (pid, rec.pool_fee, rec.tick_spacing, l["token"]))
+    pool = ctx.market.genuine_pool_stats(l["token"], pid)
+    if pool:
+        conn.execute("INSERT INTO market_snapshots(token,ts,source,pool_address,price_usd,volume_h1_usd,"
+                     "volume_h24_usd,liquidity_usd,txns_h1) VALUES(?,?,?,?,?,?,?,?,?)",
+                     (l["token"], utcnow(), pool.source, pid, pool.price_usd, pool.volume_h1_usd,
+                      pool.volume_h24_usd, pool.liquidity_usd, pool.txns_h1))
+    fee = l.get("fee_bps") or 100
+    c = screen_migrated(s, token=l["token"], phase=int(rec.phase), pool_found=pool is not None,
+                        volume_h1_usd=pool.volume_h1_usd if pool else None,
+                        liquidity_usd=pool.liquidity_usd if pool else None,
+                        volume_h24_usd=pool.volume_h24_usd if pool else None,
+                        fee_bps=fee, creator_tax_bps=rec.creator_tax_bps, activity=None,
+                        quote_symbol=l["quote_symbol"])
+    return Assessed(c, l, rec, pool, eth_usd)
+
+
+def _ensure_launch(ctx: Context, token: str) -> dict[str, Any] | None:
+    """The launches row for a coin the scanner found. Coins launched before MOOSE's index started are
+    added from their onchain record (block = now, so no history is replayed for them)."""
+    conn = ctx.conn
+    row = conn.execute("SELECT * FROM launches WHERE token=? COLLATE NOCASE", (token,)).fetchone()
+    if row:
+        return dict(row)
+    rec = ctx.pons.launch_record(token)
+    if not rec.exists:
+        return None
+    eth = rec.pair_token.lower() == ZERO_ADDRESS
+    conn.execute("INSERT OR IGNORE INTO launches(token,curve,deployer,pair_token,launch_config_id,graduation_threshold,"
+                 "block_number,tx_hash,first_seen,quote_symbol,quote_decimals,last_phase,last_progress) "
+                 "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                 (rec.token, rec.curve, rec.deployer, rec.pair_token, 0, str(rec.graduation_threshold),
+                  ctx.rpc.block_number(), "scanner", utcnow(), "ETH" if eth else None, 18 if eth else None,
+                  int(rec.phase), 1.0 if rec.phase == Phase.POOL_CREATED else 0.0))
+    row = conn.execute("SELECT * FROM launches WHERE token=?", (rec.token,)).fetchone()
+    return dict(row) if row else None
+
+
+def assess_scanner(ctx: Context) -> list[Assessed]:
+    """Coins from the smart-money scanner that have made the move since their call."""
+    from ..sources import scanner
+    s, conn = ctx.settings, ctx.conn
+    try:
+        scanner.fetch_new(ctx)
+    except Exception as exc:  # Supabase down: keep working the calls already copied
+        log.warning("scanner fetch failed: %s", exc)
+    ready = scanner.refresh(ctx)
+    out: list[Assessed] = []
+    eth_usd = ctx.market.eth_usd() if ready else None
+    for call in ready:
+        l = _ensure_launch(ctx, call["token"])
+        a = _assess_migrated(ctx, l, eth_usd) if l else None
+        if a:
+            a.call = call
+            a.cand.metrics["move_since_call_pct"] = call["last_move_pct"]
+            a.cand.score = round(a.cand.score + call["last_move_pct"] / 100, 3)
+            out.append(a)
+    waiting = [{"token": c["token"], "symbol": c["symbol"], "stage": "scanner_call", "score": 0, "progress": None}
+               for c in rows(conn, "SELECT token, symbol FROM scanner_calls WHERE status='watching' AND pool_id IS NOT NULL "
+                                   "ORDER BY id DESC LIMIT 10")]
+    return _shortlist(ctx, out, waiting)
+
+
+def assess(ctx: Context) -> list[Assessed]:
+    """This cycle's candidates, from whichever source is switched on."""
+    return assess_scanner(ctx) if ctx.settings.candidate_source == "scanner" else assess_candidates(ctx)
 
 
 # --- briefing pack ----------------------------------------------------------
@@ -159,9 +226,12 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         "limits": {"max_position_eth": s.max_position_eth, "mode": s.trading_mode.value},
         "rules": {"verified_source_required": s.min_independent_sources_for_buy > 0},
         "fees_and_size": _fee_facts(ctx, a),
-        "holders": holder_facts(ctx, a.launch),
+        "holders": pool_holder_facts(ctx, a.launch) if a.cand.stage == "migrated" else holder_facts(ctx, a.launch),
         "lore": _lore(ctx, a.cand.token),
     }
+    if a.call:
+        from ..sources.scanner import call_facts
+        pack["scanner_call"] = call_facts(a.call, s.scanner_trigger_pct)
     if a.pool:
         pack["pool_indicative"] = {"source": a.pool.source, "volume_h1_usd": a.pool.volume_h1_usd,
                                    "volume_h24_usd": a.pool.volume_h24_usd, "liquidity_usd": a.pool.liquidity_usd,
@@ -268,13 +338,37 @@ def holder_facts(ctx: Context, launch: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
 
+def pool_holder_facts(ctx: Context, launch: dict[str, Any]) -> dict[str, Any] | None:
+    """Holders of a graduated coin, without replaying its whole transfer history: GeckoTerminal's holder
+    count and top-10 share, less what Uniswap's pool manager holds (the pool itself, counted there as a
+    holder), and the deployer's balance read onchain."""
+    try:
+        token = launch["token"]
+        r = ctx.market._http.get(f"https://api.geckoterminal.com/api/v2/networks/{ctx.settings.geckoterminal_network}"
+                                 f"/tokens/{token}/info")
+        r.raise_for_status()
+        h = ((r.json().get("data") or {}).get("attributes") or {}).get("holders") or {}
+        top10 = float((h.get("distribution_percentage") or {}).get("top_10")) / 100
+        supply = ctx.pons.total_supply(token)
+        if not supply:
+            return None
+        pool = ctx.pons.erc20_balance(token, ctx.pons.pool_manager()) / supply
+        dev = ctx.pons.erc20_balance(token, launch["deployer"]) / supply if launch.get("deployer") else 0.0
+        return {"holders": int(h.get("count") or 0), "top10_share": round(max(0.0, top10 - pool), 4),
+                "deployer_share": round(dev, 4), "pool_share": round(pool, 4), "source": "geckoterminal"}
+    except Exception as exc:  # a failed read never blocks a decision by itself; the gate just can't apply
+        log.warning("pool holders unavailable for %s: %s", launch.get("token"), exc)
+        return None
+
+
 def _fee_facts(ctx: Context, a: Assessed) -> dict[str, Any]:
     """Market cap and lifetime fees paid, for Muse and for the thin-chart gate."""
     try:
         price = spot_price(ctx, a.cand.token)[0]
     except Exception:
         price = None
-    fees = fees_paid_eth(ctx, a.launch)
+    # graduated coins: the pool's last 24h only (replaying a weeks-old curve's whole history is too slow)
+    fees = 0.0 if a.cand.stage == "migrated" else fees_paid_eth(ctx, a.launch)
     if fees is not None and a.pool and a.pool.volume_h24_usd and a.eth_usd:
         # graduated: add what the pool took in the last 24h (its lifetime isn't readable cheaply)
         rate = (a.cand.metrics.get("trade_fee_bps") or 0) / 10_000
@@ -432,10 +526,11 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
     mode = s.trading_mode.value
     if mode == "live":
         try:
-            if a.cand.stage != "almost_bonded":
-                ctx.live.swap_on_pool()
-            lf = ctx.live.buy_on_curve(token=token, curve=a.record.curve, quote_in_wei=int(size_eth * ETH),
-                                       fee_bps=a.launch.get("fee_bps") or 100, tax_bps=a.record.creator_tax_bps)
+            if a.cand.stage == "almost_bonded":
+                lf = ctx.live.buy_on_curve(token=token, curve=a.record.curve, quote_in_wei=int(size_eth * ETH),
+                                           fee_bps=a.launch.get("fee_bps") or 100, tax_bps=a.record.creator_tax_bps)
+            else:
+                lf = ctx.live.swap_on_pool(token=token, side="buy", amount_in_wei=int(size_eth * ETH))
         except LiveTradingBlocked as exc:
             journal_append(conn, "live_entry_blocked", {"token": token, "error": str(exc), "decision_id": did},
                            ref=token, mode="live")
@@ -452,6 +547,9 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
         pid = open_position(conn, token=token, symbol=symbol, decision_id=did, quote_symbol="ETH", fill=fill,
                             stage=a.cand.stage, meta={"evidence_ids": used})
         entry_price, spent = fill.avg_price, fill.quote_in
+    if a.call:
+        from ..sources.scanner import mark_bought
+        mark_bought(conn, token)
     cited = [e for e in pack["evidence"] if e["id"] in used]
     catalyst = _describe_source(cited[0]) if cited else "broad onchain buying"
     # Only claim momentum that was actually measured (curve tokens); graduated
@@ -510,8 +608,12 @@ def _mark(ctx: Context, pos: dict[str, Any], tokens: float) -> tuple[FillEstimat
 
 def _live_sell(ctx: Context, pos: dict[str, Any], venue: str, tokens: float) -> FillEstimate:
     """Sell `tokens` onchain. Raises LiveTradingBlocked if it can't."""
+    if venue == "pool":
+        lf = ctx.live.swap_on_pool(token=pos["token"], side="sell", amount_in_wei=int(tokens * ETH))
+        return FillEstimate(lf.quote_amount / ETH, lf.token_amount / ETH,
+                            (lf.quote_amount / lf.token_amount) if lf.token_amount else 0, 0, 0, 0, "onchain")
     if venue != "curve":
-        ctx.live.swap_on_pool()
+        raise LiveTradingBlocked(f"can't sell on {venue}")
     rec = ctx.pons.launch_record(pos["token"])
     st = ctx.pons.curve_state(rec.curve)
     lf = ctx.live.sell_on_curve(token=pos["token"], curve=rec.curve, tokens_in_wei=int(tokens * ETH),
@@ -565,7 +667,8 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
     s, conn = ctx.settings, ctx.conn
     ladder = sorted(s.take_profit_ladder)
     results = []
-    for pos in ctx.risk.open_positions(s.trading_mode.value):
+    modes = ["paper", "live"] if s.trading_mode.value == "live" else ["paper"]
+    for pos in [p for m in modes for p in ctx.risk.open_positions(m)]:
         left, hits = _left(pos), pos.get("tp_hits") or 0
         fill, venue = _mark(ctx, pos, left)
         if fill is None:

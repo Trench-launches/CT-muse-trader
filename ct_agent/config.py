@@ -128,6 +128,13 @@ class Settings(BaseSettings):
     max_deployer_hold_share: float = 0.10
     max_top10_hold_share: float = 0.35
     max_top_buyer_share: float = 0.40
+    # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (MOOSE's own
+    # Pons auto-scan of near-bonded and freshly graduated coins).
+    candidate_source: str = "scanner"
+    supabase_url: str = ""
+    supabase_key: str = ""
+    scanner_trigger_pct: float = 30.0   # a call is only a candidate once the coin is up this much from the call
+    scanner_window_hours: float = 6.0   # ...and only within this long of the call
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
     candidates_per_cycle: int = 5
     # Paper-trading history from MOOSE v1 (before this journal), merged into the site's scorecard and labelled
@@ -151,6 +158,11 @@ class Settings(BaseSettings):
     # Live trading wallet. Only the capped trading wallet key ever lives here.
     # The owner and treasury keys must never be given to this process.
     trading_wallet_private_key: str = ""
+    # Uniswap on Robinhood Chain (Uniswap/contracts deployments/json/4663.json; the router is the one real
+    # swaps on this chain go through). Graduated coins are bought and sold in their Pons ETH pool here.
+    uniswap_universal_router: str = "0x204FAca1764B154221e35c0d20aBb3c525710498"
+    uniswap_v4_quoter: str = "0x8dc178efb8111bb0973dd9d722ebeff267c98f94"
+    permit2: str = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
     live_execution_reviewed: bool = False  # flipped only after a human review
 
     # --- API ------------------------------------------------------------

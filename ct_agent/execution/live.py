@@ -11,8 +11,9 @@ Refuses to sign unless every gate passes:
     exact transaction all succeed
 
 Every submission, fill, partial fill (refund) and failure is journalled.
-Graduated V4 pool swaps are NOT implemented: those tokens stay paper-only
-until a reviewed router adapter is added.
+Graduated coins trade in the ETH pool Pons seeded (Uniswap V4, see v4.py), with the
+same gates: a fresh V4Quoter quote, a slippage floor, a simulation of the exact call.
+Coins paired with anything but ETH are refused.
 """
 from __future__ import annotations
 
@@ -31,6 +32,7 @@ from ..config import Settings, TradingMode
 from ..db import journal_append
 from .pricing import curve_buy, curve_sell
 from .risk import RiskManager
+from . import v4
 
 log = logging.getLogger(__name__)
 CURVE_BUY_REFUNDED = topic("CurveBuyRefunded(address,uint256)")
@@ -114,23 +116,89 @@ class LiveExecutor:
         return self._execute(token, curve, "sell", data, value=0,
                              checklist={"quote": est.__dict__, "min_out": min_out})
 
-    def swap_on_pool(self, **_: Any) -> LiveFill:
-        raise LiveTradingBlocked("V4 pool execution adapter not built; graduated tokens are paper-only")
+    # --- graduated: the coin's ETH pool on Uniswap V4 -------------------------
+
+    def eth_pool(self, token: str) -> v4.EthPool:
+        """The pool Pons seeded for this coin, refused unless it's paired with ETH and graduated."""
+        from ..chain.pons import Phase
+        rec = self.pons.launch_record(token)
+        if not rec.exists or rec.phase != Phase.POOL_CREATED:
+            raise LiveTradingBlocked("not a graduated Pons coin")
+        if rec.pair_token.lower() != v4.ZERO_ADDRESS:
+            raise LiveTradingBlocked("pool is not paired with ETH")
+        return v4.EthPool(rec.token, rec.pool_fee, rec.tick_spacing, self.pons.meme_hook())
+
+    def _quote(self, pool: v4.EthPool, buy: bool, amount_in: int) -> int:
+        try:
+            return v4.decode_quote(self.rpc.eth_call(self.s.uniswap_v4_quoter, v4.quote_calldata(pool, buy, amount_in)))
+        except (RpcError, ValueError) as exc:
+            raise LiveTradingBlocked(f"no V4 quote: {exc}") from exc
+
+    def swap_on_pool(self, *, token: str, side: str, amount_in_wei: int) -> LiveFill:
+        """Buy with `amount_in_wei` ETH, or sell `amount_in_wei` of the coin, in its ETH pool."""
+        self._assert_ready()
+        pool = self.eth_pool(token)
+        router = checksum(self.s.uniswap_universal_router)
+        quoted = self._quote(pool, side == "buy", amount_in_wei)
+        min_out = int(quoted * (1 - self.s.max_slippage_bps / 10_000))
+        deadline = int(time.time()) + 120
+        if side == "buy":
+            data, value = v4.buy_calldata(pool, amount_in_wei, min_out, self.wallet, deadline), amount_in_wei
+        else:
+            bal = self.pons.erc20_balance(token, self.wallet)
+            if bal < amount_in_wei:
+                raise LiveTradingBlocked(f"token balance {bal} < {amount_in_wei}")
+            self._permit2_allow(token, router, amount_in_wei)
+            data, value = v4.sell_calldata(pool, amount_in_wei, min_out, self.wallet, deadline), 0
+        checklist = {"venue": "v4_pool", "quote_out": quoted, "min_out": min_out, "amount_in": amount_in_wei,
+                     "pool": list(pool.key)}
+        before = (self.rpc.get_balance(self.wallet), self.pons.erc20_balance(token, self.wallet))
+        rc = self._execute(token, router, side, data, value, checklist, parse=False)
+        return self._pool_fill(token, side, rc, before, amount_in_wei)
+
+    def _permit2_allow(self, token: str, router: str, amount: int) -> None:
+        """The router pulls the coin through Permit2: the coin approves Permit2 once, then Permit2
+        approves the router for this coin (30 days, redone when it runs low or expires)."""
+        permit2 = checksum(self.s.permit2)
+        if self.pons.erc20_allowance(token, self.wallet, permit2) < amount:
+            self._send(token, encode_call("approve(address,uint256)", permit2, MAX_UINT), 0, "approve_permit2",
+                       {"spender": permit2})
+        amt, exp, _ = decode_output(["uint160", "uint48", "uint48"], self.rpc.eth_call(
+            permit2, encode_call("allowance(address,address,address)", self.wallet, checksum(token), router)))
+        if int(amt) < amount or int(exp) < time.time() + 600:
+            data = encode_call("approve(address,address,uint160,uint48)", checksum(token), router, 2**160 - 1,
+                               int(time.time()) + 30 * 86400)
+            self._send(permit2, data, 0, "permit2_approve", {"token": token, "spender": router})
+
+    def _pool_fill(self, token: str, side: str, rc: dict[str, Any], before: tuple[int, int], amount_in: int) -> LiveFill:
+        """What actually changed hands, from the wallet's balances around the swap (the hook's tax
+        is not in the pool's Swap event). ETH received on a sell adds back the gas the swap burned."""
+        tokens_now = self.pons.erc20_balance(token, self.wallet)
+        if side == "buy":
+            quote, tokens = amount_in, tokens_now - before[1]
+        else:
+            gas = int(rc.get("gasUsed", "0x0"), 16) * int(rc.get("effectiveGasPrice", "0x0"), 16)
+            quote, tokens = self.rpc.get_balance(self.wallet) - before[0] + gas, before[1] - tokens_now
+        fill = LiveFill(rc["transactionHash"], side, int(quote), int(tokens), 0, "filled")
+        journal_append(self.conn, "live_fill", {
+            "onchain": True, "paper": False, "venue": "v4_pool", "tx_hash": fill.tx_hash, "side": side,
+            "quote_amount": fill.quote_amount, "token_amount": fill.token_amount, "token": token}, ref=token, mode="live")
+        return fill
 
     # --- internals ----------------------------------------------------------
 
-    def _execute(self, token: str, curve: str, side: str, data: str, value: int,
-                 checklist: dict[str, Any]) -> LiveFill:
+    def _execute(self, token: str, to: str, side: str, data: str, value: int,
+                 checklist: dict[str, Any], parse: bool = True) -> Any:
         if value and self.rpc.get_balance(self.wallet) < value * 12 // 10:
             raise LiveTradingBlocked("wallet ETH balance too low for size plus gas")
         try:  # simulate the exact call
-            self.rpc.eth_call(curve, data, sender=self.wallet, value=value)
+            self.rpc.eth_call(to, data, sender=self.wallet, value=value)
         except RpcError as exc:
             journal_append(self.conn, "live_failed", {"stage": "simulation", "side": side, "error": str(exc),
                                                       **checklist}, ref=token, mode="live")
             raise LiveTradingBlocked(f"simulation reverted: {exc}") from exc
-        receipt = self._send(curve, data, value, side, checklist)
-        return self._parse_fill(token, side, receipt)
+        receipt = self._send(to, data, value, side, checklist)
+        return self._parse_fill(token, side, receipt) if parse else receipt
 
     def _send(self, to: str, data: str, value: int, label: str, meta: dict[str, Any]) -> dict[str, Any]:
         txd = {"from": self.wallet, "to": checksum(to), "data": data, "value": hex(value)}

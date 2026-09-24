@@ -214,6 +214,28 @@ CREATE TABLE IF NOT EXISTS call_outcomes (
 CREATE INDEX IF NOT EXISTS ix_call_outcomes_open ON call_outcomes(done, decided_at);
 CREATE INDEX IF NOT EXISTS ix_call_outcomes_token ON call_outcomes(token, decided_at);
 
+-- Calls from the smart-money scanner (Supabase alert_performance), and how far each has moved since.
+CREATE TABLE IF NOT EXISTS scanner_calls (
+    id              INTEGER PRIMARY KEY,
+    token           TEXT NOT NULL,
+    symbol          TEXT,
+    called_at       TEXT NOT NULL,
+    call_price_usd  REAL,
+    call_mcap_usd   REAL,
+    data            TEXT NOT NULL,
+    status          TEXT NOT NULL,          -- watching | bought | expired | skipped
+    note            TEXT,
+    pool_id         TEXT,
+    last_price_usd  REAL,
+    last_move_pct   REAL,
+    peak_move_pct   REAL,
+    triggered_at    TEXT,
+    checked_at      TEXT,
+    first_seen      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_scanner_calls_status ON scanner_calls(status, called_at);
+CREATE INDEX IF NOT EXISTS ix_scanner_calls_token ON scanner_calls(token);
+
 -- Public "Ask Muse" chat: one row per request, for rate limits. `who` is a salted hash of the IP.
 CREATE TABLE IF NOT EXISTS chat_requests (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
