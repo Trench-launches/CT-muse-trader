@@ -122,7 +122,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .onchain .rh { vertical-align: 0; }
 .chip-ic { display: inline-grid; place-items: center; border-radius: 10px; color: var(--white); flex: none; }
 .chip-ic .ic { width: 55%; height: 55%; vertical-align: 0; }
-.coinav { flex: none; display: inline-block; filter: drop-shadow(0 3px 5px rgba(0,60,140,.18)); }
+.coinav { flex: none; display: inline-block; position: relative; filter: drop-shadow(0 3px 5px rgba(0,60,140,.18)); }
+.coin-logo { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: var(--white); box-shadow: inset 0 0 0 1px rgba(28,43,51,.08); }
 .coinav svg { width: 100%; height: 100%; display: block; }
 .onchain { display: inline-flex; align-items: center; gap: 6px; }
 
@@ -155,7 +156,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .face { width: 34px; height: 34px; border-radius: 50%; background: var(--sand) url("assets/moose.png") 50% 24% / 250% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
 
 /* coins (placeholder decor until the generated 3D coins arrive) */
-.coin { position: absolute; pointer-events: none; will-change: transform; filter: drop-shadow(0 14px 18px rgba(0,60,140,.18)); z-index: 1; }
+.coin { position: absolute; pointer-events: none; will-change: transform; transition: transform .6s var(--ease); filter: drop-shadow(0 14px 18px rgba(0,60,140,.18)); z-index: 1; }
 .coin svg { width: 100%; height: 100%; display: block; }
 .coin .inner { animation: floaty 6s ease-in-out infinite; }
 @keyframes floaty { 0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); } 50% { transform: translateY(-12px) rotate(calc(var(--rot, 0deg) + 6deg)); } }
@@ -190,7 +191,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hero-mascot { position: absolute; left: 50%; bottom: -3%; height: 104%; transform: translateX(-50%); z-index: 2; pointer-events: none; }
 .hero-mascot img { height: 100%; width: auto; max-width: none; animation: bob 4.8s ease-in-out infinite; transform-origin: 50% 100%; }
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-8px) rotate(-1deg); } }
-.float { position: absolute; z-index: 3; padding: 12px 14px; border-radius: 16px; background: var(--white); box-shadow: var(--shadow); font-size: var(--t-sm); display: grid; gap: 6px; transition: transform .6s var(--ease); min-width: 0; }
+.float { position: absolute; z-index: 3; padding: 12px 14px; border-radius: 16px; background: var(--white); box-shadow: var(--shadow); font-size: var(--t-sm); display: grid; gap: 6px; transition: transform .6s var(--ease); min-width: 0; will-change: transform; backface-visibility: hidden; }
 .float .row { display: flex; align-items: center; gap: 8px; }
 /* a slight tilt; `rotate` composes with the parallax transform instead of being overwritten by it */
 .float.f1 { rotate: -3deg; } .float.f2 { rotate: 2.5deg; } .float.f3 { rotate: -2deg; } .float.f4 { rotate: 3deg; }
@@ -430,8 +431,8 @@ body.killed .paused-note { display: block; }
 
 /* ---------- 8 RECORD ---------- */
 #record { --stage: clamp(460px, calc(var(--fit) - 160px), 640px); }
-.record-grid { margin-top: clamp(32px, 5vh, 72px); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(24px, 4vw, 72px); align-items: center; }
-.desk { display: block; justify-self: center; width: auto; max-width: 100%; height: auto; max-height: var(--stage); pointer-events: none; filter: drop-shadow(0 30px 40px rgba(15,20,25,.06)); }
+.record-grid { margin-top: clamp(32px, 5vh, 72px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 72px); align-items: center; }
+.desk { display: block; justify-self: center; width: auto; max-width: 100%; height: auto; max-height: min(820px, calc(var(--stage) * 1.3)); pointer-events: none; filter: drop-shadow(0 30px 40px rgba(15,20,25,.06)); }
 .post-stage { position: relative; min-height: var(--stage); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
 .ftw { position: relative; z-index: 2; width: min(420px, 86%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
 .ftw .xtl { border-color: #CFD9DE; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); }
@@ -825,7 +826,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   /* coins: placeholder 3D-ish decor */
   const coinSVG = (c1, c2, shades) => `<svg viewBox="0 0 100 100"><defs><radialGradient id="g${c1.slice(1)}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".35" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></radialGradient></defs><circle cx="50" cy="50" r="46" fill="${c2}"/><circle cx="50" cy="47" r="44" fill="url(#g${c1.slice(1)})"/><circle cx="50" cy="47" r="35" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="3"/>${shades ? '<path d="M28 40 h44 v4 a9 9 0 0 1 -18 0 v-1 h-8 v1 a9 9 0 0 1 -18 0z" fill="#1C2B33"/>' : '<circle cx="39" cy="43" r="4" fill="#1C2B33"/><circle cx="61" cy="43" r="4" fill="#1C2B33"/>'}<path d="M40 57 q10 8 20 0" stroke="#1C2B33" stroke-width="3.5" fill="none" stroke-linecap="round"/><ellipse cx="33" cy="54" rx="5" ry="3" fill="#F4B9B0" opacity=".7"/><ellipse cx="67" cy="54" rx="5" ry="3" fill="#F4B9B0" opacity=".7"/></svg>`;
   const COINS = { blue: ["#4DA8FF", "#0064E0"], beige: ["#F1E2CC", "#C9AE88"], white: ["#FFFFFF", "#D5DEE8"], green: ["#7EE2A3", "#1E9E4A"], ink: ["#5B6B75", "#1C2B33"] };
-  const coinAv = (kind, size, shades = false) => `<span class="coinav" style="width:${size}px;height:${size}px">${coinSVG(...COINS[kind], shades)}</span>`;
+  // the token's real logo sits on top of the drawn coin; if it can't load it removes itself and the coin shows
+  const logoImg = logo => logo ? `<img class="coin-logo" src="${API}${esc(logo)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : "";
+  const coinAv = (kind, size, shades = false, logo = null) => `<span class="coinav" style="width:${size}px;height:${size}px">${coinSVG(...COINS[kind], shades)}${logoImg(logo)}</span>`;
   $$(".coinav[data-coin]").forEach(el => el.innerHTML = coinSVG(...COINS[el.dataset.coin], false));
   const coins = [];
   const addCoin = (host, kind, size, x, y, rot, shades = false, depth = 1) => {
@@ -1005,8 +1008,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
     return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
-    $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, w.c === "white")}<div><b>$${w.s}</b><small class="${w.st === "bought" ? "bought" : ""}">${w.st}</small></div><div class="pring ${w.p >= 100 ? "done" : ""}"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19" stroke-dasharray="${RC}" stroke-dashoffset="${RC * (1 - w.p / 100)}"/></svg><span>${w.p}%</span></div></div>`).join("");
-    $("#posList").innerHTML = (LIVE && !positions.length) ? `<p class="empty">No open trades right now. MOOSE only buys with a verified source.</p>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(2)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
+    $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, w.c === "white", w.logo)}<div><b>$${w.s}</b><small class="${w.st === "bought" ? "bought" : ""}">${w.st}</small></div><div class="pring ${w.p >= 100 ? "done" : ""}"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19" stroke-dasharray="${RC}" stroke-dashoffset="${RC * (1 - w.p / 100)}"/></svg><span>${w.p}%</span></div></div>`).join("");
+    $("#posList").innerHTML = (LIVE && !positions.length) ? `<p class="empty">No open trades right now. MOOSE only buys with a verified source.</p>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(2)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
   };
   renderLive();
   $("#nextPost").innerHTML = `<div class="xtl">${xPost({ t: "2m", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." })}</div>`;
@@ -1095,6 +1098,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (top) {
       const p = Math.round((top.progress || 0) * 100);
       $("#hfWatch").textContent = `Watching $${top.symbol || "?"}`; $("#heroBar").style.width = p + "%";
+      const hc = $("#hfWatch").previousElementSibling; if (hc && top.logo) { hc.querySelector(".coin-logo")?.remove(); hc.insertAdjacentHTML("beforeend", logoImg(top.logo)); }
       $("#heroBarTxt").textContent = top.stage === "migrated" ? "graduated · trading in its pool" : `curve ${p}% · ${top.status}`;
     } else hideFloat("#hfWatch");
     const lead = d.leads.find(l => l.status === "verified");
@@ -1179,9 +1183,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     }
 
     /* live */
-    watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), p: Math.round((w.progress || 0) * 100),
+    watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), logo: w.logo, p: Math.round((w.progress || 0) * 100),
       st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6] }));
-    positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
+    positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), logo: p.logo, entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
       hist: p.marks.length > 1 ? p.marks : [p.entry_eth, p.entry_eth] }));
     renderLive();
     if (!watch.length) $("#wl").innerHTML = `<p class="empty">Nothing close to graduating right now.</p>`;
