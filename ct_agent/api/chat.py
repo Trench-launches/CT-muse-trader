@@ -255,7 +255,7 @@ def _x_allowed(ctx: Any) -> bool:
 
 
 def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str, history: list[dict[str, str]],
-                  hint: str | None) -> Any:
+                  hint: str | None, context: str | None = None) -> Any:
     """Research the coin step by step, then ask Muse. Yields what the site shows live:
     {"type": "step", "id", "status": run|done|skip|fail, "detail"}, then {"type": "answer", ...}
     or {"type": "error", "detail"}."""
@@ -273,16 +273,21 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
         def step(i: str, st: str, d: str = "") -> dict[str, Any]:
             return {"type": "step", "id": i, "status": st, "detail": d}
 
-        # the coin: a pasted contract, else the one the site says we're on, else a $ticker, else one named earlier
+        # A coin gets researched (with the live card) only when this message names one: a pasted contract, a
+        # $ticker, or a suggestion chip. Otherwise the coin from earlier rides along quietly, so a real follow-up
+        # ("and the fees?") still works, but an unrelated question isn't answered with that coin's research.
         if hint and not ADDRESS.search(msg):
-            token, how = hint, "context"
+            token, how = hint, "chip"
         else:
             token, how = find_token(conn, msg)
-        for m in reversed(history):
-            if token or how:
-                break
-            if m["role"] == "user":
-                token, how = find_token(conn, m["text"])
+        earlier = None
+        if not token and not how:
+            earlier = context
+            for m in reversed(history):
+                if earlier:
+                    break
+                if m["role"] == "user":
+                    earlier = find_token(conn, m["text"])[0]
         facts: dict[str, Any] = {}
         ev: list[dict[str, Any]] = []
         story: dict[str, Any] = {}
@@ -337,6 +342,15 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
         elif how:
             yield step("coin", "fail", how)
             facts = {"lookup": how}
+        elif earlier:  # quietly, from the caches: no research card, no coin card
+            facts = research(ctx, earlier)
+            if facts.get("is_pons_v2_launch_on_robinhood_chain"):
+                facts["context_only"] = True
+                ev = evidence(conn, facts["address"])
+                story = lore_mod.cached(ctx, facts["address"])[0] or lore_mod.read_onchain(ctx, facts["address"])
+            else:
+                facts = {}
+        facts["now_utc"] = datetime.now(timezone.utc).strftime("%A %d %B %Y, %H:%M UTC")
         log_request(conn, who, token, "asked")  # counted before the paid call, whatever happens next
         yield step("muse", "run")
         res = svc["brain"].chat(facts, ev, history + [{"role": "user", "text": msg}], story)
@@ -345,7 +359,7 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
             yield {"type": "error", "detail": "Muse didn't answer that one. Try again in a moment."}
             return
         yield step("muse", "done")
-        yield {"type": "answer", "reply": res.decision.reply.strip()[:2000], "token": token_card(facts),
+        yield {"type": "answer", "reply": res.decision.reply.strip()[:2000], "token": token_card(facts) if token else None,
                "remaining": remaining(conn, s, who)}
     finally:
         conn.close()

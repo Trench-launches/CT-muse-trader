@@ -56,8 +56,10 @@ class ChatMsg(BaseModel):
 class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     history: list[ChatMsg] = Field(default_factory=list, max_length=20)
-    # the coin the site already knows the question is about (a suggestion chip, or the last coin discussed)
+    # a coin the visitor picked (a suggestion chip): researched with the live card
     token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
+    # the coin discussed earlier: passed to Muse quietly, used only if the new message is about it
+    context_token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
 
 
 class PostIn(BaseModel):
@@ -298,7 +300,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def ask_muse(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
         """Ask Muse about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
         svc, who, msg, history = chat_start(body, request, conn)
-        for e in chat.answer_events(svc, s, s.database_path, who, msg, history, body.token):
+        for e in chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token):
             if e["type"] == "error":
                 raise HTTPException(502, e["detail"])
             if e["type"] == "answer":
@@ -309,7 +311,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def ask_muse_live(body: ChatIn, request: Request, conn=Depends(db)) -> StreamingResponse:
         """The same as /chat, but each research step is sent as it happens (one JSON object per line)."""
         svc, who, msg, history = chat_start(body, request, conn)
-        events = chat.answer_events(svc, s, s.database_path, who, msg, history, body.token)
+        events = chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token)
         return StreamingResponse((json.dumps(e, default=str) + "\n" for e in events), media_type="application/x-ndjson",
                                  headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 

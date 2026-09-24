@@ -458,10 +458,17 @@ def test_ask_muse_researches_a_contract(tmp_path):
     d = api.post("/chat", json={"message": "is $hot risky?"}).json()  # ticker lookup, any case
     assert d["token"]["address"].lower() == hot.token.lower()
 
-    # a follow-up with no coin named uses the one from earlier in the conversation
+    # a follow-up with no coin named: the earlier coin goes to Muse quietly (no card), marked as context
+    d = api.post("/chat", json={"message": "and the fees?", "context_token": hot.token}).json()
+    assert d["token"] is None and '"context_only": true' in muse.calls[-1] and '"symbol": "HOT"' in muse.calls[-1]
     d = api.post("/chat", json={"message": "and the fees?", "history": [
         {"role": "user", "text": f"look at {hot.token}"}, {"role": "muse", "text": "ok"}]}).json()
-    assert d["token"]["symbol"] == "HOT"
+    assert d["token"] is None and '"context_only": true' in muse.calls[-1]
+    # an unrelated question has no research card, and Muse knows today's date
+    ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "what day is it?",
+                                                                     "context_token": hot.token}).text.splitlines()]
+    assert [e["id"] for e in ev if e["type"] == "step"] == ["muse", "muse"] and ev[-1]["token"] is None
+    assert '"now_utc"' in muse.calls[-1]
 
     d = api.post("/chat", json={"message": f"check {addr(0xDEAD)}"}).json()  # not a Pons launch
     assert d["token"] is None and '"is_pons_v2_launch_on_robinhood_chain": false' in muse.calls[-1]
