@@ -119,7 +119,7 @@ def test_full_paper_cycle(tmp_path):
     assert fill["onchain"] is False and fill["pricing"] == "curve_constant_product"
 
     social_once(ctx)
-    assert len(sent) == 1 and sent[0].startswith("PAPER BUY $HOT") and hot.token not in sent[0]  # ticker only
+    assert len(sent) == 1 and sent[0].startswith("TEST BUY $HOT") and hot.token not in sent[0]  # ticker only
     assert "Risk:" in sent[0] and len(sent[0]) <= 280
     assert "on Robinhood Chain at $" in sent[0] and " MC: " in sent[0], sent[0]
 
@@ -133,7 +133,7 @@ def test_full_paper_cycle(tmp_path):
     out3 = trader_once(ctx)
     assert out3["exits"][0]["action"] == "exit" and "stop loss" in out3["exits"][0]["reason"]
     social_once(ctx)
-    assert sent[-1].startswith("Top blasted $HOT on paper. Entry was poor.") and "Realised P&L: -" in sent[-1], sent[-1]
+    assert sent[-1].startswith("Top blasted $HOT in testing. Entry was poor.") and "Realised P&L: -" in sent[-1], sent[-1]
     assert "Underestimated how fast the buyers could leave." in sent[-1] and "Lesson: wait for buys from more wallets." in sent[-1]
     assert journal_recent(ctx.conn, kind="lesson")[0]["payload"]["lesson"] == "wait for buys from more wallets"
     assert journal_verify(ctx.conn) == (True, None)
@@ -249,7 +249,7 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     research_once(ctx)
     trader_once(ctx)
     social_once(ctx)
-    assert sent[0]["text"].startswith("PAPER BUY $HOT") and "reply" not in sent[0]
+    assert sent[0]["text"].startswith("TEST BUY $HOT") and "reply" not in sent[0]
 
     hot.real_quote = int(5.2 * ETH)  # price up past +25%
     out = trader_once(ctx)
@@ -358,7 +358,7 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     p = pos()
     assert p["status"] == "open" and p["tp_hits"] == 1 and p["tokens_left"] == pytest.approx(entry_tokens * 0.5)
     social_once(ctx)
-    assert sent[-1].startswith("Jeeted 50% of my $HOT paper bag at $") and "stop moved to entry" in sent[-1], sent[-1]
+    assert sent[-1].startswith("Jeeted 50% of my $HOT test bag at $") and "stop moved to entry" in sent[-1], sent[-1]
     assert "50% still riding. Realised P&L: +" in sent[-1]
 
     hot.real_quote = at(1.3)  # below the next rung, above entry: hold
@@ -373,7 +373,7 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     ex = trader_once(ctx)["exits"][0]
     assert ex["action"] == "exit" and "back to entry" in ex["reason"], ex
     social_once(ctx)
-    out = [t for t in sent if t.startswith("Jeeted the last 25% of my $HOT paper bag")]
+    out = [t for t in sent if t.startswith("Jeeted the last 25% of my $HOT test bag")]
     assert len(out) == 1 and "Fully out. Realised P&L: +" in out[0], sent
     p = pos()
     assert p["status"] == "closed" and p["pnl_quote"] > 0 and p["exit_quote"] > p["realized_quote"]
@@ -424,7 +424,7 @@ def test_buys_on_onchain_activity_without_a_source(tmp_path):
     assert d["action"] == "buy" and d.get("entered") and not d["gates"], d
     assert rows(ctx.conn, "SELECT entry_quote FROM positions")[0]["entry_quote"] == pytest.approx(0.05)
     social_once(ctx)
-    assert sent[0].startswith("PAPER BUY $HOT") and "Saw broad onchain buying" in sent[0], sent[0]
+    assert sent[0].startswith("TEST BUY $HOT") and "Saw broad onchain buying" in sent[0], sent[0]
 
 
 def _chat_api(tmp_path, **kw):

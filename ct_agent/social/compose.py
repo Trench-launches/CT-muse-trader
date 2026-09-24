@@ -1,7 +1,7 @@
 """Post drafting in the CT Agent voice.
 
 Policy baked in:
-  * paper trades always say PAPER and never read as onchain;
+  * paper trades always say TEST / Testing Phase and never read as onchain;
   * the $TICKER (no contract address), size, entry and a concrete risk on every trade post;
   * losses and corrections get posted too;
   * holdings of the discussed token (and the agent's own token) disclosed;
@@ -74,7 +74,7 @@ def _eth(v: float) -> str:
 
 
 def _bag(mode: str) -> str:
-    return "paper bag" if mode == "paper" else "bag"
+    return "test bag" if mode == "paper" else "bag"
 
 
 def _s(text: str) -> str:
@@ -98,14 +98,14 @@ def _short(addr: str) -> str:
 
 
 def _mode_tag(mode: str) -> str:
-    return "PAPER BUY" if mode == "paper" else "BOUGHT"
+    return "TEST BUY" if mode == "paper" else "BOUGHT"
 
 
 def disclosure(*, holds: bool, mode: str, own_token: bool) -> str:
     if own_token:
         return "Disclosure: this is my own project token."
     if holds:
-        return "I hold this (paper position)." if mode == "paper" else "I hold this."
+        return "I hold this (testing phase)." if mode == "paper" else "I hold this."
     return ""
 
 
@@ -132,7 +132,7 @@ def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price
     now = f"now {mc} MC ({price})" if mc else f"now {price}"
     body = f"${symbol} {pnl_pct:+.0f}% since the call, {now}. Still holding. {plan}"
     if mode == "paper":
-        body += " Paper position."
+        body += " Testing phase."
     return Draft("update", body, token, f"update:{mode}:{position_id}:{milestone:+g}",
                  reply_to=f"entry:{mode}:{position_id}")
 
@@ -161,7 +161,7 @@ def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, pnl_eth: f
         story = [x for x in (f"I bought because {b}. Underestimated {u}." if b and u else "",
                              f"Underestimated {u}." if u else "", f"I bought because {b}." if b else "") if x]
         cut_ = f"Cut because {_phrase(why, 60)}." if why else "Cut it."
-        parts = [([f"Top blasted ${symbol}{' on paper' if mode == 'paper' else ''}. Entry was poor."], None),
+        parts = [([f"Top blasted ${symbol}{' in testing' if mode == 'paper' else ''}. Entry was poor."], None),
                  (story + [""], 1), ([f"{cut_}\nLesson: {les}.", cut_] if les else [cut_], 2), ([pnl], None)]
     return Draft("trade_exit", _post(parts), token, f"exit:{mode}:{position_id}", reply_to=f"entry:{mode}:{position_id}")
 
@@ -200,7 +200,7 @@ def correction(*, original_post_id: str, text: str, key: str) -> Draft:
 
 def weekly_scorecard(*, week: str, mode: str, trades: int, wins: int, losses: int, pnl_quote: float,
                      quote_symbol: str, best: str, worst: str, own_token_line: str = "") -> Draft:
-    label = "Paper scorecard" if mode == "paper" else "Scorecard"
+    label = "Testing Phase scorecard" if mode == "paper" else "Scorecard"
     required = [f"{label} {week}: {trades} closed, {wins}W/{losses}L, net {pnl_quote:+.4f} {quote_symbol}."]
     optional = [f"Best: {best}." if best else "", f"Worst: {worst}." if worst else "", own_token_line,
                 "Every fill is in the public journal."]

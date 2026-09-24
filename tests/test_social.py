@@ -17,7 +17,7 @@ def _entry(mode="paper", pid=1, risk="one wallet is 35% of buys"):
 
 def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
     d = _entry()
-    assert d.body.startswith("PAPER BUY $NEZU") and CA not in d.body and "Risk:" in d.body
+    assert d.body.startswith("TEST BUY $NEZU") and CA not in d.body and "Risk:" in d.body
     assert len(d.body) <= 280
     assert compose.trade_entry(mode="live", symbol="N", token=CA, size="s", entry="e", catalyst="c", progress=0.9,
                                momentum="", risk="r", position_id=2).body.startswith("BOUGHT")
@@ -27,7 +27,7 @@ def test_losses_are_posted():
     d = compose.trade_exit(mode="paper", symbol="N", token=CA, pnl_pct=-25.3, pnl_eth=-0.0127, sold_pct=100,
                            at="$40K MC", why="it hit my -25% stop", position_id=1, bought="first-party launch news",
                            underestimated="how thin the curve was", lesson="wait for 20+ buyer wallets")
-    assert d.body.startswith("Top blasted $N on paper. Entry was poor.")
+    assert d.body.startswith("Top blasted $N in testing. Entry was poor.")
     assert "I bought because first-party launch news. Underestimated how thin the curve was." in d.body
     assert "Cut because it hit my -25% stop.\nLesson: wait for 20+ buyer wallets." in d.body
     assert d.body.endswith("Realised P&L: -0.0127 ETH (-25%).") and CA not in d.body
@@ -54,7 +54,7 @@ def test_post_formats_fit_and_use_the_ticker_only():
     assert w.body.startswith("$HOT is on my radar. No position.\n\nHATCH v1 launch news caught my attention, "
                              "but I want more wallets buying before buying.\n\nWatching graduation progress. If it "
                              "clears 90% with steady buys, I take a starter. Until then, happy to wait.")
-    assert posts[4].body.startswith("Jeeted the last 25% of my $HOT paper bag at $1.2M MC.")
+    assert posts[4].body.startswith("Jeeted the last 25% of my $HOT test bag at $1.2M MC.")
     assert "Fully out. Realised P&L: +0.0400 ETH (+80%)." in posts[4].body
 
 
@@ -139,7 +139,7 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
         got.append(json.loads(r.content))
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60)
-    assert [g["text"][:9] for g in got] == ["PAPER BUY", "$NEZU +26", "$W is on "]
+    assert [g["text"][:9] for g in got] == ["TEST BUY ", "$NEZU +26", "$W is on "]
     assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
 
 
