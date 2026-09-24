@@ -12,7 +12,7 @@ import time
 from typing import Callable
 
 from ..context import Context, build
-from ..db import journal_append
+from ..db import journal_append, kv_set
 from ..social.outbox import recover_interrupted, send_pending
 from ..strategy.engine import assess, decide_and_act, manage_positions, scanner_cycle, weekly_scorecard
 from ..strategy.outcomes import track_outcomes
@@ -38,6 +38,12 @@ def trader_once(ctx: Context) -> dict:
         else:
             for a in assess(ctx):
                 decisions.append(decide_and_act(ctx, a))
+    if ctx.settings.trading_mode.value == "live" and ctx.live.wallet:
+        try:  # for the site: which wallet trades, and what it holds (the key never leaves the trader)
+            kv_set(ctx.conn, "live_wallet", {"address": ctx.live.wallet,
+                                             "eth": round(ctx.rpc.get_balance(ctx.live.wallet) / 10**18, 6)})
+        except Exception as exc:
+            log.warning("wallet balance unavailable: %s", exc)
     weekly_scorecard(ctx)
     tracked = track_outcomes(ctx)
     return {"exits": exits, "decisions": decisions, "killed": why if killed else None, "outcomes": tracked}

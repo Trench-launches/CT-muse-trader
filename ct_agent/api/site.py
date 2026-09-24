@@ -209,7 +209,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
 
     # --- thinking: Muse's latest real decisions (one of each kind if possible) ---
     raw = rows(conn, "SELECT d.*, l.symbol, l.last_progress FROM decisions d LEFT JOIN launches l ON l.token=d.token "
-                     "WHERE d.model!='rule' ORDER BY d.id DESC LIMIT 60")
+                     "WHERE (d.model!='rule' OR d.action='buy') ORDER BY d.id DESC LIMIT 60")
     picked: list[dict[str, Any]] = []
     for want in ("buy", "watch", "pass"):
         m = next((d for d in raw if d["action"] == want and d not in picked), None)
@@ -292,6 +292,8 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "sources": sources, "leads": leads, "decisions": decisions,
         "watching": watching, "positions": positions, "slots": s.max_open_positions,
         "watch_mode": s.candidate_source, "trigger_pct": s.scanner_trigger_pct, "window_h": s.scanner_window_hours,
+        "wallet": kv_get(conn, "live_wallet") if s.trading_mode.value == "live" else None,
+        "size_pct": s.position_size_pct,
         "next_post": pending[0] if pending else None,
         "posts_24h": one("SELECT COUNT(*) FROM posts WHERE status='sent' AND sent_at>=?", (day,)),
         "posts": posts,

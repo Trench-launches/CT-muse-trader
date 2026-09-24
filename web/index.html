@@ -934,7 +934,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div class="sc-tiles">
         <div class="sc-card sc-tile"><span class="sc-lbl">Trades taken</span><span class="v" id="scTaken" data-count="24">24</span><span class="s" id="scTakenS">23 closed · 1 open</span></div>
         <div class="sc-card sc-tile"><span class="sc-lbl">Win rate</span><span class="v" id="scRate">57%</span><div><div class="wl" id="scWL"><i class="w" style="flex:13"></i><i class="l" style="flex:10"></i></div><span class="s" id="scWLs" style="display:block;margin-top:8px">13 wins · 10 losses</span></div></div>
-        <div class="sc-card sc-tile"><span class="sc-lbl">Avg per trade</span><span class="v up-t" id="scAvg">+0.008<small>ETH</small></span><span class="s">same size every trade</span></div>
+        <div class="sc-card sc-tile"><span class="sc-lbl">Avg per trade</span><span class="v up-t" id="scAvg">+0.008<small>ETH</small></span><span class="s" id="scAvgS">same size every trade</span></div>
         <div class="sc-card sc-tile"><span class="sc-lbl">Avg hold</span><span class="v" id="scHold">3h 10m</span><span class="s">entry to exit</span></div>
         <div class="sc-card sc-tile"><span class="sc-lbl">Best trade</span><span class="v up-t" id="scBest">+0.041<small>ETH</small></span><span class="s" id="scBestS">$HATCH · +41.0%</span></div>
         <div class="sc-card sc-tile"><span class="sc-lbl">Worst trade</span><span class="v down-t" id="scWorst">−0.022<small>ETH</small></span><span class="s" id="scWorstS">$MORX · −22.0%</span></div>
@@ -1431,7 +1431,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     } else hideFloat("#hfLead");
     const call = d.decisions.find(x => x.action === "buy") || d.decisions.find(x => x.action === "watch");
     if (call) {
-      $("#hfCallPill").textContent = call.action === "buy" ? "TEST BUY" : "WATCH";
+      $("#hfCallPill").textContent = call.action === "buy" ? (d.mode === "live" ? "BOUGHT" : "TEST BUY") : "WATCH";
       $("#hfCallSym").textContent = "$" + (call.symbol || "?");
       $("#hfCallTxt").textContent = cut(call.risks[0] ? "risk: " + call.risks[0] : call.thesis, 46);
     } else hideFloat("#hfCallPill");
@@ -1499,7 +1499,10 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     $("#wlFootL").textContent = sm ? "Move since the call" : "Curve progress to graduation";
     $("#wlFootR").textContent = sm ? `+${d.trigger_pct}% = buy · ${d.window_h}h window` : "85% = almost bonded";
     $("#holdSub").textContent = d.mode === "live" ? "Live trades" : "Testing Phase";
-    $("#walletTxt").textContent = d.mode === "live" ? "live wallet" : "testing phase";
+    const wal = d.wallet;
+    $("#walletTxt").innerHTML = d.mode !== "live" ? "testing phase" : !wal ? "live wallet"
+      : `<a href="https://explorer.mainnet.chain.robinhood.com/address/${esc(wal.address)}" target="_blank" rel="noopener">${esc(wal.address.slice(0, 6) + "…" + wal.address.slice(-4))}</a> · ${Number(wal.eth).toFixed(3)} ETH`;
+    $("#scAvgS").textContent = d.size_pct > 0 ? `${d.size_pct}% of the account per trade` : "same size every trade";
     positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), logo: p.logo, entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
       hist: p.marks.length > 1 ? p.marks : [p.entry_eth, p.entry_eth] }));
     past = ((d.score || {}).recent || []).map((t, i) => ({ s: esc(t.symbol || "?"), logo: t.logo, pl: t.pnl_pct || 0, held: hfmt(t.hold_h),
