@@ -14,7 +14,7 @@ from typing import Callable
 from ..context import Context, build
 from ..db import journal_append
 from ..social.outbox import recover_interrupted, send_pending
-from ..strategy.engine import assess, decide_and_act, manage_positions, weekly_scorecard
+from ..strategy.engine import assess, decide_and_act, manage_positions, scanner_cycle, weekly_scorecard
 from ..strategy.outcomes import track_outcomes
 from .indexer import index_once
 from .research import research_once
@@ -33,8 +33,11 @@ def trader_once(ctx: Context) -> dict:
     killed, why = ctx.risk.kill_active()
     decisions = []
     if not killed:
-        for a in assess(ctx):
-            decisions.append(decide_and_act(ctx, a))
+        if ctx.settings.candidate_source == "scanner":
+            decisions = scanner_cycle(ctx)
+        else:
+            for a in assess(ctx):
+                decisions.append(decide_and_act(ctx, a))
     weekly_scorecard(ctx)
     tracked = track_outcomes(ctx)
     return {"exits": exits, "decisions": decisions, "killed": why if killed else None, "outcomes": tracked}

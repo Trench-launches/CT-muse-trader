@@ -169,8 +169,20 @@ def _ensure_launch(ctx: Context, token: str) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
-def assess_scanner(ctx: Context) -> list[Assessed]:
-    """Coins from the smart-money scanner that have made the move since their call."""
+def _assess_call(ctx: Context, call: dict[str, Any], eth_usd: float | None) -> Assessed | None:
+    l = _ensure_launch(ctx, call["token"])
+    a = _assess_migrated(ctx, l, eth_usd) if l else None
+    if a:
+        a.call = call
+        if call.get("last_move_pct") is not None:
+            a.cand.metrics["move_since_call_pct"] = call["last_move_pct"]
+    return a
+
+
+def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
+    """The smart-money scanner's calls. Muse analyses every new tradeable call and posts its read. The trade
+    itself is a rule: a call is bought once the coin is up scanner_trigger_pct from the call price. Nothing
+    about the coin can veto that; only the wallet's safety limits can (open trades, daily loss, balance)."""
     from ..sources import scanner
     s, conn = ctx.settings, ctx.conn
     try:
@@ -178,25 +190,104 @@ def assess_scanner(ctx: Context) -> list[Assessed]:
     except Exception as exc:  # Supabase down: keep working the calls already copied
         log.warning("scanner fetch failed: %s", exc)
     ready = scanner.refresh(ctx)
-    out: list[Assessed] = []
-    eth_usd = ctx.market.eth_usd() if ready else None
-    for call in ready:
-        l = _ensure_launch(ctx, call["token"])
-        a = _assess_migrated(ctx, l, eth_usd) if l else None
+    eth_usd = ctx.market.eth_usd()
+    out: list[dict[str, Any]] = []
+    ready_ids = {c["id"] for c in ready}
+    # calls that arrive already up get analysed first, so the buy post can use Muse's read
+    fresh = [c for c in ready if not c.get("decision_id")] + [c for c in scanner.to_analyse(conn) if c["id"] not in ready_ids]
+    for call in fresh[:4]:
+        a = _assess_call(ctx, call, eth_usd)
         if a:
-            a.call = call
-            a.cand.metrics["move_since_call_pct"] = call["last_move_pct"]
-            a.cand.score = round(a.cand.score + call["last_move_pct"] / 100, 3)
-            out.append(a)
+            did = analyse_call(ctx, a)
+            call["decision_id"] = did
+            out.append({"token": a.cand.token, "analysed": did})
+    for call in ready:
+        a = _assess_call(ctx, call, eth_usd)
+        if a:
+            out.append(buy_call(ctx, a))
     waiting = [{"token": c["token"], "symbol": c["symbol"], "stage": "scanner_call", "score": 0, "progress": None}
                for c in rows(conn, "SELECT token, symbol FROM scanner_calls WHERE status='watching' AND pool_id IS NOT NULL "
                                    "ORDER BY id DESC LIMIT 10")]
-    return _shortlist(ctx, out, waiting)
+    kv_set(conn, "candidates", waiting)  # the research worker gathers X chatter on these
+    return out
+
+
+def analyse_call(ctx: Context, a: Assessed) -> int:
+    """Muse's read on a new smart-money call: recorded, and posted to the radar. It does not decide the trade."""
+    from ..sources.scanner import mark_analysed
+    s, conn = ctx.settings, ctx.conn
+    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
+    pack = build_pack(ctx, a)
+    res = ctx.brain.decide(pack)
+    d = res.decision
+    thesis, reasons, risks = (d.thesis, d.reasons, d.risks) if d else ("", [res.error or "no analysis"], [])
+    with tx(conn):
+        cur = conn.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,"
+                           "model,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                           (utcnow(), token, "scanner_call", "watch", d.confidence if d else 0.0, thesis,
+                            json.dumps(reasons), json.dumps(risks), json.dumps(d.evidence_ids if d else []),
+                            res.model, res.raw))
+        did = int(cur.lastrowid)
+        journal_append(conn, "scanner_analysis", {"decision_id": did, "token": token, "symbol": symbol,
+                                                  "muse_action": d.action if d else None,
+                                                  "confidence": d.confidence if d else None, "thesis": thesis,
+                                                  "reasons": reasons, "risks": risks,
+                                                  "narrative": d.narrative.model_dump() if d else None,
+                                                  "muse_error": res.error}, ref=token, in_tx=True)
+    mark_analysed(conn, a.call["id"], did)
+    try:
+        record_call(ctx, a, decision_id=did, action="watch", confidence=d.confidence if d else 0.0, pack=pack,
+                    gates=[], model=res.model)
+    except Exception as exc:  # tracking is for analysis; it must never stop a trade
+        log.warning("could not record call outcome for %s: %s", token, exc)
+    if d:
+        skip, parent = _thread(conn, token, "watch")
+        if not skip:
+            pb = d.post
+            draft = compose.watch_note(symbol=symbol, token=token, decision_id=did, narrative=pb.narrative,
+                                       confirmation=pb.confirmation, watching=pb.watching,
+                                       trigger=f"it runs +{s.scanner_trigger_pct:g}% from the smart-money call",
+                                       line=d.public_line or thesis)
+            draft.reply_to = parent
+            enqueue(conn, draft)
+    return did
+
+
+def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
+    """The +30% rule fired: buy. Only the wallet's safety limits can stop it."""
+    s, conn = ctx.settings, ctx.conn
+    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
+    move = a.call.get("last_move_pct") or 0
+    verdict = ctx.risk.check_entry(token=token, quote_symbol="ETH", mode=s.trading_mode.value)
+    gates = list(verdict.reasons)
+    if a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd:
+        gates.append("pool price unavailable this cycle")
+    if gates:
+        journal_append(conn, "scanner_buy_held", {"token": token, "symbol": symbol, "move_pct": move, "why": gates},
+                       ref=token)
+        return {"token": token, "action": "held", "gates": gates}
+    prior = conn.execute("SELECT thesis, risks FROM decisions WHERE id=?", (a.call.get("decision_id"),)).fetchone()         if a.call.get("decision_id") else None
+    risks = (json.loads(prior["risks"] or "[]") if prior else []) or ["a memecoin can go to zero fast"]
+    thesis = (prior["thesis"] if prior else "") or f"smart money called it and it's up {move:.0f}% since"
+    reasons = [f"up {move:.0f}% since the smart-money call (buy rule: +{s.scanner_trigger_pct:g}%)"]
+    fill = _fill_for(ctx, a, verdict.size_eth)
+    with tx(conn):
+        cur = conn.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,"
+                           "model,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                           (utcnow(), token, "scanner_trigger", "buy", 1.0, thesis, json.dumps(reasons),
+                            json.dumps(risks), "[]", "rule", ""))
+        did = int(cur.lastrowid)
+        journal_append(conn, "decision", {"decision_id": did, "token": token, "symbol": symbol, "stage": "scanner_trigger",
+                                          "action": "buy", "rule": f"+{s.scanner_trigger_pct:g}% from call",
+                                          "move_pct": move, "gates": [], "reasons": reasons}, ref=token, in_tx=True)
+    res = _enter(ctx, a, did, fill, verdict.size_eth, [], risks, {"evidence": []},
+                 catalyst=f"a smart-money call, up {move:.0f}% since")
+    return {"token": token, "decision_id": did, "action": "buy", **res}
 
 
 def assess(ctx: Context) -> list[Assessed]:
-    """This cycle's candidates, from whichever source is switched on."""
-    return assess_scanner(ctx) if ctx.settings.candidate_source == "scanner" else assess_candidates(ctx)
+    """The Pons auto-scan's candidates (the scanner source runs through scanner_cycle instead)."""
+    return assess_candidates(ctx)
 
 
 # --- briefing pack ----------------------------------------------------------
@@ -520,7 +611,7 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
 
 
 def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: float, used: list[int],
-           risks: list[str], pack: dict[str, Any]) -> dict[str, Any]:
+           risks: list[str], pack: dict[str, Any], catalyst: str = "") -> dict[str, Any]:
     s, conn = ctx.settings, ctx.conn
     token, symbol = a.cand.token, a.launch.get("symbol") or "?"
     mode = s.trading_mode.value
@@ -551,7 +642,7 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
         from ..sources.scanner import mark_bought
         mark_bought(conn, token)
     cited = [e for e in pack["evidence"] if e["id"] in used]
-    catalyst = _describe_source(cited[0]) if cited else "broad onchain buying"
+    catalyst = catalyst or (_describe_source(cited[0]) if cited else "broad onchain buying")
     # Only claim momentum that was actually measured (curve tokens); graduated
     # tokens are screened on pool volume instead, so say that.
     windows = a.cand.metrics.get("windows") or []

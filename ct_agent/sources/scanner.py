@@ -134,6 +134,17 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
     return ready
 
 
+def to_analyse(conn: Any, limit: int = 3) -> list[dict[str, Any]]:
+    """Tradeable calls Muse hasn't looked at yet, oldest first."""
+    return rows(conn, "SELECT * FROM scanner_calls WHERE status='watching' AND pool_id IS NOT NULL "
+                      "AND decision_id IS NULL ORDER BY id LIMIT ?", (limit,))
+
+
+def mark_analysed(conn: Any, call_id: int, decision_id: int) -> None:
+    with tx(conn):
+        conn.execute("UPDATE scanner_calls SET decision_id=? WHERE id=?", (decision_id, call_id))
+
+
 def mark_bought(conn: Any, token: str) -> None:
     with tx(conn):
         conn.execute("UPDATE scanner_calls SET status='bought' WHERE token=? AND status='watching'", (token,))
@@ -156,5 +167,7 @@ def call_facts(call: dict[str, Any], trigger_pct: float) -> dict[str, Any]:
                         "held_usd": d.get("alert_sm_held_usd"), "supply_controlled_pct": d.get("alert_supply_ctl_pct")},
         "signals": signals,
         "move_since_call_pct": call.get("last_move_pct"), "peak_move_since_call_pct": call.get("peak_move_pct"),
-        "rule": f"MOOSE only considers a scanner call once the coin is up {trigger_pct:g}% or more from the call price",
+        "rule": (f"MOOSE buys this call automatically, by rule, if the coin gets to +{trigger_pct:g}% from the call "
+                 "price. Your job here is the analysis: what the coin is, why smart money may be in, what could go "
+                 "wrong. Your action does not decide the trade."),
     }
