@@ -89,6 +89,34 @@ def _score(closed: list[dict[str, Any]], open_pos: list[dict[str, Any]], net: fl
             "series": series}
 
 
+def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
+    """Fold MOOSE v1's paper-trading totals into the scorecard. v1's trades aren't in this journal, so the
+    result says how much of it is v1 ("history") and figures v1 didn't give stay the current bot's own."""
+    n = int(v1.get("trades") or 0)
+    if not n:
+        return sc
+    wins = int(v1.get("wins") or 0)
+    losses = int(v1.get("losses") if v1.get("losses") is not None else n - wins)
+    sc = dict(sc)
+    sc["closed"] += n
+    sc["taken"] += n
+    sc["wins"] += wins
+    sc["losses"] += losses
+    sc["win_rate"] = round(sc["wins"] / sc["closed"] * 100, 1) if sc["closed"] else None
+    if v1.get("net_eth") is not None:
+        sc["net_eth"] = round(sc["net_eth"] + float(v1["net_eth"]), 6)
+        sc["avg_eth"] = round(sc["net_eth"] / sc["closed"], 6)
+    if v1.get("best_eth") is not None and (not sc["best"] or float(v1["best_eth"]) > sc["best"]["pnl_eth"]):
+        sc["best"] = {"symbol": v1.get("best_symbol"), "pnl_eth": float(v1["best_eth"]), "pnl_pct": v1.get("best_pct"),
+                      "v1": True}
+    if v1.get("worst_eth") is not None and (not sc["worst"] or float(v1["worst_eth"]) < sc["worst"]["pnl_eth"]):
+        sc["worst"] = {"symbol": v1.get("worst_symbol"), "pnl_eth": float(v1["worst_eth"]), "pnl_pct": v1.get("worst_pct"),
+                       "v1": True}
+    sc["history"] = {"v1_trades": n, "v1_wins": wins, "v1_losses": losses,
+                     "includes": [k for k in ("net_eth", "best_eth", "worst_eth") if v1.get(k) is not None]}
+    return sc
+
+
 def site_data(conn: Any, s: Settings) -> dict[str, Any]:
     hit = _CACHE.get("site")
     if hit and time.time() - hit[1] < CACHE_S:
@@ -210,7 +238,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         cum += c["pnl_quote"] or 0
         series.append(round(cum, 6))
     wins = sum(1 for c in closed if (c["pnl_quote"] or 0) > 0)
-    score = _score(closed, positions, cum, wins, series)
+    score = _with_v1(_score(closed, positions, cum, wins, series), s.score_history_v1)
 
     # Coin logos: only for tokens that store one onchain; the site falls back to a coin if it won't load.
     with_logo = {r["token"].lower() for r in rows(conn, "SELECT token FROM launches WHERE logo_url IS NOT NULL "
