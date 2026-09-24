@@ -23,6 +23,9 @@ from .config import get_settings
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    # httpx logs every request URL at INFO, and RPC URLs carry the provider key: keep those out of the logs.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     p = argparse.ArgumentParser(prog="ctagent")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("init-db")

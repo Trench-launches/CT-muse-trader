@@ -74,7 +74,11 @@ def run_worker(name: str, *, once: bool = False) -> None:
             failures += 1
             log.exception("%s cycle failed (%d in a row)", name, failures)
             try:
-                journal_append(ctx.conn, "worker_error", {"worker": name, "error": repr(exc)[:500]})
+                import traceback
+                from ..chain.rpc import redact
+                frames = traceback.extract_tb(exc.__traceback__)[-3:]  # where it failed, for the next diagnosis
+                where = [f"{f.filename.rsplit('ct_agent', 1)[-1]}:{f.lineno} {f.name}" for f in frames]
+                journal_append(ctx.conn, "worker_error", {"worker": name, "error": redact(repr(exc))[:500], "where": where})
             except Exception:
                 pass
         if once:
