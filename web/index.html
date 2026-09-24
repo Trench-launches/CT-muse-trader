@@ -25,7 +25,7 @@
 <style>
 /* MOOSE landing page, v2. Layout language: big centred headlines, large soft-gradient
    panels, clean product cards floating on top. Every section is sized to fit one screen.
-   Figures load live from api.mooseonmuse.com/site; the markup holds example data until then.
+   Figures load live from api.moosebymuse.com/site; the markup holds example data until then.
    Headline face: Outfit stands in for the Instagram Sans reference (not licensable). */
 :root {
   color-scheme: light;
@@ -984,11 +984,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const xAct = (cls, icon, n) => `<span class="xp-act ${cls}"><span class="hit">${I(icon)}</span>${n || ""}</span>`;
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@MooseByMuse · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   /* live data: text from X and the news is escaped before it touches the page */
-  const API = "https://api.mooseonmuse.com";
+  const API = "https://api.moosebymuse.com", API_OLD = "https://api.mooseonmuse.com";
+  // New API address first; if it can't be reached (some internet providers still cache the domain as missing
+  // for a while after it goes live), the old address answers instead. Same server behind both.
+  const apiFetch = async (path, opts) => { try { return await fetch(API + path, opts); } catch { return fetch(API_OLD + path, opts); } };
   // $MOOSE: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
   const MOOSE_TOKEN = { ca: "", gmgn: "" };
   // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
-  const CHAT_API = location.hostname === "localhost" ? "http://localhost:8000" : API;
+  const chatFetch = (path, opts) => location.hostname === "localhost" ? fetch("http://localhost:8000" + path, opts) : apiFetch(path, opts);
   let LIVE = false;   // true once real data has loaded; the example animations then stand down
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const shortA = a => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "";
@@ -1334,7 +1337,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const fail = msg => { hideTyping(); card?.classList.add("done"); askAdd("warn", I("triangle-alert") + `<span>${esc(msg)}</span>`); };
     showTyping();
     try {
-      const r = await fetch(CHAT_API + "/chat/stream", { method: "POST", headers: { "content-type": "application/json" },
+      const r = await chatFetch("/chat/stream", { method: "POST", headers: { "content-type": "application/json" },
                                              body: JSON.stringify({ message: text, history: askHist.slice(-8),
                                              // a chip's coin is researched; the coin we were on only rides along as
                                              // context, and not at all when the message names a new coin
@@ -1385,7 +1388,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   $("#askForm").addEventListener("submit", e => { e.preventDefault(); ask(askIn.value); });
   askIn.addEventListener("input", () => { askSize(); askSync(); });
   askIn.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(askIn.value); } });
-  onView($("#ask"), () => fetch(CHAT_API + "/chat/limits").then(r => r.ok ? r.json() : null).then(d => {
+  onView($("#ask"), () => chatFetch("/chat/limits").then(r => r.ok ? r.json() : null).then(d => {
     if (!d) return;
     if (!d.enabled) { askOut = true; askLeft.textContent = "offline"; askLeft.className = "pill grey"; askSync(); return; }
     askLimit(d.remaining);
@@ -1535,7 +1538,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     $("#spLbl").textContent = sc.closed ? "Cumulative P&L, trade by trade · hover the line" : "No closed trades yet. The line starts with the first one.";
   };
   const load = async () => {
-    try { const r = await fetch(API + "/site", { cache: "no-store" }); if (!r.ok) throw new Error(r.status); hydrate(await r.json()); }
+    try { const r = await apiFetch("/site", { cache: "no-store" }); if (!r.ok) throw new Error(r.status); hydrate(await r.json()); }
     catch (e) { console.warn("live data unavailable, showing example data", e); }
   };
   if (!(location.hostname === "localhost" && location.search.includes("example"))) { load(); setInterval(load, 30000); }
