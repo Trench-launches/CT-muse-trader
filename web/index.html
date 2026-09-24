@@ -713,9 +713,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   <div class="wrap">
     <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
+      <a href="#ask">Ask Muse</a>
       <a href="#listens">Sources</a>
       <a href="#think">How it thinks</a>
-      <a href="#ask">Ask Muse</a>
       <a href="#live">Live</a>
       <a href="#record">Journal</a>
     </nav>
@@ -769,22 +769,28 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
-<!-- 2 SCALE: no human can keep up -->
-<section class="sec scale" id="scale" aria-labelledby="h-scale">
+<!-- 5b ASK: now ask it yourself -->
+<section class="sec ask" id="ask" aria-labelledby="h-ask">
   <div class="wrap">
     <div>
-      <span class="kicker">Always on</span>
-      <p class="giant" id="h-scale"><span id="bigCount" style="font-variant-numeric:tabular-nums">3,544</span><small>new tokens launched on Pons, on Robinhood Chain, today. No human can read them all. MOOSE does.</small></p>
-      <div class="funnel" id="funnel">
-        <div><span>Launched today</span><b id="fn0">3,544</b><i class="fb" style="transform:scaleX(1)"></i></div>
-        <div><span>Close to graduating</span><b id="fn1">212</b><i class="fb" data-s=".42" style="opacity:.75"></i></div>
-        <div><span id="fl2">Real buying, real news</span><b id="fn2">9</b><i class="fb" data-s=".12" style="opacity:.55"></i></div>
-        <div><span id="fl3">Worth a trade</span><b id="fn3">1</b><i class="fb" data-s=".03" style="opacity:.4"></i></div>
-      </div>
+      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask Muse</span>
+      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
+      <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
+      <ul class="ask-points">
+        <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What MOOSE decided, if it looked at it already</li>
+      </ul>
+      <p class="ask-fine"><svg class="ic"><use href="#i-lock"/></svg> 10 questions an hour per visitor. Research only, not financial advice.</p>
     </div>
-    <div class="panel grid-bg tiles-panel">
-      <div class="tiles" id="tiles" aria-hidden="true"></div>
-      <div class="tiles-foot"><span><i style="background:var(--blue)"></i>just launched</span><span><i style="background:rgba(28,43,51,.1)"></i>faded out</span><span><i style="background:var(--blue);box-shadow:0 0 0 3px rgba(0,130,251,.25)"></i><span id="tilesStar">worth a look: $HATCH</span></span><span class="example" style="margin-left:auto">example data</span></div>
+    <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
+      <div class="chat ask-chat">
+        <div class="chat-h"><span class="face"></span><div><b>Ask Muse</b><small>Robinhood Research</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
+        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
+        <div class="ask-sugg" id="askSugg"></div>
+        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
+        <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
+      </div>
     </div>
   </div>
 </section>
@@ -830,28 +836,22 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
-<!-- 5b ASK: now ask it yourself -->
-<section class="sec ask" id="ask" aria-labelledby="h-ask" style="background:var(--surface)">
+<!-- 2 SCALE: no human can keep up -->
+<section class="sec scale" id="scale" aria-labelledby="h-scale" style="background:var(--surface)">
   <div class="wrap">
     <div>
-      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask Muse</span>
-      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
-      <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
-      <ul class="ask-points">
-        <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
-        <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
-        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What MOOSE decided, if it looked at it already</li>
-      </ul>
-      <p class="ask-fine"><svg class="ic"><use href="#i-lock"/></svg> 10 questions an hour per visitor. Research only, not financial advice.</p>
-    </div>
-    <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
-      <div class="chat ask-chat">
-        <div class="chat-h"><span class="face"></span><div><b>Ask Muse</b><small>Robinhood Research</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
-        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
-        <div class="ask-sugg" id="askSugg"></div>
-        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
-        <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
+      <span class="kicker">Always on</span>
+      <p class="giant" id="h-scale"><span id="bigCount" style="font-variant-numeric:tabular-nums">3,544</span><small>new tokens launched on Pons, on Robinhood Chain, today. No human can read them all. MOOSE does.</small></p>
+      <div class="funnel" id="funnel">
+        <div><span>Launched today</span><b id="fn0">3,544</b><i class="fb" style="transform:scaleX(1)"></i></div>
+        <div><span>Close to graduating</span><b id="fn1">212</b><i class="fb" data-s=".42" style="opacity:.75"></i></div>
+        <div><span id="fl2">Real buying, real news</span><b id="fn2">9</b><i class="fb" data-s=".12" style="opacity:.55"></i></div>
+        <div><span id="fl3">Worth a trade</span><b id="fn3">1</b><i class="fb" data-s=".03" style="opacity:.4"></i></div>
       </div>
+    </div>
+    <div class="panel grid-bg tiles-panel">
+      <div class="tiles" id="tiles" aria-hidden="true"></div>
+      <div class="tiles-foot"><span><i style="background:var(--blue)"></i>just launched</span><span><i style="background:rgba(28,43,51,.1)"></i>faded out</span><span><i style="background:var(--blue);box-shadow:0 0 0 3px rgba(0,130,251,.25)"></i><span id="tilesStar">worth a look: $HATCH</span></span><span class="example" style="margin-left:auto">example data</span></div>
     </div>
   </div>
 </section>
