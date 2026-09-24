@@ -472,8 +472,8 @@ body.killed .paused-note { display: block; }
 /* two tweet cards float in the panel; every 5s one swaps post. Each is a fixed height (text is always
    5 lines), so a swap never moves anything */
 .rec-card { position: absolute; z-index: 2; width: min(400px, 64%); animation: recFloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
-.rec-card-0 { top: 7%; right: 4%; --r: 1.4deg; }
-.rec-card-1 { bottom: 8%; right: 3%; --r: -1.6deg; --d: 8.5s; --delay: -3s; }
+.rec-card-0 { top: 7%; right: calc(4% + 100px); --r: 1.4deg; }
+.rec-card-1 { bottom: 8%; right: calc(3% + 25px); width: min(372px, 58%); --r: -1.6deg; --d: 8.5s; --delay: -3s; }
 @keyframes recFloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-12px) rotate(calc(var(--r) * .4)); } }
 .rec-card .xtl { border-color: #E1E8ED; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); transition: opacity .3s ease, transform .3s ease; }
 .rec-card .xtl.out { opacity: 0; transform: translateY(10px) scale(.98); }
@@ -481,7 +481,7 @@ body.killed .paused-note { display: block; }
 .rec-card .xp:hover { background: #FFFFFF; }
 .rec-card .xp-text { height: 100px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: hidden; }
 .xp-act.bump { color: #F91880; }
-.rec-desk { position: absolute; z-index: 1; left: -14%; bottom: 0; height: 53%; width: auto; max-width: none; pointer-events: none; filter: drop-shadow(0 24px 30px rgba(28,43,51,.12)); }
+.rec-desk { position: absolute; z-index: 1; left: -12%; bottom: 0; height: 60%; width: auto; max-width: none; pointer-events: none; filter: drop-shadow(0 24px 30px rgba(28,43,51,.12)); }
 @media (max-width: 1000px) {
   .record .wrap { grid-template-columns: minmax(0, 1fr); }
   .rec-panel { height: auto; flex-direction: column; gap: 14px; }
