@@ -422,8 +422,6 @@ body.killed .pring .fg { stroke: var(--ink-3); }
 .post-dots { display: flex; gap: 5px; }
 .post-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
 .post-dots i.on { background: var(--blue); }
-.live-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin-top: clamp(10px, 1.8vh, 18px); font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
-.live-foot .ok { color: var(--green); }
 .empty { font-size: 14px; color: var(--ink-3); padding: 12px 2px; margin: 0; text-align: left; }
 .paused-note { display: none; margin-top: 16px; text-align: center; }
 body.killed .paused-note { display: block; }
@@ -476,7 +474,7 @@ body.killed .paused-note { display: block; }
 .cta-panel .ctas { justify-content: flex-start; position: relative; z-index: 2; }
 .cta-mascot { position: relative; z-index: 2; justify-self: center; height: clamp(200px, 38vh, 380px); }
 .cta-mascot img { height: 100%; width: auto; max-width: none; transition: transform .5s var(--spring); }
-.cta-panel:hover .cta-mascot img { transform: rotate(-5deg) scale(1.04); }
+.cta-panel:hover .cta-mascot img { transform: rotate(-2deg) scale(1.03); }
 footer { padding-block: 0 40px; /* the section above already provides the gap */ font-size: 13.5px; color: var(--ink-2); }
 footer .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 40px; border-top: 1px solid var(--line); padding-top: 28px; }
 footer nav { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
@@ -721,7 +719,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="post-dots" id="postDots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
       </article>
     </div>
-    <div class="live-foot"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Robinhood Chain · block <b class="num" id="blk">70,556,234</b></span><span>synced <b class="num" id="sync">1</b>s ago</span><span class="ok" id="jrnl">journal intact ✓</span><span id="modeTxt">mode: paper</span></div>
   </div>
 </section>
 
@@ -774,7 +771,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <p class="sub">Every trade, every pass and every loss gets posted. Not financial advice: a public experiment you can check.</p>
         <div class="ctas"><a class="btn btn-dark" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseOnMuse <span class="arr">→</span></a><a class="btn btn-ghost" href="#record">Read the journal</a></div>
       </div>
-      <div class="cta-mascot"><img src="assets/moose.png" alt="MOOSE"></div>
+      <div class="cta-mascot"><img src="assets/moose-board.webp" alt="MOOSE writing $MOOSE on a whiteboard" width="975" height="806"></div>
     </div>
   </div>
 </section>
@@ -846,7 +843,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   addCoin($(".chat-panel"), "white", 50, "80%", "30%", 10, true, 1.2);
   addCoin($(".chat-panel"), "blue", 40, "14%", "28%", -12, false, .9);
   addCoin($(".chat-panel"), "beige", 36, "20%", "68%", 14, false, 1.1);
-  addCoin($(".cta-panel"), "white", 46, "90%", "70%", 14, false, .9);
+  addCoin($(".cta-panel"), "white", 46, "52%", "74%", 14, false, .9);
 
   /* hero parallax: floating cards + coins drift with the cursor */
   if (!reduce) {
@@ -1013,16 +1010,13 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   };
   renderLive();
   $("#nextPost").innerHTML = `<div class="xtl">${xPost({ t: "2m", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." })}</div>`;
-  let blk = 70556234, since = 1;
   if (!reduce) {
     setInterval(() => {
       if (LIVE) return;
-      blk += Math.floor(rnd(8, 14)); since = 0; $("#blk").textContent = fmt(blk);
       watch.forEach(w => { if (w.p < 100) w.p = Math.max(80, Math.min(99, w.p + Math.round(rnd(-1, 2)))); });
       positions.forEach(p => { p.hist.push(Math.max(.02, p.hist.at(-1) * (1 + rnd(-.02, .022)))); if (p.hist.length > 14) p.hist.shift(); });
       renderLive(Math.floor(rnd(0, watch.length)));
     }, 2500);
-    setInterval(() => { if (!LIVE) { since++; $("#sync").textContent = since; } }, 1000);
   }
 
   /* ---------- 8 RECORD: live feed of floating X posts ---------- */
@@ -1081,7 +1075,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const kindOf = k => KIND[k] || KIND.manual;
   const hide = el => { if (el) el.style.display = "none"; };
   const hideFloat = id => hide($(id)?.closest(".float"));
-  let syncedAt = 0;
   const seen = { decisions: "", sources: "", leads: "", posts: "" };
 
   const hydrate = d => {
@@ -1195,9 +1188,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     $("#nextPost").innerHTML = np ? `<div class="xtl">${xPost({ t: "now", body: esc(np.body) })}</div>`
       : last ? `<div class="xtl">${xPost({ t: ago(last.sent_at), body: esc(last.body) })}</div>` : `<p class="empty">Nothing queued.</p>`;
     $("#postsTxt").textContent = `${d.posts_24h} post${d.posts_24h === 1 ? "" : "s"} in the last 24h`; hide($("#postDots"));
-    $("#blk").textContent = fmt(d.chain.block || 0); syncedAt = Date.parse(d.chain.synced_at) || 0;
-    $("#jrnl").textContent = d.chain.journal_intact ? "journal intact ✓" : "journal check failed";
-    $("#modeTxt").textContent = `mode: ${d.mode}`;
 
     /* on the record: real posts from @MooseOnMuse */
     const pk = JSON.stringify(d.posts.map(p => p.x_post_id));
@@ -1215,7 +1205,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     pnl = sc.series; drawSpark();
     $("#spLbl").textContent = sc.closed ? "Cumulative paper P&L in ETH · hover the line" : "No closed trades yet. The line starts with the first one.";
   };
-  setInterval(() => { if (LIVE && syncedAt) $("#sync").textContent = Math.max(0, Math.round((Date.now() - syncedAt) / 1000)); }, 1000);
   const load = async () => {
     try { const r = await fetch(API + "/site", { cache: "no-store" }); if (!r.ok) throw new Error(r.status); hydrate(await r.json()); }
     catch (e) { console.warn("live data unavailable, showing example data", e); }
