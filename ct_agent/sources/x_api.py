@@ -2,7 +2,7 @@
 
 Policy (X automation rules + the brief):
   * official API only, no browser automation or scraping;
-  * original posts only; no automated replies without written approval;
+  * automated replies only to people who mention or reply to the account first, capped (social/replies.py);
   * the account must carry X's "Automated" label (set in account settings);
   * every read is paid, so reads go through a monthly budget. The budget is
     counted in post-read units ($0.005); an author profile returned with a
@@ -124,21 +124,42 @@ class XClient:
             created += int(new)
         return created
 
+    def mentions(self, user_id: str, since_id: str | None = None, max_results: int = 20) -> list[dict[str, Any]]:
+        """Posts that mention the account, newest first. Post reads only (no author profiles), to keep it cheap."""
+        max_results = max(5, min(100, max_results))
+        self._check_budget(max_results)
+        params: dict[str, Any] = {"max_results": max_results,
+                                  "tweet.fields": "created_at,author_id,conversation_id,referenced_tweets"}
+        if since_id:
+            params["since_id"] = since_id
+        body = self._get(f"/users/{user_id}/mentions", params)
+        posts = body.get("data") or []
+        self._charge(len(posts))
+        return posts
+
     # --- writes -------------------------------------------------------------
 
     @property
     def can_post(self) -> bool:
         return bool(self.user_token) or bool(self.oauth and self.oauth.configured)
 
-    def create_post(self, text: str, reply_to: str | None = None) -> PostResult:
+    def _user_token(self) -> str:
         if self.user_token:
-            token = self.user_token
-        elif self.oauth is not None:
-            token = self.oauth.access_token()  # raises XNotConfigured if the login is missing
-        else:
-            raise XNotConfigured("X posting not set up: run `ctagent x-login`")
+            return self.user_token
+        if self.oauth is not None:
+            return self.oauth.access_token()  # raises XNotConfigured if the login is missing
+        raise XNotConfigured("X posting not set up: run `ctagent x-login`")
+
+    def my_user_id(self) -> str:
+        """The posting account's own user id (from its login, so it's always the account we post as)."""
+        r = self._http.get(f"{API}/users/me", headers={"authorization": f"Bearer {self._user_token()}"})
+        r.raise_for_status()
+        return str(r.json()["data"]["id"])
+
+    def create_post(self, text: str, reply_to: str | None = None) -> PostResult:
+        token = self._user_token()
         body: dict[str, Any] = {"text": text}
-        if reply_to:  # replies only ever go under MOOSE's own posts (threads)
+        if reply_to:  # threads under MOOSE's own posts, or an auto-reply to someone who engaged first
             body["reply"] = {"in_reply_to_tweet_id": reply_to}
         r = self._http.post(f"{API}/tweets", json=body,
                             headers={"authorization": f"Bearer {token}"})

@@ -44,9 +44,15 @@ def trader_once(ctx: Context) -> dict:
 
 
 def social_once(ctx: Context) -> dict:
+    from ..social.replies import replies_once
+    try:
+        replied = replies_once(ctx)
+    except Exception as exc:  # replies are optional: a failure here never stops trade posts going out
+        log.warning("auto-replies failed: %s", exc)
+        replied = {"error": str(exc)[:200]}
     res = send_pending(ctx.conn, ctx.x, enabled=ctx.settings.x_posting_enabled, daily_cap=ctx.settings.x_daily_post_cap,
                        threads_since=ctx.settings.x_threads_since)
-    return {"sent": res}
+    return {"sent": res, "replies": replied}
 
 
 WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {

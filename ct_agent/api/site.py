@@ -256,8 +256,8 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         positions.append({"id": p["id"], "symbol": p["symbol"], "token": p["token"], "entry_eth": p["entry_quote"],
                           "opened_at": p["opened_at"], "marks": [p["entry_quote"]] + marks,
                           "pnl_pct": round((last / p["entry_quote"] - 1) * 100, 2) if p["entry_quote"] else 0})
-    pending = rows(conn, "SELECT kind, body, created_at FROM posts WHERE status='pending' ORDER BY id LIMIT 1")
-    posts = rows(conn, "SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' ORDER BY id DESC LIMIT 6")
+    pending = rows(conn, "SELECT kind, body, created_at FROM posts WHERE status='pending' AND kind!='reply' ORDER BY id LIMIT 1")
+    posts = rows(conn, "SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND kind!='reply' ORDER BY id DESC LIMIT 6")
     for j in rows(conn, "SELECT ts, payload FROM journal WHERE kind='post_sent' AND payload LIKE '%\"intro\"%'"):
         p = _j(j["payload"], {})  # the intro post was sent by hand, outside the outbox
         if p.get("kind") == "intro":

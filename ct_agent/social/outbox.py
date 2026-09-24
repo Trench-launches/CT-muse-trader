@@ -87,6 +87,8 @@ def _next_sendable(conn: sqlite3.Connection, threads_since: str = "") -> tuple[d
     for row in pending:
         if not row.get("reply_to_key"):
             return row, None
+        if row["reply_to_key"].startswith("x:"):  # an auto-reply: straight under someone else's post
+            return row, row["reply_to_key"][2:]
         parent = conn.execute("SELECT status, x_post_id, sent_at FROM posts WHERE idempotency_key=?",
                               (row["reply_to_key"],)).fetchone()
         if parent is None or parent["status"] in ("failed", "cancelled", "unknown"):
