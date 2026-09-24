@@ -89,6 +89,14 @@ class XClient:
             p["_author"] = users.get(p.get("author_id"), {})
         return posts
 
+    def user_by_username(self, handle: str) -> dict[str, Any] | None:
+        """Public profile of an X account (followers, age, bio). One user read."""
+        self._check_budget(USER_READ_UNITS)
+        body = self._get(f"/users/by/username/{handle}", {
+            "user.fields": "created_at,description,public_metrics,verified,verified_type"})
+        self._charge(USER_READ_UNITS)
+        return body.get("data")
+
     def mention_counts(self, query: str) -> int:
         """Hourly post counts for the last 7 days, summed over the last 24h.
         Used to measure attention for the 'underfollowed' check."""

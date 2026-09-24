@@ -107,11 +107,11 @@ class Settings(BaseSettings):
     max_slippage_bps: int = 300
     max_trade_tax_bps: int = 1_000
     kill_switch_file: str = "data/KILL"
-    stop_loss_pct: float = 25.0
+    stop_loss_pct: float = 30.0
     # Take-profit ladder: (price multiple of entry, share of the ORIGINAL position to sell).
-    # After the first rung the stop moves to breakeven, and max hold / thesis review stop applying,
-    # so the runner can only leave at the last rung or back at entry.
-    take_profit_ladder: list[tuple[float, float]] = [(1.6, 0.50), (2.0, 0.25), (8.0, 0.25)]
+    # After the first rung the stop moves to entry. Whatever the rungs don't sell rides until the stop
+    # or max_hold_hours, when it is sold.
+    take_profit_ladder: list[tuple[float, float]] = [(1.6, 0.50), (2.0, 0.25)]
     max_hold_hours: float = 24.0
     # 0 = a buy can rest on onchain activity alone; 1+ = that many verified/first-party/reported sources required
     min_independent_sources_for_buy: int = 0
@@ -128,6 +128,7 @@ class Settings(BaseSettings):
     chat_per_ip_day: int = 30
     chat_global_day: int = 500
     chat_max_chars: int = 500
+    chat_x_lookups_day: int = 50  # X profile look-ups the chat may make per day (MOOSE's own research is separate)
     max_entries_per_day: int = 10  # hard cap on new trades in any rolling 24h
     research_wait_min: int = 10  # wait this long for a token's X research before deciding without it
 

@@ -42,6 +42,8 @@ class FakeToken:
     name: str = "Test"
     symbol: str = "TST"
     launch_block: int = 0
+    description: str = ""
+    socials: str = ""
 
 
 @dataclass
@@ -193,6 +195,8 @@ class FakeChain:
                 vals = {
                     selector("name()"): (["string"], [t.name]),
                     selector("symbol()"): (["string"], [t.symbol]),
+                    selector("description()"): (["string"], [t.description]),
+                    selector("socials()"): (["string"], [t.socials]),
                     selector("decimals()"): (["uint8"], [18]),
                     selector("totalSupply()"): (["uint256"], [10**27]),
                 }

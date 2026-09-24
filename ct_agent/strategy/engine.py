@@ -158,6 +158,7 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         "recent_losing_trades": mistakes,
         "limits": {"max_position_eth": s.max_position_eth, "mode": s.trading_mode.value},
         "rules": {"verified_source_required": s.min_independent_sources_for_buy > 0},
+        "lore": _lore(ctx, a.cand.token),
     }
     if a.pool:
         pack["pool_indicative"] = {"source": a.pool.source, "volume_h1_usd": a.pool.volume_h1_usd,
@@ -203,6 +204,16 @@ def _market_cap(ctx: Context, token: str, price_eth: float | None) -> str:
     except Exception as exc:  # a missing figure must never block a post or a trade
         log.warning("market cap unavailable for %s: %s", token, exc)
         return ""
+
+
+def _lore(ctx: Context, token: str) -> dict[str, Any]:
+    """The coin's own story and links; never lets a failed look-up block a decision."""
+    from ..sources.lore import get_lore
+    try:
+        return get_lore(ctx, token)
+    except Exception as exc:
+        log.warning("lore unavailable for %s: %s", token, exc)
+        return {}
 
 
 def _awaiting_research(ctx: Context, token: str) -> bool:
@@ -291,6 +302,7 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
         did = int(cur.lastrowid)
         journal_append(conn, "decision", {"decision_id": did, "token": token, "symbol": symbol, "stage": a.cand.stage,
                                           "action": action, "confidence": conf, "gates": gates, "reasons": reasons,
+                                          "narrative": res.decision.narrative.model_dump() if res.decision else None,
                                           "risks": risks, "evidence_ids": used, "prompt_hash": res.prompt_hash,
                                           "muse_error": res.error}, ref=token, in_tx=True)
 
@@ -449,12 +461,16 @@ def _plan(s: Any, hits: int) -> str:
     ladder = sorted(s.take_profit_ladder)
     if not hits:
         return f"Stop -{s.stop_loss_pct:.0f}%, first take-profit at {ladder[0][0]:g}x."
-    return f"Stop at entry, next take-profit at {ladder[hits][0]:g}x." if hits < len(ladder) else "Stop at entry."
+    if hits < len(ladder):
+        return f"Stop at entry, next take-profit at {ladder[hits][0]:g}x."
+    return f"Stop at entry, the rest rides for up to {s.max_hold_hours:.0f}h."
 
 
 def manage_positions(ctx: Context) -> list[dict[str, Any]]:
-    """Exits. Before the first take-profit: stop loss, first rung, max hold, Muse's thesis review.
-    After it the stop sits at entry and the rest only leaves at the next rungs, so a runner can reach the last one."""
+    """Exits are fixed rules, no judgement calls: a stop loss, the take-profit rungs, and a timer. After the
+    first rung the stop moves to entry; whatever is left when the timer runs out is sold. (Muse's thesis
+    review used to sell here too, but a fresh position always looks down by the round-trip fees, so it
+    sold new trades within a minute.)"""
     s, conn = ctx.settings, ctx.conn
     ladder = sorted(s.take_profit_ladder)
     results = []
@@ -485,25 +501,14 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
         elif crossed:
             top = crossed[-1]  # a jump past several rungs sells them all at once
             sell = min(left, pos["entry_tokens"] * sum(f for _, f in ladder[hits:top + 1]))
-            if top == len(ladder) - 1 or sell >= left * 0.999:
+            if sell >= left * 0.999:  # the rungs add up to everything that's left
                 reason, why = f"final take profit at {mult:.1f}x", f"it hit my final target at {mult:.1f}x"
             else:
                 results.append(_take_profit(ctx, pos, venue, sell, top + 1, mult, symbol, ladder))
                 continue
-        elif not hits:
-            if age_h >= s.max_hold_hours:
-                reason = f"max hold {s.max_hold_hours:.0f}h reached"
-                why = f"{s.max_hold_hours:.0f}h passed without the move"
-            else:
-                last = kv_get(conn, f"exit_review:{pos['id']}")
-                if not last or (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() > 1800:
-                    kv_set(conn, f"exit_review:{pos['id']}", utcnow())
-                    r = ctx.brain.review_exit({"position": pos, "mark_quote": value, "pnl_pct": pnl_pct,
-                                               "venue": venue, "evidence": evidence_for_token(conn, pos["token"], 10),
-                                               "journal": journal_recent(conn, ref=pos["token"], limit=10)})
-                    if r.decision and r.decision.action == "sell" and r.decision.confidence >= 0.6:
-                        reason = "thesis review: " + "; ".join(r.decision.reasons)[:120]
-                        why = "the thesis changed: " + compose._phrase(r.decision.reasons[0] if r.decision.reasons else "", 50).lower()
+        elif age_h >= s.max_hold_hours:  # the timer covers the whole trade, the runner included
+            reason = f"max hold {s.max_hold_hours:.0f}h reached"
+            why = f"{s.max_hold_hours:.0f}h passed" + ("" if hits else " without the move")
         if not reason:
             _milestone_update(ctx, pos, pnl_pct, fill, hits)
             results.append({"position_id": pos["id"], "pnl_pct": round(pnl_pct, 2), "action": "hold"})

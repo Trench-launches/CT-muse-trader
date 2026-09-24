@@ -183,6 +183,171 @@ def token_card(facts: dict[str, Any]) -> dict[str, Any] | None:
                                       "explorer", "logo")}
 
 
+def _usd(v: Any) -> str:
+    if not isinstance(v, (int, float)) or not v:
+        return ""
+    for div, suf in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if v >= div:
+            return f"${v / div:.3g}{suf}"
+    return f"${v:.0f}"
+
+
+def _count(n: Any) -> str:
+    if not isinstance(n, (int, float)):
+        return ""
+    return _usd(n).lstrip("$") if n >= 1000 else str(int(n))
+
+
+def _age(iso: str | None) -> str:
+    try:
+        d = (datetime.now(timezone.utc) - datetime.fromisoformat(str(iso).replace("Z", "+00:00"))).days
+    except (TypeError, ValueError):
+        return ""
+    if d < 1:
+        return "new today"
+    if d < 60:
+        return f"{d} day{'s' if d != 1 else ''} old"
+    return f"{d // 30} months old" if d < 730 else f"{d // 365} years old"
+
+
+def onchain_detail(f: dict[str, Any]) -> str:
+    """One line for the chat's research card, e.g. 'graduated · $48.2K MC · $16K liquidity · 3% fees'."""
+    bits = [f"curve {f['curve_progress_pct']:.0f}%" if f.get("curve_progress_pct") is not None else
+            "graduated" if "graduated" in str(f.get("stage", "")) else str(f.get("stage") or "")]
+    if f.get("market_cap_usd") not in (None, "", "unknown"):
+        bits.append(f"{f['market_cap_usd']} MC")
+    pool = f.get("pool") if isinstance(f.get("pool"), dict) else {}
+    if pool.get("liquidity_usd"):
+        bits.append(f"{_usd(pool['liquidity_usd'])} liquidity")
+    fee = (f.get("curve_fee_pct") or 0) + (f.get("creator_tax_pct") or 0)
+    if fee:
+        bits.append(f"{fee:g}% fees")
+    flags = len((f.get("moose_screen") or {}).get("red_flags") or [])
+    if flags:
+        bits.append(f"{flags} red flag{'s' if flags != 1 else ''}")
+    return " · ".join(b for b in bits if b)
+
+
+def _clip(t: str, n: int) -> str:
+    t = " ".join(str(t or "").split())
+    return t if len(t) <= n else t[:n - 1].rsplit(" ", 1)[0] + "…"
+
+
+def _x_allowed(ctx: Any) -> bool:
+    """The chat's daily allowance of X profile look-ups, so visitors can't spend MOOSE's X budget."""
+    key = "chat_x_lookups:" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    used = int(kv_get(ctx.conn, key) or 0)
+    if used >= ctx.settings.chat_x_lookups_day:
+        return False
+    kv_set(ctx.conn, key, used + 1)
+    return True
+
+
+def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str, history: list[dict[str, str]],
+                  hint: str | None) -> Any:
+    """Research the coin step by step, then ask Muse. Yields what the site shows live:
+    {"type": "step", "id", "status": run|done|skip|fail, "detail"}, then {"type": "answer", ...}
+    or {"type": "error", "detail"}."""
+    from types import SimpleNamespace
+    from ..db import open_db
+    from ..sources import lore as lore_mod
+    conn = open_db(db_path)  # a streamed reply outlives the request, so it keeps its own connection
+    try:
+        ctx = SimpleNamespace(settings=s, conn=conn, **svc)
+        if svc.get("x") is not None:  # the shared X client counts its budget in the database: give it this request's connection
+            import copy
+            ctx.x = copy.copy(svc["x"])
+            ctx.x.conn = conn
+
+        def step(i: str, st: str, d: str = "") -> dict[str, Any]:
+            return {"type": "step", "id": i, "status": st, "detail": d}
+
+        # the coin: a pasted contract, else the one the site says we're on, else a $ticker, else one named earlier
+        if hint and not ADDRESS.search(msg):
+            token, how = hint, "context"
+        else:
+            token, how = find_token(conn, msg)
+        for m in reversed(history):
+            if token or how:
+                break
+            if m["role"] == "user":
+                token, how = find_token(conn, m["text"])
+        facts: dict[str, Any] = {}
+        ev: list[dict[str, Any]] = []
+        story: dict[str, Any] = {}
+        if token or how:
+            yield step("coin", "run")
+        if token:
+            facts = research(ctx, token)
+            if not facts.get("is_pons_v2_launch_on_robinhood_chain"):
+                yield step("coin", "fail", "not a Pons launch on Robinhood Chain")
+            else:
+                yield step("coin", "done", f"${facts.get('symbol') or '?'} · {_clip(facts.get('name') or '', 40)}")
+                yield step("onchain", "done", onchain_detail(facts))
+                ev = evidence(conn, facts["address"])
+                yield step("lore", "run")
+                story, looked = lore_mod.cached(ctx, facts["address"])
+                if story is None:
+                    story, looked = lore_mod.read_onchain(ctx, facts["address"]), False
+                desc = story.get("description") or ""
+                yield step("lore", "done" if desc else "skip", f"\u201c{_clip(desc, 110)}\u201d" if desc else "no description stored")
+                links = story.get("links") or {}
+                handle = links.get("x")
+                if not handle:
+                    yield step("x", "skip", "no X account linked")
+                else:
+                    if not looked:
+                        if getattr(ctx, "x", None) is not None and _x_allowed(ctx):
+                            yield step("x", "run", f"@{handle}")
+                            story["x_account"] = lore_mod.x_profile(ctx.x, handle)
+                        else:
+                            story["x_account"] = None
+                    xa = story.get("x_account")
+                    if xa:
+                        f = xa.get("followers")
+                        bits = [f"@{xa.get('handle') or handle}", f"{_count(f)} followers" if f is not None else "",
+                                _age(xa.get("created_at")), "verified" if xa.get("verified") else ""]
+                        yield step("x", "done", " · ".join(b for b in bits if b))
+                    else:
+                        yield step("x", "skip", f"@{handle} (profile not checked)")
+                site = links.get("website")
+                if not site:
+                    yield step("website", "skip", "no website linked")
+                else:
+                    if not looked:
+                        yield step("website", "run", site)
+                        web = getattr(ctx, "web", None)
+                        story["website"] = lore_mod.site_summary(web, site) if web is not None else None
+                    w = story.get("website")
+                    yield step("website", "done" if w else "fail",
+                               _clip((w or {}).get("title") or site, 80) if w else f"couldn't open {site}")
+                if not looked:
+                    lore_mod.save(ctx, facts["address"], story, True)
+        elif how:
+            yield step("coin", "fail", how)
+            facts = {"lookup": how}
+        log_request(conn, who, token, "asked")  # counted before the paid call, whatever happens next
+        yield step("muse", "run")
+        res = svc["brain"].chat(facts, ev, history + [{"role": "user", "text": msg}], story)
+        if res.decision is None:
+            yield step("muse", "fail")
+            yield {"type": "error", "detail": "Muse didn't answer that one. Try again in a moment."}
+            return
+        yield step("muse", "done")
+        yield {"type": "answer", "reply": res.decision.reply.strip()[:2000], "token": token_card(facts),
+               "remaining": remaining(conn, s, who)}
+    finally:
+        conn.close()
+
+
+def lore(ctx: Any, token: str) -> dict[str, Any]:
+    from ..sources.lore import get_lore
+    try:
+        return get_lore(ctx, token)
+    except Exception:
+        return {}
+
+
 def evidence(conn: Any, token: str) -> list[dict[str, Any]]:
     return [{k: e.get(k) for k in ("id", "kind", "author", "channel", "published_at", "confidence", "origin_url",
                                    "excerpt")} for e in evidence_for_token(conn, token, 6)]

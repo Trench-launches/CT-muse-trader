@@ -241,6 +241,20 @@ class PonsV2:
         except Exception:
             return ""
 
+    def _string(self, token: str, sig: str) -> str:
+        try:
+            return str(decode_output(["string"], self.rpc.eth_call(token, encode_call(sig)))[0]).strip()
+        except Exception:
+            return ""
+
+    def token_description(self, token: str) -> str:
+        """The coin's own story, as its creator wrote it at launch, or ''."""
+        return self._string(token, "description()")
+
+    def token_socials(self, token: str) -> str:
+        """The social links the creator attached (usually an X link, sometimes a website), or ''."""
+        return self._string(token, "socials()")
+
     def total_supply(self, token: str) -> int:
         return int(decode_output(["uint256"], self.rpc.eth_call(token, encode_call("totalSupply()")))[0])
 

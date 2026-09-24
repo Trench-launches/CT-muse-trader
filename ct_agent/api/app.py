@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import hmac
 import json
-from types import SimpleNamespace
 from typing import Any, Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -240,16 +240,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # --- ask muse (public chat) ---------------------------------------------
 
+    import threading
+    chat_lock = threading.Lock()
+
     def chat_services() -> dict[str, Any]:
         """Chain, market and Muse clients for the chat, built once. Tests can preset app.state.chat_services."""
         svc = getattr(app.state, "chat_services", None)
         if svc is None:
-            from ..context import build
-            ctx = build(s)
-            ctx.conn.close()  # each request brings its own connection
-            svc = app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market,
-                                             "brain": ctx.brain}
+            with chat_lock:  # the start-up warm-up and a first visitor must not build it twice
+                svc = getattr(app.state, "chat_services", None)
+                if svc is None:
+                    from ..context import build
+                    ctx = build(s)
+                    ctx.conn.close()  # each request brings its own connection
+                    svc = app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market,
+                                                     "brain": ctx.brain, "x": ctx.x, "web": ctx.web}
         return svc
+
+    if s.chat_enabled and s.muse_api_key:  # building the clients takes ~10s: do it at start-up, not on a visitor's first question
+        threading.Thread(target=chat_services, name="chat-warmup", daemon=True).start()
 
     def visitor(request: Request, conn: Any) -> str:
         # Behind Railway's proxy the client address is the last X-Forwarded-For entry (earlier ones
@@ -263,9 +272,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"enabled": s.chat_enabled, "max_chars": s.chat_max_chars,
                 "remaining": chat.remaining(conn, s, visitor(request, conn))}
 
-    @app.post("/chat")
-    def ask_muse(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
-        """Ask Muse about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
+    def chat_start(body: ChatIn, request: Request, conn: Any) -> tuple[Any, ...]:
+        """Checks shared by both chat endpoints; raises the HTTP error a visitor should see."""
         if not s.chat_enabled:
             raise HTTPException(503, "The chat is switched off right now.")
         msg = body.message.strip()
@@ -279,27 +287,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         svc = chat_services()
         if not svc["brain"].enabled:
             raise HTTPException(503, "Muse isn't connected right now.")
-        # The coin: a contract pasted in this message, else the one the site says we're on (a suggestion
-        # chip, or the coin being discussed), else a $ticker in the message, else one named earlier.
-        if body.token and not chat.ADDRESS.search(msg):
-            token, how = body.token, "context"
-        else:
-            token, how = chat.find_token(conn, msg)
-        for m in reversed(body.history):
-            if token or how:
-                break
-            if m.role == "user":
-                token, how = chat.find_token(conn, m.text)
-        ctx = SimpleNamespace(settings=s, conn=conn, **svc)
-        facts = chat.research(ctx, token) if token else ({"lookup": how} if how else {})
-        ev = chat.evidence(conn, facts["address"]) if facts.get("is_pons_v2_launch_on_robinhood_chain") else []
-        chat.log_request(conn, who, token, "asked")  # counted before the paid call, whatever happens next
-        convo = [{"role": m.role, "text": m.text[:600]} for m in body.history[-8:]] + [{"role": "user", "text": msg}]
-        res = svc["brain"].chat(facts, ev, convo)
-        if res.decision is None:
-            raise HTTPException(502, "Muse didn't answer that one. Try again in a moment.")
-        return {"reply": res.decision.reply.strip()[:2000], "token": chat.token_card(facts),
-                "remaining": chat.remaining(conn, s, who)}
+        history = [{"role": m.role, "text": m.text[:600]} for m in body.history[-8:]]
+        return svc, who, msg, history
+
+    @app.post("/chat")
+    def ask_muse(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
+        """Ask Muse about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
+        svc, who, msg, history = chat_start(body, request, conn)
+        for e in chat.answer_events(svc, s, s.database_path, who, msg, history, body.token):
+            if e["type"] == "error":
+                raise HTTPException(502, e["detail"])
+            if e["type"] == "answer":
+                return {k: v for k, v in e.items() if k != "type"}
+        raise HTTPException(502, "Muse didn't answer that one. Try again in a moment.")
+
+    @app.post("/chat/stream")
+    def ask_muse_live(body: ChatIn, request: Request, conn=Depends(db)) -> StreamingResponse:
+        """The same as /chat, but each research step is sent as it happens (one JSON object per line)."""
+        svc, who, msg, history = chat_start(body, request, conn)
+        events = chat.answer_events(svc, s, s.database_path, who, msg, history, body.token)
+        return StreamingResponse((json.dumps(e, default=str) + "\n" for e in events), media_type="application/x-ndjson",
+                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
 
     # --- admin --------------------------------------------------------------
 

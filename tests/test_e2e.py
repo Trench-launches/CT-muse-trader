@@ -346,7 +346,7 @@ def _entered(tmp_path, **kw):
 
 
 def test_take_profit_ladder_then_breakeven_stop(tmp_path):
-    ctx, hot, sent, at = _entered(tmp_path, max_hold_hours=0.0)  # max hold would fire at once if it still applied
+    ctx, hot, sent, at = _entered(tmp_path)
     pos = lambda: rows(ctx.conn, "SELECT * FROM positions")[0]  # noqa: E731
     entry_tokens = pos()["entry_tokens"]
 
@@ -359,7 +359,7 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     assert sent[-1].startswith("Jeeted 50% of my $HOT paper bag at $") and "stop moved to entry" in sent[-1], sent[-1]
     assert "50% still riding. Realised P&L: +" in sent[-1]
 
-    hot.real_quote = at(1.3)  # below the next rung, above entry: hold (max hold no longer applies)
+    hot.real_quote = at(1.3)  # below the next rung, above entry: hold
     assert trader_once(ctx)["exits"][0]["action"] == "hold"
 
     hot.real_quote = at(2.3)
@@ -379,20 +379,33 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     assert journal_verify(ctx.conn) == (True, None)
 
 
-def test_jump_past_every_rung_sells_it_all(tmp_path):
+def test_jump_past_every_rung_sells_them_and_the_rest_rides(tmp_path):
     ctx, hot, sent, at = _entered(tmp_path)
     hot.real_quote = at(9)
     ex = trader_once(ctx)["exits"][0]
-    assert ex["action"] == "exit" and "final take profit" in ex["reason"], ex
+    assert ex["action"] == "take_profit" and ex["rung"] == 2, ex  # 50% + 25% in one go
     p = rows(ctx.conn, "SELECT * FROM positions")[0]
-    assert p["status"] == "closed" and p["pnl_quote"] > 0.05 * 5
+    assert p["status"] == "open" and p["tokens_left"] == pytest.approx(p["entry_tokens"] * 0.25)
+    assert trader_once(ctx)["exits"][0]["action"] == "hold"  # no rung left: the runner rides
 
 
-def test_runner_after_first_rung_ignores_thesis_review(tmp_path):
+def test_timer_sells_whatever_is_left(tmp_path):
+    ctx, hot, sent, at = _entered(tmp_path, max_hold_hours=1.0)
+    hot.real_quote = at(1.75)
+    assert trader_once(ctx)["exits"][0]["action"] == "take_profit"
+    ctx.conn.execute("UPDATE positions SET opened_at='2026-01-01T00:00:00+00:00'")  # held for ages
+    ex = trader_once(ctx)["exits"][0]
+    assert ex["action"] == "exit" and "max hold" in ex["reason"], ex
+    assert rows(ctx.conn, "SELECT status FROM positions")[0]["status"] == "closed"
+
+
+def test_thesis_review_never_sells(tmp_path):
     ctx, hot, sent, at = _entered(tmp_path)
+    ctx.brain.review_exit = lambda pack: (_ for _ in ()).throw(AssertionError("exits are fixed rules now"))
+    hot.real_quote = at(0.8)  # a fresh position that looks down (fees and slippage): no panic sell
+    assert trader_once(ctx)["exits"][0]["action"] == "hold"
     hot.real_quote = at(1.75)
     trader_once(ctx)
-    ctx.brain.review_exit = lambda pack: (_ for _ in ()).throw(AssertionError("no thesis review after the first rung"))
     hot.real_quote = at(1.4)
     assert trader_once(ctx)["exits"][0]["action"] == "hold"
 
@@ -476,3 +489,52 @@ def test_ask_muse_is_rate_limited(tmp_path):
     assert r.status_code == 429 and "all it can for today" in r.json()["detail"]
     calls = len(muse.calls)
     assert calls == 3  # refused requests never reached Muse
+
+
+def test_muse_reads_the_coins_own_lore(tmp_path):
+    from ct_agent.api import chat
+    ch, hot, _ = _scenario()
+    hot.description = "HOT is the cat who guards every fridge on Robinhood Chain."
+    hot.socials = "https://x.com/hotcoin"
+    muse = _muse()
+    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=muse)
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+    trader_once(ctx)
+    sent = muse.calls[0]
+    trusted, untrusted = sent.split("<untrusted_evidence>")
+    assert "guards every fridge" in untrusted and "COIN'S OWN LORE" in untrusted
+    assert "guards every fridge" not in trusted  # creator-written text never sits with the trusted numbers
+    assert '"x": "hotcoin"' in untrusted
+
+    chat._RESEARCH.clear()
+    app = create_app(ctx.settings)
+    app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market, "brain": ctx.brain}
+    TestClient(app).post("/chat", json={"message": f"what about {hot.token}"})
+    assert "guards every fridge" in muse.calls[-1].split("<untrusted_evidence>")[1]
+
+
+def test_chat_streams_each_research_step(tmp_path):
+    from ct_agent.api import chat
+    chat._RESEARCH.clear()
+    api, hot, muse = _chat_api(tmp_path)
+    hot.description = "HOT is the cat who guards every fridge on Robinhood Chain."
+    hot.socials = "https://x.com/hotcoin"
+    r = api.post("/chat/stream", json={"message": f"look at {hot.token}"})
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/x-ndjson")
+    ev = [json.loads(line) for line in r.text.splitlines() if line.strip()]
+    done = [(e["id"], e["status"]) for e in ev if e["type"] == "step" and e["status"] != "run"]
+    assert done == [("coin", "done"), ("onchain", "done"), ("lore", "done"), ("x", "skip"), ("website", "skip"),
+                    ("muse", "done")], done
+    steps = {e["id"]: e["detail"] for e in ev if e["type"] == "step" and e["status"] != "run"}
+    assert steps["coin"] == "$HOT · Hot" and "curve" in steps["onchain"] and "guards every fridge" in steps["lore"]
+    assert steps["x"] == "@hotcoin (profile not checked)"  # no X token in tests: shown, not faked
+    assert ev[-1]["type"] == "answer" and ev[-1]["reply"].startswith("HOT is on the curve")
+    # a general question has no research card: straight to Muse
+    ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "how does MOOSE pick trades?"}).text.splitlines()]
+    assert [e["id"] for e in ev if e["type"] == "step"] == ["muse", "muse"] and ev[-1]["type"] == "answer"
+    # limits still apply before anything streams
+    assert api.post("/chat/stream", json={"message": "x" * 501}).status_code == 400

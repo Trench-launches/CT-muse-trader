@@ -29,6 +29,7 @@ class Context:
     x: XClient
     risk: RiskManager
     live: LiveExecutor
+    web: httpx.Client | None = None  # reads coin websites for their lore
 
 
 def build(settings: Settings | None = None, *, rpc_transport: httpx.BaseTransport | None = None,
@@ -50,4 +51,5 @@ def build(settings: Settings | None = None, *, rpc_transport: httpx.BaseTranspor
                 monthly_read_budget=s.x_monthly_read_budget, conn=conn, transport=x_transport)
     risk = RiskManager(s, conn)
     live = LiveExecutor(s, rpc, pons, conn, risk)
-    return Context(s, conn, rpc, pons, market, brain, x, risk, live)
+    web = httpx.Client(timeout=6, transport=market_transport)
+    return Context(s, conn, rpc, pons, market, brain, x, risk, live, web)
