@@ -251,3 +251,52 @@ def test_repeat_calls_are_not_reposted(tmp_path):
     assert _thread(ctx.conn, tok, "watch") == (True, "watch:1")        # same call again: skipped
     assert _thread(ctx.conn, tok, "pass") == (False, "watch:1")        # new call: threads under it
     assert _thread(ctx.conn, tok, "trade_entry") == (False, "watch:1")
+
+
+def test_ten_trades_per_day_cap(tmp_path):
+    from ct_agent.db import utcnow
+    ctx = build(_settings(tmp_path, max_open_positions=50, max_total_exposure_eth=10, paper_starting_eth=10),
+                rpc_transport=FakeChain(head=1).transport(), market_transport=_market(), x_transport=_x_transport([]))
+    for i in range(10):
+        ctx.conn.execute("INSERT INTO positions(token,mode,status,quote_symbol,opened_at,entry_quote,entry_tokens,"
+                         "entry_price,closed_at,exit_quote,pnl_quote) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                         (addr(0xE00 + i), "paper", "closed", "ETH", utcnow(), 0.01, 1, 0.01, utcnow(), 0.01, 0))
+    v = ctx.risk.check_entry(token=addr(0xA1), quote_symbol="ETH", mode="paper")
+    assert not v.ok and any("10 new trades" in r for r in v.reasons)
+
+
+def test_waits_for_x_research_before_deciding(tmp_path):
+    from ct_agent.db import kv_set
+    ch, hot, _ = _scenario()
+    muse = _muse()
+    ctx = build(_settings(tmp_path, x_bearer_token="app"), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=muse)
+    index_once(ctx)
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert d == {"token": hot.token, "skipped": "waiting for X research"}
+    kv_set(ctx.conn, f"x_attention:{hot.token.lower()}", {"count_24h": 0, "measured_at": "now"})
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert d["action"] == "pass"  # researched: decided (no sources, so a free pass)
+
+
+def test_call_outcomes_are_tracked_and_reported(tmp_path):
+    from ct_agent.strategy.outcomes import report
+    ch, hot, _ = _scenario()
+    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=_muse())
+    index_once(ctx)
+    trader_once(ctx)
+    r = rows(ctx.conn, "SELECT * FROM call_outcomes WHERE token=?", (hot.token,))[0]
+    assert r["action"] == "pass" and r["price0"] > 0 and r["venue0"] == "curve"
+    trader_once(ctx)  # decided again later: still one row per token per day
+    assert rows(ctx.conn, "SELECT COUNT(*) c FROM call_outcomes WHERE token=?", (hot.token,))[0]["c"] == 1
+
+    ctx.conn.execute("UPDATE call_outcomes SET decided_at='2026-01-01T00:00:00+00:00'")  # a day ago and more
+    hot.real_quote = int(5.2 * ETH)  # price went up
+    out = trader_once(ctx)
+    assert out["outcomes"] >= 1
+    r = rows(ctx.conn, "SELECT * FROM call_outcomes WHERE token=?", (hot.token,))[0]
+    assert r["p15m"] > r["price0"] and r["p24h"] is not None and r["done"] == 1
+    rep = report(ctx.conn)
+    assert rep["calls_tracked"] >= 1 and rep["overall"]["hit_rate_+25%"] is not None
+    assert "curve progress" in rep["by_variable"] and "pass" in rep["by_variable"]["action"]

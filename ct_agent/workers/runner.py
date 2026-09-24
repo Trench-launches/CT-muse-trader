@@ -15,6 +15,7 @@ from ..context import Context, build
 from ..db import journal_append
 from ..social.outbox import recover_interrupted, send_pending
 from ..strategy.engine import assess_candidates, decide_and_act, manage_positions, weekly_scorecard
+from ..strategy.outcomes import track_outcomes
 from .indexer import index_once
 from .research import research_once
 
@@ -35,7 +36,8 @@ def trader_once(ctx: Context) -> dict:
         for a in assess_candidates(ctx):
             decisions.append(decide_and_act(ctx, a))
     weekly_scorecard(ctx)
-    return {"exits": exits, "decisions": decisions, "killed": why if killed else None}
+    tracked = track_outcomes(ctx)
+    return {"exits": exits, "decisions": decisions, "killed": why if killed else None, "outcomes": tracked}
 
 
 def social_once(ctx: Context) -> dict:
@@ -45,7 +47,7 @@ def social_once(ctx: Context) -> dict:
 
 WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {
     "indexer": (index_once, 10.0),
-    "research": (research_once, 300.0),
+    "research": (research_once, 60.0),
     "trader": (trader_once, 60.0),
     "social": (social_once, 20.0),
 }

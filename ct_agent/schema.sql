@@ -189,3 +189,23 @@ CREATE TABLE IF NOT EXISTS posts (
     sent_at          TEXT,
     reply_to_key     TEXT            -- idempotency_key of the post this one replies to (threads)
 );
+
+-- What happened after every call (buy/watch/pass): variables at the time and
+-- spot price at fixed checkpoints, for tuning the filters.
+CREATE TABLE IF NOT EXISTS call_outcomes (
+    decision_id  INTEGER PRIMARY KEY REFERENCES decisions(id),
+    token        TEXT NOT NULL,
+    symbol       TEXT,
+    stage        TEXT NOT NULL,
+    action       TEXT NOT NULL,
+    decided_at   TEXT NOT NULL,
+    venue0       TEXT,
+    price0       REAL,
+    features     TEXT NOT NULL,
+    p15m REAL, p1h REAL, p4h REAL, p24h REAL,
+    peak REAL, trough REAL,
+    graduated    INTEGER NOT NULL DEFAULT 0,
+    done         INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_call_outcomes_open ON call_outcomes(done, decided_at);
+CREATE INDEX IF NOT EXISTS ix_call_outcomes_token ON call_outcomes(token, decided_at);

@@ -9,6 +9,7 @@
   ctagent verify-journal           recompute the journal hash chain
   ctagent twitch-subscribe <callback_url> [--bot-user-id ID]
   ctagent x-login [--no-browser]   authorize posting as @MooseOnMuse (one time)
+  ctagent report [--hours 24]      what happened after each call, by variable
 """
 from __future__ import annotations
 
@@ -37,6 +38,8 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("state", choices=["on", "off"])
     k.add_argument("reason")
     sub.add_parser("verify-journal")
+    rp = sub.add_parser("report")
+    rp.add_argument("--hours", type=float)
     xl = sub.add_parser("x-login")
     xl.add_argument("--no-browser", action="store_true")
     t = sub.add_parser("twitch-subscribe")
@@ -71,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         ok, bad = journal_verify(open_db(s.database_path))
         print("journal intact" if ok else f"journal TAMPERED at id {bad}")
         return 0 if ok else 2
+    elif args.cmd == "report":
+        from .db import open_db
+        from .strategy.outcomes import report
+        _print_report(report(open_db(s.database_path), args.hours))
     elif args.cmd == "x-login":
         return _x_login(s, open_browser=not args.no_browser)
     elif args.cmd == "twitch-subscribe":
@@ -98,6 +105,24 @@ def _x_login(s, *, open_browser: bool) -> int:
     env.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Connected as @{user}. Saved CT_X_REFRESH_TOKEN to .env; copy it to the server's variables.")
     return 0
+
+
+def _print_report(r: dict) -> None:
+    cols = ["n", "avg_15m", "avg_1h", "avg_4h", "avg_24h", "hit_rate_+25%", "dead_rate", "graduated"]
+    fmt = lambda v: "-" if v is None else str(v)  # noqa: E731
+    print(f"{r['calls_tracked']} calls tracked. {r['note']}
+")
+    head = f"{'':28}" + "".join(f"{c:>14}" for c in cols)
+    print(head)
+    print(f"{'ALL':28}" + "".join(f"{fmt(r['overall'].get(c)):>14}" for c in cols))
+    for var, buckets in r["by_variable"].items():
+        print(f"
+{var}")
+        for b, v in buckets.items():
+            print(f"  {b:26}" + "".join(f"{fmt(v.get(c)):>14}" for c in cols))
+    if r["best_calls"]:
+        print("
+best calls:", ", ".join(f"${c['symbol']} {c['action']} {c['peak_pct']:+.0f}%" for c in r["best_calls"]))
 
 
 def _check() -> int:

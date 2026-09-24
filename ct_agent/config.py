@@ -114,6 +114,8 @@ class Settings(BaseSettings):
     max_top_buyer_share: float = 0.40
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
     candidates_per_cycle: int = 5
+    max_entries_per_day: int = 10  # hard cap on new trades in any rolling 24h
+    research_wait_min: int = 10  # wait this long for a token's X research before deciding without it
 
     # Live trading wallet. Only the capped trading wallet key ever lives here.
     # The owner and treasury keys must never be given to this process.

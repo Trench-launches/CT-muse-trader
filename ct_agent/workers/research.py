@@ -24,14 +24,18 @@ log = logging.getLogger(__name__)
 def research_once(ctx: Context) -> dict[str, Any]:
     s, conn = ctx.settings, ctx.conn
     out: dict[str, Any] = {"news": 0, "x_posts": 0, "attention": 0, "leads": 0, "errors": []}
-    for spec in s.news_feeds:
-        try:
-            out["news"] += ingest_feed(conn, spec)
-        except Exception as exc:  # one bad feed must not stop the rest
-            out["errors"].append(f"feed {spec}: {exc}")
+    # News every 5 minutes; X lookups every cycle (1 min) so new shortlisted
+    # tokens are researched before the trader decides on them.
+    if (kv_get(conn, "news_fetched_at") or "") <= _minutes_ago(5):
+        kv_set(conn, "news_fetched_at", utcnow())
+        for spec in s.news_feeds:
+            try:
+                out["news"] += ingest_feed(conn, spec)
+            except Exception as exc:  # one bad feed must not stop the rest
+                out["errors"].append(f"feed {spec}: {exc}")
 
     if s.x_bearer_token:
-        for c in (kv_get(conn, "candidates") or [])[:3]:
+        for c in (kv_get(conn, "candidates") or [])[: s.candidates_per_cycle]:
             token = c["token"]
             key = f"x_attention:{token.lower()}"
             prev = kv_get(conn, key)

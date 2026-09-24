@@ -23,6 +23,7 @@ from ..execution.pricing import FillEstimate, curve_buy, curve_sell, pool_estima
 from ..social import compose
 from ..social.outbox import enqueue
 from ..sources.store import evidence_for_token, independent_origins
+from .outcomes import record_call
 from .screen import Candidate, activity_for, screen_almost_bonded, screen_migrated
 
 log = logging.getLogger(__name__)
@@ -178,6 +179,21 @@ def _thread(conn, token: str, kind: str) -> tuple[bool, str | None]:
     return prev["kind"] == kind and kind != "trade_entry", prev["idempotency_key"]
 
 
+def _awaiting_research(ctx: Context, token: str) -> bool:
+    """True while a newly shortlisted token has no X research yet, for up to
+    research_wait_min. Deciding before the research exists would turn every
+    new token into an automatic 'no evidence' pass."""
+    if not ctx.settings.x_bearer_token or kv_get(ctx.conn, f"x_attention:{token.lower()}"):
+        return False
+    key = f"first_shortlisted:{token.lower()}"
+    first = kv_get(ctx.conn, key)
+    if not first:
+        kv_set(ctx.conn, key, utcnow())
+        return True
+    age = (datetime.now(timezone.utc) - datetime.fromisoformat(first)).total_seconds() / 60
+    return age < ctx.settings.research_wait_min
+
+
 def _recent_decision(ctx: Context, token: str) -> bool:
     since = (datetime.now(timezone.utc) - timedelta(minutes=ctx.settings.decision_cooldown_min)).isoformat()
     return ctx.conn.execute("SELECT 1 FROM decisions WHERE token=? AND ts>=? LIMIT 1", (token, since)).fetchone() \
@@ -198,6 +214,8 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     token, symbol = a.cand.token, a.launch.get("symbol") or "?"
     if _recent_decision(ctx, token):
         return {"token": token, "skipped": "cooldown"}
+    if _awaiting_research(ctx, token):
+        return {"token": token, "skipped": "waiting for X research"}
     pack = build_pack(ctx, a)
     if pack["evidence"]:
         res = ctx.brain.decide(pack)
@@ -248,6 +266,10 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
                                           "risks": risks, "evidence_ids": used, "prompt_hash": res.prompt_hash,
                                           "muse_error": res.error}, ref=token, in_tx=True)
 
+    try:
+        record_call(ctx, a, decision_id=did, action=action, confidence=conf, pack=pack, gates=gates, model=res.model)
+    except Exception as exc:  # tracking is for analysis; it must never stop a trade
+        log.warning("could not record call outcome for %s: %s", token, exc)
     out: dict[str, Any] = {"token": token, "decision_id": did, "action": action, "gates": gates}
     if action == "buy":
         out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack))

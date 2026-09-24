@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from ..config import Settings, TradingMode
@@ -81,6 +81,11 @@ class RiskManager:
             v.reasons.append("already holding this token")
         if len(open_pos) >= self.s.max_open_positions:
             v.reasons.append(f"max open positions ({self.s.max_open_positions}) reached")
+        since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(timespec="seconds")
+        opened = self.conn.execute("SELECT COUNT(*) c FROM positions WHERE mode=? AND opened_at>=?",
+                                   (mode, since)).fetchone()["c"]
+        if opened >= self.s.max_entries_per_day:
+            v.reasons.append(f"max {self.s.max_entries_per_day} new trades per 24h reached")
         if self.realized_today_eth(mode) <= -self.s.max_daily_loss_eth:
             v.reasons.append(f"daily loss limit {self.s.max_daily_loss_eth} ETH hit")
         headroom = self.s.max_total_exposure_eth - self.exposure_eth(mode)

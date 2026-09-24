@@ -177,6 +177,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "open_exposure_eth": round(risk.exposure_eth(mode), 6),
                 "paper_cash_eth": round(risk.paper_cash_eth(), 6) if mode == "paper" else None}
 
+    @app.get("/outcomes")
+    def outcomes(hours: float | None = None, conn=Depends(db)) -> dict[str, Any]:
+        """What happened after each call, split by the variables MOOSE saw."""
+        from ..strategy.outcomes import report
+        return report(conn, hours)
+
     @app.get("/journal")
     def journal(kind: str | None = None, ref: str | None = None, limit: int = 100, conn=Depends(db)) -> list[dict]:
         return journal_recent(conn, kind=kind, ref=ref, limit=min(limit, 1000))
