@@ -17,7 +17,7 @@ def _entry(mode="paper", pid=1, risk="one wallet is 35% of buys"):
 
 def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
     d = _entry()
-    assert d.body.startswith("PAPER BUY $NEZU") and CA in d.body and "Risk:" in d.body
+    assert d.body.startswith("PAPER BUY $NEZU") and CA not in d.body and "Risk:" in d.body
     assert len(d.body) <= 280
     assert compose.trade_entry(mode="live", symbol="N", token=CA, size="s", entry="e", catalyst="c", progress=0.9,
                                momentum="", risk="r", position_id=2).body.startswith("BOUGHT")
@@ -30,10 +30,10 @@ def test_losses_are_posted():
     assert d.body.startswith("Top blasted $N on paper. Entry was poor.")
     assert "I bought because first-party launch news. Underestimated how thin the curve was." in d.body
     assert "Cut because it hit my -25% stop.\nLesson: wait for 20+ buyer wallets." in d.body
-    assert "Realised P&L: -0.0127 ETH (-25%)." in d.body and d.body.endswith(CA)
+    assert d.body.endswith("Realised P&L: -0.0127 ETH (-25%).") and CA not in d.body
 
 
-def test_post_formats_fit_and_keep_the_contract():
+def test_post_formats_fit_and_use_the_ticker_only():
     long = "x " * 60
     posts = [
         compose.watch_note(symbol="HOT", token=CA, decision_id=1, narrative=long, confirmation=long, watching=long,
@@ -47,7 +47,7 @@ def test_post_formats_fit_and_keep_the_contract():
                            why="it hit my final target at 8.1x", position_id=1, last_bit=True),
     ]
     for d in posts:
-        assert len(d.body) <= 280 and d.body.endswith(f"CA {CA}"), d.body
+        assert len(d.body) <= 280 and CA not in d.body and "0x" not in d.body, d.body  # tickers only
     w = compose.watch_note(symbol="HOT", token=CA, decision_id=1, narrative="HATCH v1 launch news",
                            confirmation="more wallets buying", watching="graduation progress",
                            trigger="it clears 90% with steady buys")

@@ -2,7 +2,7 @@
 
 Policy baked in:
   * paper trades always say PAPER and never read as onchain;
-  * contract address, size, entry and a concrete risk on every trade post;
+  * the $TICKER (no contract address), size, entry and a concrete risk on every trade post;
   * losses and corrections get posted too;
   * holdings of the discussed token (and the agent's own token) disclosed;
   * no replies, no trend-jacking: posts only cover the agent's own
@@ -114,7 +114,7 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
     stage = f"while the curve was {progress * 100:.0f}% complete" if progress is not None and progress < 1 \
         else "after migration to its Pons V4 pool"
     at_mc = f" at {mc} MC" if mc else ""
-    required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain{at_mc}: {size} @ {entry}. CA {_short(token)}."]
+    required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain{at_mc}: {size} @ {entry}."]
     optional = [
         f"Risk: {_s(risk)}",
         f"Saw {catalyst} {stage}" + (f", {momentum}." if momentum else "."),
@@ -142,8 +142,7 @@ def take_profit(*, mode: str, symbol: str, token: str, sold_pct: float, at: str,
     """A take-profit rung: part of the bag sold, the rest still open. Reply under the entry post."""
     body = _post([([f"Jeeted {sold_pct:.0f}% of my ${symbol} {_bag(mode)} at {at}."], None),
                   ([_cap(_s(why)), ""] if why else [""], 1),
-                  ([f"{left_pct:.0f}% still riding. Realised P&L: {_eth(realized_eth)}."], None),
-                  ([f"CA {_short(token)}"], None)])
+                  ([f"{left_pct:.0f}% still riding. Realised P&L: {_eth(realized_eth)}."], None)])
     return Draft("take_profit", body, token, f"tp:{mode}:{position_id}:{rung}", reply_to=f"entry:{mode}:{position_id}")
 
 
@@ -153,18 +152,17 @@ def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, pnl_eth: f
     """Closing the rest of a position. In profit: Jeeted. At a loss: Top blasted, with the honest post-mortem.
     `why` is a clause that reads after "because", e.g. "it hit my -25% stop"."""
     pnl = f"Realised P&L: {_eth(pnl_eth)} ({pnl_pct:+.0f}%)."
-    ca = ([f"CA {_short(token)}"], None)
     if pnl_eth >= 0:
         what = f"the last {sold_pct:.0f}%" if last_bit else f"{sold_pct:.0f}%"
         parts = [([f"Jeeted {what} of my ${symbol} {_bag(mode)} at {at}."], None),
-                 ([f"Sold because {_phrase(why, 90)}.", ""] if why else [""], 1), ([f"Fully out. {pnl}"], None), ca]
+                 ([f"Sold because {_phrase(why, 90)}.", ""] if why else [""], 1), ([f"Fully out. {pnl}"], None)]
     else:
         b, u, les = _phrase(bought, 60), _phrase(underestimated, 50), _phrase(lesson, 70)
         story = [x for x in (f"I bought because {b}. Underestimated {u}." if b and u else "",
                              f"Underestimated {u}." if u else "", f"I bought because {b}." if b else "") if x]
         cut_ = f"Cut because {_phrase(why, 60)}." if why else "Cut it."
         parts = [([f"Top blasted ${symbol}{' on paper' if mode == 'paper' else ''}. Entry was poor."], None),
-                 (story + [""], 1), ([f"{cut_}\nLesson: {les}.", cut_] if les else [cut_], 2), ([pnl], None), ca]
+                 (story + [""], 1), ([f"{cut_}\nLesson: {les}.", cut_] if les else [cut_], 2), ([pnl], None)]
     return Draft("trade_exit", _post(parts), token, f"exit:{mode}:{position_id}", reply_to=f"entry:{mode}:{position_id}")
 
 
@@ -176,7 +174,7 @@ def pass_note(*, symbol: str, token: str, decision_id: int, narrative: str = "",
            else f"Couldn't justify the entry with {c}." if c else _s(line) if line else "")
     again = ([f"Would reconsider if {r}. A good story still needs a good trade.", f"Would reconsider if {r}.", ""] if r
              else ["A good story still needs a good trade.", ""])
-    body = _post([([f"Faded ${symbol}."], None), ([why, ""] if why else [""], 2), (again, 1), ([f"CA {_short(token)}"], None)])
+    body = _post([([f"Faded ${symbol}."], None), ([why, ""] if why else [""], 2), (again, 1)])
     return Draft("pass", body, token, f"pass:{decision_id}")
 
 
@@ -191,7 +189,7 @@ def watch_note(*, symbol: str, token: str, decision_id: int, narrative: str = ""
              f"Watching {w}. If {t}, I take a starter.", f"If {t}, I take a starter.", ""] if w and t
             else [f"Watching {w}. Until then, happy to wait.", ""] if w else [""])
     body = _post([([f"${symbol} is on my radar. No position."], None), ([why, ""] if why else [""], 2),
-                  (plan, 1), ([f"CA {_short(token)}"], None)])
+                  (plan, 1)])
     return Draft("watch", body, token, f"watch:{decision_id}")
 
 

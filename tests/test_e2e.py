@@ -119,7 +119,7 @@ def test_full_paper_cycle(tmp_path):
     assert fill["onchain"] is False and fill["pricing"] == "curve_constant_product"
 
     social_once(ctx)
-    assert len(sent) == 1 and sent[0].startswith("PAPER BUY $HOT") and hot.token in sent[0]
+    assert len(sent) == 1 and sent[0].startswith("PAPER BUY $HOT") and hot.token not in sent[0]  # ticker only
     assert "Risk:" in sent[0] and len(sent[0]) <= 280
     assert "on Robinhood Chain at $" in sent[0] and " MC: " in sent[0], sent[0]
 
