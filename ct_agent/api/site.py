@@ -267,7 +267,8 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
     # --- scorecard ---------------------------------------------------------------
     closed = rows(conn, "SELECT p.token, p.pnl_quote, p.entry_quote, p.opened_at, p.closed_at, p.exit_reason, l.symbol "
                         "FROM positions p LEFT JOIN launches l ON l.token=p.token "
-                        "WHERE p.status='closed' AND p.mode=? ORDER BY p.closed_at", (s.trading_mode.value,))
+                        "WHERE p.status='closed' AND p.mode=? AND p.opened_at>=? ORDER BY p.closed_at",
+                        (s.trading_mode.value, s.score_since))
     cum, series = 0.0, [0.0]
     for c in closed:
         cum += c["pnl_quote"] or 0

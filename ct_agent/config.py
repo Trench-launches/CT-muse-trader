@@ -144,6 +144,8 @@ class Settings(BaseSettings):
     # as such. JSON, e.g. {"trades": 100, "wins": 54, "losses": 46, "best_eth": 0.3}; optional: net_eth,
     # worst_eth, best_symbol, worst_symbol, avg_hold_h. Empty = no v1 history shown.
     score_history_v1: dict = {}
+    # The site's scorecard counts trades opened from this time on (ISO, UTC). A reset keeps the history.
+    score_since: str = ""
     site_origins: list[str] = ["https://www.moosebymuse.com", "https://moosebymuse.com",
                                "https://www.mooseonmuse.com", "https://mooseonmuse.com",
                                "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
