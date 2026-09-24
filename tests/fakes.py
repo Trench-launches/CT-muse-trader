@@ -194,6 +194,7 @@ class FakeChain:
                     selector("name()"): (["string"], [t.name]),
                     selector("symbol()"): (["string"], [t.symbol]),
                     selector("decimals()"): (["uint8"], [18]),
+                    selector("totalSupply()"): (["uint256"], [10**27]),
                 }
                 if sel in vals:
                     return enc(*vals[sel])

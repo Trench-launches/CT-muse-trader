@@ -109,3 +109,8 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
     send_pending(db, _x(h), enabled=True, daily_cap=60)
     assert [g["text"][:9] for g in got] == ["PAPER BUY", "$NEZU +26", "Watching "]
     assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
+
+
+def test_usd_compact():
+    assert compose.usd_compact(42_130) == "$42.1K" and compose.usd_compact(1_234_000) == "$1.23M"
+    assert compose.usd_compact(None) == "" and compose.usd_compact(950) == "$950"

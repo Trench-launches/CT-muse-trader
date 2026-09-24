@@ -23,7 +23,7 @@ from ..execution.pricing import FillEstimate, curve_buy, curve_sell, pool_estima
 from ..social import compose
 from ..social.outbox import enqueue
 from ..sources.store import evidence_for_token, independent_origins
-from .outcomes import record_call
+from .outcomes import record_call, spot_price
 from .screen import Candidate, activity_for, screen_almost_bonded, screen_migrated
 
 log = logging.getLogger(__name__)
@@ -179,6 +179,25 @@ def _thread(conn, token: str, kind: str) -> tuple[bool, str | None]:
     return prev["kind"] == kind and kind != "trade_entry", prev["idempotency_key"]
 
 
+def _market_cap(ctx: Context, token: str, price_eth: float | None) -> str:
+    """Live market cap for a post, e.g. '$42.1K': price x total supply x ETH/USD.
+    '' when any part is unknown, so a post never shows an invented figure."""
+    try:
+        if not price_eth:
+            return ""
+        supply = kv_get(ctx.conn, f"supply:{token.lower()}")
+        if supply is None:
+            row = ctx.conn.execute("SELECT decimals FROM launches WHERE token=?", (token,)).fetchone()
+            dec = row["decimals"] if row and row["decimals"] is not None else 18
+            supply = ctx.pons.total_supply(token) / 10 ** dec
+            kv_set(ctx.conn, f"supply:{token.lower()}", supply)
+        eth = ctx.market.eth_usd()
+        return compose.usd_compact(price_eth * supply * eth) if eth else ""
+    except Exception as exc:  # a missing figure must never block a post or a trade
+        log.warning("market cap unavailable for %s: %s", token, exc)
+        return ""
+
+
 def _awaiting_research(ctx: Context, token: str) -> bool:
     """True while a newly shortlisted token has no X research yet, for up to
     research_wait_min. Deciding before the research exists would turn every
@@ -276,8 +295,12 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     elif action == "watch" and conf >= 0.6 and res.decision:
         skip, parent = _thread(conn, token, "watch")
         if not skip:
+            try:
+                price_now = spot_price(ctx, token)[0]
+            except Exception:
+                price_now = None
             d = compose.watch_note(symbol=symbol, token=token, thesis=res.decision.public_line or thesis or "on my list",
-                                   risk=(risks or ["unclear"])[0], decision_id=did)
+                                   risk=(risks or ["unclear"])[0], decision_id=did, mc=_market_cap(ctx, token, price_now))
             d.reply_to = parent
             enqueue(conn, d)
     elif action == "pass" and res.decision and pack["evidence"] and conf >= 0.7:
@@ -331,7 +354,8 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
     d = compose.trade_entry(mode=mode, symbol=symbol, token=token, size=f"{spent:.4f} ETH",
                             entry=f"{entry_price:.3g} ETH", catalyst=catalyst, progress=a.cand.progress,
                             momentum=momentum, risk=risks[0], position_id=pid,
-                            own_token=token.lower() == s.agent_token_address.lower())
+                            own_token=token.lower() == s.agent_token_address.lower(),
+                            mc=_market_cap(ctx, token, fill.spot_price if mode == "paper" else entry_price))
     d.reply_to = _thread(conn, token, "trade_entry")[1]  # under an earlier watch/pass, if any
     enqueue(conn, d)
     return {"entered": True, "position_id": pid}
@@ -440,7 +464,8 @@ def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: F
     symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
     enqueue(conn, compose.position_update(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
                                           price=f"{fill.avg_price:.3g} ETH", milestone=m, stop_pct=s.stop_loss_pct,
-                                          target_pct=s.take_profit_pct, position_id=pos["id"]))
+                                          target_pct=s.take_profit_pct, position_id=pos["id"],
+                                          mc=_market_cap(ctx, pos["token"], fill.spot_price)))
 
 
 def weekly_scorecard(ctx: Context, now: datetime | None = None) -> bool:

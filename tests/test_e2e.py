@@ -115,6 +115,7 @@ def test_full_paper_cycle(tmp_path):
     social_once(ctx)
     assert len(sent) == 1 and sent[0].startswith("PAPER BUY $HOT") and hot.token in sent[0]
     assert "Risk:" in sent[0] and len(sent[0]) <= 280
+    assert "on Robinhood Chain at $" in sent[0] and " MC: " in sent[0], sent[0]
 
     # second cycle: position held, no duplicate entry or post
     out2 = trader_once(ctx)
@@ -230,6 +231,7 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     social_once(ctx)
     assert len(sent) == 2
     assert sent[1]["text"].startswith("$HOT +") and "Still holding" in sent[1]["text"]
+    assert "MC (" in sent[1]["text"], sent[1]["text"]
     assert sent[1]["reply"] == {"in_reply_to_tweet_id": "1001"}
 
     hot.real_quote = int(0.2 * ETH)  # collapse -> stop loss, exit replies under the entry too

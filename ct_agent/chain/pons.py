@@ -234,6 +234,9 @@ class PonsV2:
         q, t = decode_output(["uint256", "uint256"], self.rpc.eth_call(curve, encode_call("getReserves()")))
         return int(q), int(t)
 
+    def total_supply(self, token: str) -> int:
+        return int(decode_output(["uint256"], self.rpc.eth_call(token, encode_call("totalSupply()")))[0])
+
     def erc20_balance(self, token: str, owner: str) -> int:
         return int(decode_output(["uint256"], self.rpc.eth_call(
             token, encode_call("balanceOf(address)", checksum(owner))))[0])

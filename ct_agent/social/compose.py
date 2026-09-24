@@ -48,6 +48,16 @@ def _s(text: str) -> str:
     return f"{text}." if text and text[-1] not in "!?" else text
 
 
+def usd_compact(v: float | None) -> str:
+    """$42.1K / $1.23M style, or '' if unknown."""
+    if not v:
+        return ""
+    for div, suf in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
+        if v >= div:
+            return f"${v / div:.3g}{suf}"
+    return f"${v:.0f}"
+
+
 def _short(addr: str) -> str:
     return addr  # full address: readers must be able to verify the exact contract
 
@@ -65,10 +75,11 @@ def disclosure(*, holds: bool, mode: str, own_token: bool) -> str:
 
 
 def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, catalyst: str, progress: float | None,
-                momentum: str, risk: str, position_id: int, own_token: bool = False) -> Draft:
+                momentum: str, risk: str, position_id: int, own_token: bool = False, mc: str = "") -> Draft:
     stage = f"while the curve was {progress * 100:.0f}% complete" if progress is not None and progress < 1 \
         else "after migration to its Pons V4 pool"
-    required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain: {size} @ {entry}. CA {_short(token)}."]
+    at_mc = f" at {mc} MC" if mc else ""
+    required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain{at_mc}: {size} @ {entry}. CA {_short(token)}."]
     optional = [
         f"Risk: {_s(risk)}",
         f"Saw {catalyst} {stage}" + (f", {momentum}." if momentum else "."),
@@ -81,9 +92,10 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
 
 
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, stop_pct: float,
-                    target_pct: float, position_id: int) -> Draft:
+                    target_pct: float, position_id: int, mc: str = "") -> Draft:
     """A milestone update, posted as a reply under the entry post."""
-    body = (f"${symbol} {pnl_pct:+.0f}% since the call, now {price}. Still holding. "
+    now = f"now {mc} MC ({price})" if mc else f"now {price}"
+    body = (f"${symbol} {pnl_pct:+.0f}% since the call, {now}. Still holding. "
             f"Exit at -{stop_pct:.0f}% or +{target_pct:.0f}%.")
     if mode == "paper":
         body += " Paper position."
@@ -108,8 +120,9 @@ def pass_note(*, symbol: str, token: str, reason: str, decision_id: int) -> Draf
 
 
 def watch_note(*, symbol: str, token: str, thesis: str, risk: str, decision_id: int, holds: bool = False,
-               mode: str = "paper") -> Draft:
-    return Draft("watch", _fit([f"Watching ${symbol} on Robinhood Chain. CA {_short(token)}."],
+               mode: str = "paper", mc: str = "") -> Draft:
+    at_mc = f" at {mc} MC" if mc else ""
+    return Draft("watch", _fit([f"Watching ${symbol} on Robinhood Chain{at_mc}. CA {_short(token)}."],
                                [_s(thesis), f"What would make me wrong: {_s(risk)}",
                                 disclosure(holds=holds, mode=mode, own_token=False)]), token, f"watch:{decision_id}")
 
