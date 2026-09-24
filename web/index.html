@@ -624,7 +624,10 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .live-grid .lc.on { display: flex; animation: pop .35s var(--spring); }
 
   .verify-panel { grid-template-columns: minmax(0, 1fr); height: auto; }
-  .verify-panel > .token-card, .verify-panel > .pile { grid-area: 1 / 1; align-self: start; transition: opacity .5s ease, transform .6s var(--ease); }
+  .verify-panel > .token-card, .verify-panel > .pile { grid-area: 1 / 1; align-self: stretch; transition: opacity .5s ease, transform .6s var(--ease); }
+  .verify-panel > .pile { display: flex; flex-direction: column; }  /* same height as the check card, so the panel never has a gap or jumps */
+  .verify-panel > .pile #pile { flex: 1; display: flex; flex-direction: column; }
+  .verify-panel > .pile .rej { flex: 1; }                            /* the rows share the card's height */
   .verify-panel > .token-card:not(.on), .verify-panel > .pile:not(.on) { opacity: 0; transform: translateX(28px); pointer-events: none; }
   .verify-panel > .token-card.on, .verify-panel > .pile.on { opacity: 1; transform: none; }
   .vdots { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
