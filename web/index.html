@@ -1173,7 +1173,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   // closed paper trades, newest first (example until live data arrives)
   let past = [
     { s: "PEPU", pl: 41.0, held: "4h 02m", why: "took profit at 1.6x", c: "blue" },
-    { s: "NEZU", pl: -30.4, held: "1h 12m", why: "stop loss", c: "beige" },
+    { s: "NEZU", pl: -70.4, held: "1h 12m", why: "stop loss", c: "beige" },
     { s: "ROBO", pl: -9.1, held: "24h 00m", why: "24h timer", c: "white" },
   ];
   const hfmt = h => h == null ? "" : h < 1 / 60 ? `${Math.max(1, Math.round(h * 3600))}s` : h < 1 ? `${Math.round(h * 60)}m` : h < 48 ? `${Math.floor(h)}h ${String(Math.round(h % 1 * 60)).padStart(2, "0")}m` : `${Math.round(h / 24)}d`;
@@ -1216,7 +1216,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   /* ---------- 8 RECORD: the @MooseByMuse timeline ---------- */
   let feedPosts = [
     { t: "2m", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
-    { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −30.4%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
+    { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −70.4%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
     { t: "31m", body: "Passing on $JOLLY. The deployer bought 52% of its own curve. That isn't demand.", s: [9, 5, 41, 3900] },
     { t: "1h", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself.", s: [6, 3, 28, 2700] },
     { t: "3h", body: "Paper scorecard 2026-W39: 23 closed, 13W/10L, net +0.184 ETH.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
