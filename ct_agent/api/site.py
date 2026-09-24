@@ -89,6 +89,28 @@ def _score(closed: list[dict[str, Any]], open_pos: list[dict[str, Any]], net: fl
             "series": series}
 
 
+def _scanner_watch(conn: Any, s: Settings) -> list[dict[str, Any]]:
+    """The latest smart-money calls: live ones first (how far each has run toward the buy trigger), then the
+    last few that were bought, didn't move in time, or couldn't be traded."""
+    order = "CASE status WHEN 'watching' THEN 0 WHEN 'bought' THEN 1 ELSE 2 END, id DESC"
+    calls = rows(conn, "SELECT id, token, symbol, called_at, status, note, last_move_pct, pool_id FROM scanner_calls "
+                       f"WHERE status!='watching' OR pool_id IS NOT NULL ORDER BY {order} LIMIT 6")
+    now = datetime.now(timezone.utc)
+    out = []
+    for c in calls:
+        move = c["last_move_pct"]
+        try:
+            left = s.scanner_window_hours - (now - datetime.fromisoformat(c["called_at"])).total_seconds() / 3600
+        except (TypeError, ValueError):
+            left = None
+        status = {"watching": "watching", "bought": "bought", "expired": "expired", "skipped": "skipped"}.get(c["status"], c["status"])
+        out.append({"symbol": (c["symbol"] or "?").replace("\U0001f331", "").strip(), "token": c["token"],
+                    "status": status, "note": c["note"], "move_pct": move, "called_at": c["called_at"],
+                    "left_h": round(left, 2) if left is not None and c["status"] == "watching" else None,
+                    "progress": max(0.0, min(1.0, (move or 0) / s.scanner_trigger_pct)) if s.scanner_trigger_pct else 0})
+    return out
+
+
 def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
     """Fold MOOSE v1's paper-trading totals into the scorecard. v1's trades aren't in this journal, so the
     result says how much of it is v1 ("history") and figures v1 didn't give stay the current bot's own."""
@@ -225,6 +247,8 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
             {"watch": "watching", "pass": "passed", "buy": "bought"}.get(last["action"] if last else "", "screening")
         watching.append({"symbol": c.get("symbol"), "token": c["token"], "stage": c.get("stage"),
                          "progress": 1.0 if c.get("stage") == "migrated" else c.get("progress"), "status": status})
+    if s.candidate_source == "scanner":
+        watching = _scanner_watch(conn, s)
     positions = []
     for p in open_pos:
         marks = kv_get(conn, f"marks:{p['id']}") or []
@@ -266,6 +290,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "funnel": funnel, "stats": stats,
         "sources": sources, "leads": leads, "decisions": decisions,
         "watching": watching, "positions": positions, "slots": s.max_open_positions,
+        "watch_mode": s.candidate_source, "trigger_pct": s.scanner_trigger_pct, "window_h": s.scanner_window_hours,
         "next_post": pending[0] if pending else None,
         "posts_24h": one("SELECT COUNT(*) FROM posts WHERE status='sent' AND sent_at>=?", (day,)),
         "posts": posts,

@@ -713,7 +713,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   <div class="wrap">
     <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
-      <a href="#ask">Ask Muse</a>
+      <a href="#ask">AskMoose</a>
       <a href="#listens">Sources</a>
       <a href="#think">How it thinks</a>
       <a href="#live">Live</a>
@@ -773,7 +773,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <section class="sec ask" id="ask" aria-labelledby="h-ask">
   <div class="wrap">
     <div>
-      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask Muse</span>
+      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> AskMoose</span>
       <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
       <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
       <ul class="ask-points">
@@ -785,10 +785,10 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     </div>
     <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
       <div class="chat ask-chat">
-        <div class="chat-h"><span class="face"></span><div><b>Ask Muse</b><small>Robinhood Research</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
+        <div class="chat-h"><span class="face"></span><div><b>AskMoose</b><small>Robinhood Research</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
         <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
         <div class="ask-sugg" id="askSugg"></div>
-        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
+        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Moose about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
         <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
       </div>
     </div>
@@ -871,17 +871,17 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     </div>
     <div class="live-grid">
       <article class="lc on">
-        <div class="lc-h"><span class="ic-b blue"><svg class="ic"><use href="#i-eye"/></svg></span><div><h4>Watching</h4><small>Close to graduating</small></div><span class="example">example</span></div>
+        <div class="lc-h"><span class="ic-b blue"><svg class="ic"><use href="#i-eye"/></svg></span><div><h4>Watching</h4><small id="wlSub">Smart-money calls</small></div><span class="example">example</span></div>
         <div id="wl"></div>
-        <div class="lc-foot"><span>Curve progress to graduation</span><span class="num">85% = almost bonded</span></div>
+        <div class="lc-foot"><span id="wlFootL">Move since the call</span><span class="num" id="wlFootR">+30% = buy</span></div>
       </article>
       <article class="lc">
-        <div class="lc-h"><span class="ic-b sand"><svg class="ic"><use href="#i-wallet"/></svg></span><div><h4>Holding</h4><small>Paper trades</small></div></div>
+        <div class="lc-h"><span class="ic-b sand"><svg class="ic"><use href="#i-wallet"/></svg></span><div><h4>Holding</h4><small id="holdSub">Paper trades</small></div></div>
         <div class="lc-label">Open now</div>
         <div id="posList" style="display:grid;gap:8px"></div>
         <div class="lc-label">Past trades</div>
         <div id="pastList"></div>
-        <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> paper wallet</span><span id="slotsTxt">2 of 3 slots</span></div>
+        <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> <span id="walletTxt">paper wallet</span></span><span id="slotsTxt">2 of 3 slots</span></div>
       </article>
       <article class="lc">
         <div class="lc-h"><span class="ic-b ink"><svg class="ic"><use href="#b-x"/></svg></span><div><h4>Posting next</h4><small>@MooseByMuse</small></div><span class="pill blue" id="npPill">in 2 min</span></div>
@@ -1184,7 +1184,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const tp = r.match(/^take profit at ([\d.]+x)/);
     return /^stop loss/.test(r) ? "stop loss" : /^final take profit/.test(r) ? "final target" : tp ? `took profit at ${tp[1]}`
       : /^back to entry/.test(r) ? "back to entry" : /^max hold/.test(r) ? "24h timer" : /^thesis review/.test(r) ? "thesis changed" : r.slice(0, 28); };
-  const WST = { bought: "solid-blue", watching: "sand", passed: "grey", checking: "blue", graduated: "green" };
+  const WST = { bought: "solid-blue", watching: "sand", passed: "grey", checking: "blue", graduated: "green", expired: "grey", skipped: "grey" };
   let positions = [
     { s: "HATCH", entry: .05, c: "blue", age: "18m", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
     { s: "MOSS", entry: .05, c: "beige", age: "3h", hist: [.05, .0492, .0488, .0495, .0479, .0468, .0472, .0455, .0449, .0437] },
@@ -1193,7 +1193,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
     return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
-    $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}">${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.p}%<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
+    $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}"${w.tip ? ` title="${w.tip}"` : ""}>${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.lbl ?? w.p + "%"}<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
     $("#pastList").innerHTML = past.length ? past.slice(0, 3).map(t => `<div class="prow ${t.pl >= 0 ? "up" : "down"}">${coinAv(t.c, 30, false, t.logo, t.s)}<div><b>$${t.s}</b><small>held ${t.held} · ${t.why}</small></div><span class="plp">${t.pl >= 0 ? "+" : ""}${t.pl.toFixed(1)}%</span></div>`).join("")
       : `<div class="h-empty">No closed trades yet. The first one shows up here, win or lose.</div>`;
     $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. MOOSE waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(2)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
@@ -1490,8 +1490,16 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     }
 
     /* live */
+    const sm = d.watch_mode === "scanner", sgnPct = v => v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v))}%`;
     watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), logo: w.logo, p: Math.round((w.progress || 0) * 100),
-      st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6] }));
+      st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6],
+      lbl: sm ? sgnPct(w.move_pct) : null,
+      tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)}`)) : "" }));
+    $("#wlSub").textContent = sm ? "Smart-money calls" : "Close to graduating";
+    $("#wlFootL").textContent = sm ? "Move since the call" : "Curve progress to graduation";
+    $("#wlFootR").textContent = sm ? `+${d.trigger_pct}% = buy · ${d.window_h}h window` : "85% = almost bonded";
+    $("#holdSub").textContent = d.mode === "live" ? "Live trades" : "Paper trades";
+    $("#walletTxt").textContent = d.mode === "live" ? "live wallet" : "paper wallet";
     positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), logo: p.logo, entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
       hist: p.marks.length > 1 ? p.marks : [p.entry_eth, p.entry_eth] }));
     past = ((d.score || {}).recent || []).map((t, i) => ({ s: esc(t.symbol || "?"), logo: t.logo, pl: t.pnl_pct || 0, held: hfmt(t.hold_h),
@@ -1499,7 +1507,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     renderLive();
     askSuggest(d.watching.filter(w => w.symbol && /^[A-Za-z][A-Za-z0-9]{0,19}$/.test(w.symbol) && /^0x[0-9a-fA-F]{40}$/.test(w.token || ""))
       .map(w => ({ s: w.symbol, t: w.token })));
-    if (!watch.length) $("#wl").innerHTML = `<p class="empty">Nothing close to graduating right now.</p>`;
+    if (!watch.length) $("#wl").innerHTML = `<p class="empty">${sm ? "No smart-money calls on Robinhood Chain yet." : "Nothing close to graduating right now."}</p>`;
     $("#slotsTxt").textContent = `${positions.length} of ${d.slots} slots`;
     const np = d.next_post, last = d.posts[0];
     $("#npPill").textContent = np ? "queued" : "last post";
