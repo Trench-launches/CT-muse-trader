@@ -194,8 +194,13 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     ready_ids = {c["id"] for c in ready}
     # calls that arrive already up get analysed first, so the buy post can use Muse's read
-    fresh = [c for c in ready if not c.get("decision_id")] + [c for c in scanner.to_analyse(conn) if c["id"] not in ready_ids]
+    fresh = [c for c in ready if not c.get("decision_id")] + \
+        [c for c in scanner.to_analyse(conn, s.scanner_window_hours) if c["id"] not in ready_ids]
     for call in fresh[:4]:
+        if not call.get("pool_id"):  # MOOSE can't trade it, but it still gets a read and a post
+            did = analyse_untradeable(ctx, call)
+            out.append({"token": call["token"], "analysed": did, "tradeable": False})
+            continue
         a = _assess_call(ctx, call, eth_usd)
         if a:
             did = analyse_call(ctx, a)
@@ -212,12 +217,51 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
     return out
 
 
+def _dex_stats(ctx: Context, token: str) -> dict[str, Any]:
+    """The coin's most liquid pool on DexScreener, for coins outside the Pons ETH pools."""
+    try:
+        r = ctx.market._http.get(f"https://api.dexscreener.com/tokens/v1/{ctx.settings.dexscreener_chain}/{token}")
+        r.raise_for_status()
+        pairs = sorted(r.json() or [], key=lambda p: float((p.get("liquidity") or {}).get("usd") or 0), reverse=True)
+    except Exception as exc:
+        log.warning("dexscreener unavailable for %s: %s", token, exc)
+        return {}
+    if not pairs:
+        return {}
+    p = pairs[0]
+    return {"source": "dexscreener", "dex": p.get("dexId"), "quote": (p.get("quoteToken") or {}).get("symbol"),
+            "name": (p.get("baseToken") or {}).get("name"), "price_usd": p.get("priceUsd"),
+            "market_cap_usd": p.get("marketCap"), "liquidity_usd": (p.get("liquidity") or {}).get("usd"),
+            "volume_usd": p.get("volume"), "price_change_pct": p.get("priceChange"), "txns": p.get("txns"),
+            "note": "aggregator data, indicative only"}
+
+
+def analyse_untradeable(ctx: Context, call: dict[str, Any]) -> int:
+    """A call MOOSE can't trade still gets Muse's read and a radar post, with what's knowable about it."""
+    from ..sources.scanner import call_facts
+    s = ctx.settings
+    token = call["token"]
+    symbol = (call.get("symbol") or "?").replace("\U0001f331", "").strip() or "?"
+    facts = call_facts(call, s.scanner_trigger_pct)
+    facts["rule"] = (f"MOOSE can't trade this coin ({call.get('note') or 'not tradeable'}), so it won't buy it. "
+                     "Your job is only the analysis: what the coin is, why smart money may be in, what could go wrong.")
+    pack = {"token": token, "symbol": symbol, "chain": "Robinhood Chain (4663)", "tradeable_by_moose": False,
+            "why_not_tradeable": call.get("note"), "scanner_call": facts, "market": _dex_stats(ctx, token),
+            "lore": _lore(ctx, token), "evidence": [], "limits": {"mode": s.trading_mode.value}}
+    return _record_analysis(ctx, token, symbol, pack, call, None)
+
+
 def analyse_call(ctx: Context, a: Assessed) -> int:
     """Muse's read on a new smart-money call: recorded, and posted to the radar. It does not decide the trade."""
+    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
+    return _record_analysis(ctx, token, symbol, build_pack(ctx, a), a.call, a)
+
+
+def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any], call: dict[str, Any],
+                     a: Assessed | None) -> int:
     from ..sources.scanner import mark_analysed
     s, conn = ctx.settings, ctx.conn
-    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
-    pack = build_pack(ctx, a)
+    tradeable = a is not None
     res = ctx.brain.decide(pack)
     d = res.decision
     thesis, reasons, risks = (d.thesis, d.reasons, d.risks) if d else ("", [res.error or "no analysis"], [])
@@ -234,19 +278,21 @@ def analyse_call(ctx: Context, a: Assessed) -> int:
                                                   "reasons": reasons, "risks": risks,
                                                   "narrative": d.narrative.model_dump() if d else None,
                                                   "muse_error": res.error}, ref=token, in_tx=True)
-    mark_analysed(conn, a.call["id"], did)
-    try:
-        record_call(ctx, a, decision_id=did, action="watch", confidence=d.confidence if d else 0.0, pack=pack,
-                    gates=[], model=res.model)
-    except Exception as exc:  # tracking is for analysis; it must never stop a trade
-        log.warning("could not record call outcome for %s: %s", token, exc)
+    mark_analysed(conn, call["id"], did)
+    if a is not None:
+        try:
+            record_call(ctx, a, decision_id=did, action="watch", confidence=d.confidence if d else 0.0, pack=pack,
+                        gates=[], model=res.model)
+        except Exception as exc:  # tracking is for analysis; it must never stop a trade
+            log.warning("could not record call outcome for %s: %s", token, exc)
     if d:
         skip, parent = _thread(conn, token, "watch")
         if not skip:
             pb = d.post
             draft = compose.watch_note(symbol=symbol, token=token, decision_id=did, narrative=pb.narrative,
                                        confirmation=pb.confirmation, watching=pb.watching,
-                                       trigger=f"it runs +{s.scanner_trigger_pct:g}% from the smart-money call",
+                                       trigger=f"it runs +{s.scanner_trigger_pct:g}% from the smart-money call"
+                                       if tradeable else "",
                                        line=d.public_line or thesis)
             draft.reply_to = parent
             enqueue(conn, draft)
