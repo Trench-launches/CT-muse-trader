@@ -92,7 +92,9 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
     sources = []
     for kinds in (("x",), ("news",), ("twitch_transcript", "twitch_chat")):
         q = ",".join("?" * len(kinds))
-        r = rows(conn, f"SELECT * FROM sources WHERE kind IN ({q}) ORDER BY id DESC LIMIT 1", kinds)
+        # Prefer a source whose contract was verified onchain: it's the one that matters.
+        r = rows(conn, f"SELECT s.* FROM sources s JOIN leads l ON l.source_id=s.id WHERE s.kind IN ({q}) "
+                       "AND l.status='verified' ORDER BY s.id DESC LIMIT 1", kinds)             or rows(conn, f"SELECT * FROM sources WHERE kind IN ({q}) ORDER BY id DESC LIMIT 1", kinds)
         if r:
             src = _source(r[0])
             lead = rows(conn, "SELECT l.status, l.address, l.verify_note, l.verified_token FROM leads l "
@@ -159,6 +161,11 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
                           "pnl_pct": round((last / p["entry_quote"] - 1) * 100, 2) if p["entry_quote"] else 0})
     pending = rows(conn, "SELECT kind, body, created_at FROM posts WHERE status='pending' ORDER BY id LIMIT 1")
     posts = rows(conn, "SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' ORDER BY id DESC LIMIT 6")
+    for j in rows(conn, "SELECT ts, payload FROM journal WHERE kind='post_sent' AND payload LIKE '%\"intro\"%'"):
+        p = _j(j["payload"], {})  # the intro post was sent by hand, outside the outbox
+        if p.get("kind") == "intro":
+            posts.append({"kind": "intro", "body": p.get("text", ""), "sent_at": j["ts"], "x_post_id": p.get("post_id")})
+    posts = sorted(posts, key=lambda p: p["sent_at"] or "", reverse=True)[:6]
 
     # --- scorecard ---------------------------------------------------------------
     closed = rows(conn, "SELECT p.pnl_quote, p.closed_at, l.symbol FROM positions p LEFT JOIN launches l "
