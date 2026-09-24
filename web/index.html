@@ -436,6 +436,9 @@ body.killed .paused-note { display: block; }
 .ftw .xtl { border-color: #CFD9DE; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); }
 .ftw .xp { cursor: default; }
 .ftw .xp:hover { background: #FFFFFF; }
+/* every card is the same height whatever the post says, so swapping a post never moves anything:
+   the text box is always 6 lines tall and longer posts end in an ellipsis */
+.ftw .xp-text { height: 120px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; }
 .ftw.pop .xtl { animation: tweetpop .6s var(--spring); }
 .ftw-0 { align-self: flex-start; --r: -2deg; --d: 7s; }
 .ftw-1 { align-self: flex-end; --r: 2deg; --d: 8.5s; --delay: -3s; }
@@ -1242,7 +1245,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (d.posts.length && pk !== seen.posts) {
       seen.posts = pk;
       feedPosts = d.posts.map(p => ({ t: ago(p.sent_at), body: esc(p.body) }));
-      slots.forEach((slot, i) => { slot.style.display = feedPosts[i] ? "" : "none"; if (feedPosts[i]) fill(slot, feedPosts[i]); });
+      slots.forEach((slot, i) => { slot.style.visibility = feedPosts[i] ? "" : "hidden"; if (feedPosts[i]) fill(slot, feedPosts[i]); });  // hidden, not removed: the layout keeps its shape
       nextPost = slots.length;
     }
 
