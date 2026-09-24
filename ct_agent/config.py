@@ -83,7 +83,8 @@ class Settings(BaseSettings):
     x_refresh_token: str = ""
     x_posting_enabled: bool = False
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
-    x_update_milestones_pct: list[float] = [25.0, 50.0, -15.0]  # open-position updates, replied under the entry
+    x_update_step_pct: float = 30.0  # post an update under the entry at every +30% (30, 60, 90, ...)
+    x_update_down_pct: list[float] = [-15.0]  # and once when it's down this much
     x_max_reads_per_search: int = 20
     x_monthly_read_budget: int = 6_000
 

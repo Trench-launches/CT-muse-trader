@@ -425,13 +425,14 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
 
 
 def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: FillEstimate) -> None:
-    """Post once per milestone crossed (e.g. +25%, +50%, -15%), under the entry
+    """Post once per milestone crossed (every +30%, and -15%), under the entry
     post. If several are crossed at once, only the furthest one is posted."""
     s, conn = ctx.settings, ctx.conn
     key = f"milestones:{pos['id']}"
     hit = set(kv_get(conn, key, []) or [])
-    crossed = [m for m in s.x_update_milestones_pct
-               if m not in hit and ((m > 0 and pnl_pct >= m) or (m < 0 and pnl_pct <= m))]
+    ups = [s.x_update_step_pct * k for k in range(1, int(pnl_pct // s.x_update_step_pct) + 1)]         if s.x_update_step_pct > 0 and pnl_pct > 0 else []
+    downs = [m for m in s.x_update_down_pct if pnl_pct <= m]
+    crossed = [m for m in ups + downs if m not in hit]
     if not crossed:
         return
     kv_set(conn, key, sorted(hit | set(crossed)))
