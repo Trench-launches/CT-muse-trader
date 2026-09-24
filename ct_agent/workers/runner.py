@@ -50,9 +50,15 @@ def social_once(ctx: Context) -> dict:
     except Exception as exc:  # replies are optional: a failure here never stops trade posts going out
         log.warning("auto-replies failed: %s", exc)
         replied = {"error": str(exc)[:200]}
+    from ..social.musings import musings_once
+    try:
+        mused = musings_once(ctx)
+    except Exception as exc:  # optional, like replies
+        log.warning("musing failed: %s", exc)
+        mused = {"error": str(exc)[:200]}
     res = send_pending(ctx.conn, ctx.x, enabled=ctx.settings.x_posting_enabled, daily_cap=ctx.settings.x_daily_post_cap,
                        threads_since=ctx.settings.x_threads_since)
-    return {"sent": res, "replies": replied}
+    return {"sent": res, "replies": replied, "musing": mused}
 
 
 WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {

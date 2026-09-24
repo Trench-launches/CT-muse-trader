@@ -63,3 +63,30 @@ def test_muse_can_decline(settings, db):
     ctx = _ctx(settings, db, [{"id": "9", "author_id": "troll", "text": "you suck"}], _Brain("", skip=True))
     assert replies_once(ctx)["declined"] == 1
     assert db.execute("SELECT COUNT(*) c FROM posts").fetchone()["c"] == 0
+
+
+class _Muser:
+    def __init__(self, text):
+        self.text, self.calls = text, 0
+
+    def musing(self, ctx):
+        from ct_agent.brain.muse import MuseMusing
+        self.calls += 1
+        return MuseResult(MuseMusing(tweet=self.text), "", "m", "h")
+
+
+def test_musings_every_half_hour_never_eat_the_trade_posts_room(settings, db):
+    from ct_agent.social.musings import musings_once
+    s = settings.model_copy(update={"x_musings_enabled": True, "x_posting_enabled": True, "x_daily_post_cap": 40})
+    brain = _Muser("liquidity leaves quietly and returns loudly.")
+    ctx = SimpleNamespace(settings=s, conn=db, x=_X([]), brain=brain)
+    assert musings_once(ctx) == {"musing": "queued"}
+    assert musings_once(ctx) == {} and brain.calls == 1  # not again within 30 min
+    db.execute("UPDATE posts SET status='sent', sent_at=created_at")
+    kv_set(db, "musing_last_at", "2000-01-01T00:00:00+00:00")
+    assert musings_once(ctx) == {"musing": "dropped"}  # the same line twice is never posted
+    for i in range(10):  # 11 sent today: 40 cap - 30 reserved for trades = no room
+        db.execute("INSERT INTO posts(idempotency_key,kind,body,ref,created_at,status,sent_at) VALUES(?,?,?,?,datetime('now'),'sent',"
+                   "strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))", (f"k{i}", "watch", "x", ""))
+    kv_set(db, "musing_last_at", "2000-01-01T00:00:00+00:00")
+    assert musings_once(ctx)["musing"].startswith("held")

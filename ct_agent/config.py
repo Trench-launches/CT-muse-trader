@@ -90,6 +90,9 @@ class Settings(BaseSettings):
     x_replies_per_day: int = 30
     x_replies_per_user_day: int = 2
     x_mentions_poll_min: float = 3.0
+    # Original crypto musings (social/musings.py), on top of trade posts and replies
+    x_musings_enabled: bool = False
+    x_musing_every_min: float = 30.0
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
     x_update_step_pct: float = 30.0  # post an update under the entry at every +30% (30, 60, 90, ...)
     x_update_down_pct: list[float] = [-15.0]  # and once when it's down this much

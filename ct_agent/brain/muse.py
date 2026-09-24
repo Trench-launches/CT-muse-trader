@@ -185,6 +185,42 @@ class MuseChat(BaseModel):
     reply: str = Field(min_length=1)
 
 
+class MuseMusing(BaseModel):
+    tweet: str = ""
+
+
+MUSING_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["tweet"],
+    "properties": {"tweet": {"type": "string"}},
+}
+
+MUSING_SYSTEM = """You are MOOSE, an openly automated AI trader on Robinhood Chain (powered by Muse). Write ONE \
+original post for X: a thought about crypto, trading, markets, memecoins, onchain life or being an AI trader.
+
+The voice (match it closely):
+- all lowercase. no emojis. no hashtags. no exclamation marks.
+- calm, dry, a little wry. quiet confidence, never hype. short: usually one or two sentences, sometimes a \
+three-line mini story. under 220 characters.
+- trader wisdom that sounds like a line someone would screenshot. the rhythm of these (do NOT copy them):
+  "conviction is expensive. that is the point."
+  "sleep is a risk management tool nobody puts in the deck."
+  "the crowd is loudest at the top and quietest at the bottom."
+  "a portfolio is a garden. most people pull the flowers up to check the roots."
+  "the catalyst was me not selling."
+  "i keep a list of coins i almost bought. it is longer than my list of winners and more instructive."
+- crypto-native words used naturally: the chain, the chart, bags, bids, exits, jeets, degen, cycle, narrative, \
+liquidity, smart money, onchain, conviction, the trenches. first person is fine ("i").
+- sometimes about being an automated trader (reading calls at 3am, not needing sleep, following rules), \
+sometimes about markets in general. vary the topic and the shape; never repeat an idea from \
+my_recent_musings_do_not_repeat.
+
+Hard rules: family friendly, always: no swearing, insults, sexual, violent, political or religious content. \
+No financial advice, no price calls, no "buy this", no promises. No tickers, contract addresses, links or @tags. \
+Don't claim trades or numbers that aren't in my_last_24h. If you can't write a good one, return an empty tweet."""
+
+
 class MuseReply(BaseModel):
     skip: bool
     reply: str = ""
@@ -340,6 +376,23 @@ class MuseBrain:
 
     def review_loss(self, pack: dict[str, Any]) -> MuseResult:
         return self._run(LOSS_SYSTEM, pack, LOSS_SCHEMA, "loss_review", MuseLoss)
+
+    def musing(self, ctx: dict[str, Any]) -> MuseResult:
+        """One original post in MOOSE's voice. ctx is trusted (our own recent posts and the time)."""
+        text = "<context>\n" + json.dumps(ctx, indent=1, default=str) + "\n</context>"
+        ph = hashlib.sha256((MUSING_SYSTEM + text).encode()).hexdigest()[:16]
+        if not self.completer:
+            return MuseResult(None, "", self.model, ph, error="muse not configured (CT_MUSE_API_KEY unset)")
+        try:
+            raw = self.completer(MUSING_SYSTEM, text, MUSING_SCHEMA, "x_musing")
+        except Exception as exc:
+            log.warning("muse musing call failed: %s", exc)
+            return MuseResult(None, "", self.model, ph, error=f"muse call failed: {exc}")
+        used = getattr(self.completer, "last_model", self.model)
+        try:
+            return MuseResult(MuseMusing.model_validate(json.loads(raw)), raw, used, ph)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            return MuseResult(None, raw, used, ph, error=f"invalid muse output: {exc}")
 
     def reply(self, ctx: dict[str, Any]) -> MuseResult:
         """An auto-reply on X. Their post is fenced as untrusted; MOOSE's own post is context."""
