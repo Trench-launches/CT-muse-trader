@@ -18,7 +18,7 @@
 <style>
 /* MOOSE landing page, v2. Layout language: big centred headlines, large soft-gradient
    panels, clean product cards floating on top. Every section is sized to fit one screen.
-   All figures are placeholder data; wire to the ct_agent API later.
+   Figures load live from api.mooseonmuse.com/site; the markup holds example data until then.
    Headline face: Outfit stands in for the Instagram Sans reference (not licensable). */
 :root {
   color-scheme: light;
@@ -419,6 +419,7 @@ body.killed .pring .fg { stroke: var(--ink-3); }
 .post-dots i.on { background: var(--blue); }
 .live-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin-top: clamp(10px, 1.8vh, 18px); font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); }
 .live-foot .ok { color: var(--green); }
+.empty { font-size: 14px; color: var(--ink-3); padding: 12px 2px; margin: 0; text-align: left; }
 .paused-note { display: none; margin-top: 16px; text-align: center; }
 body.killed .paused-note { display: block; }
 @media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } }
@@ -583,24 +584,24 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       </svg>
       <div class="hero-mascot"><img src="assets/moose.png" alt="MOOSE, a fluffy beige mascot"></div>
       <div class="float f1" data-depth="18">
-        <div class="row"><span class="coinav" data-coin="blue" style="width:22px;height:22px"></span><b>Watching $HATCH</b><span class="dot pulse" style="color:var(--green)"></span></div>
+        <div class="row"><span class="coinav" data-coin="blue" style="width:22px;height:22px"></span><b id="hfWatch">Watching $HATCH</b><span class="dot pulse" style="color:var(--green)"></span></div>
         <div class="bar"><i id="heroBar" style="width:91%"></i></div>
         <small id="heroBarTxt">curve 91% · buys speeding up</small>
       </div>
       <div class="float f2" data-depth="-14">
-        <div class="row"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span><span class="pill green"><svg class="ic"><use href="#i-badge-check"/></svg> 4/4 checks</span></div>
-        <small>0x47a3…94d4 is a real Pons launch</small>
+        <div class="row"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span><span class="pill green" id="hfChecks"><svg class="ic"><use href="#i-badge-check"/></svg> 4/4 checks</span></div>
+        <small id="hfLead">0x47a3…94d4 is a real Pons launch</small>
       </div>
       <div class="float f3" data-depth="22">
-        <div class="row"><span class="pill blue">PAPER BUY</span><b>$HATCH</b></div>
-        <small class="onchain"><svg class="ic eth"><use href="#b-eth"/></svg> 0.05 ETH · risk: one wallet is 35% of buys</small>
+        <div class="row"><span class="pill blue" id="hfCallPill">PAPER BUY</span><b id="hfCallSym">$HATCH</b></div>
+        <small class="onchain"><svg class="ic eth"><use href="#b-eth"/></svg> <span id="hfCallTxt">0.05 ETH · risk: one wallet is 35% of buys</span></small>
       </div>
       <div class="float f4" data-depth="-20">
-        <div class="row"><span class="pill ink"><svg class="ic"><use href="#i-circle-stop"/></svg> PASS</span><b>$JOLLY</b></div>
-        <small class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> dev wallet bought 52% of the curve</small>
+        <div class="row"><span class="pill ink"><svg class="ic"><use href="#i-circle-stop"/></svg> PASS</span><b id="hfPassSym">$JOLLY</b></div>
+        <small class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> <span id="hfPassTxt">dev wallet bought 52% of the curve</span></small>
       </div>
     </div>
-    <div class="hero-stats"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span><span><b data-count="3544">3,544</b> launches on Robinhood Chain today</span></span><span class="onchain"><svg class="ic"><use href="#i-shield-check"/></svg><span><b data-count="1284">1,284</b> claims checked onchain</span></span><span class="onchain"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span><span><b data-count="23">23</b> trades posted on X</span></span></div>
+    <div class="hero-stats"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span><span><b id="hsLaunch" data-count="3544">3,544</b> launches on Robinhood Chain today</span></span><span class="onchain"><svg class="ic"><use href="#i-shield-check"/></svg><span><b id="hsClaims" data-count="1284">1,284</b> claims checked onchain</span></span><span class="onchain"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span><span><b id="hsPosts" data-count="23">23</b> <span id="hsPostsLbl">trades posted on X</span></span></span></div>
   </div>
 </section>
 
@@ -612,14 +613,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <p class="giant" id="h-scale"><span id="bigCount" style="font-variant-numeric:tabular-nums">3,544</span><small>new tokens launched on Pons, on Robinhood Chain, today. No human can read them all. MOOSE does.</small></p>
       <div class="funnel" id="funnel">
         <div><span>Launched today</span><b id="fn0">3,544</b><i class="fb" style="transform:scaleX(1)"></i></div>
-        <div><span>Close to graduating</span><b>212</b><i class="fb" data-s=".42" style="opacity:.75"></i></div>
-        <div><span>Real buying, real news</span><b>9</b><i class="fb" data-s=".12" style="opacity:.55"></i></div>
-        <div><span>Worth a trade</span><b>1</b><i class="fb" data-s=".03" style="opacity:.4"></i></div>
+        <div><span>Close to graduating</span><b id="fn1">212</b><i class="fb" data-s=".42" style="opacity:.75"></i></div>
+        <div><span id="fl2">Real buying, real news</span><b id="fn2">9</b><i class="fb" data-s=".12" style="opacity:.55"></i></div>
+        <div><span id="fl3">Worth a trade</span><b id="fn3">1</b><i class="fb" data-s=".03" style="opacity:.4"></i></div>
       </div>
     </div>
     <div class="panel grid-bg tiles-panel">
       <div class="tiles" id="tiles" aria-hidden="true"></div>
-      <div class="tiles-foot"><span><i style="background:var(--blue)"></i>just launched</span><span><i style="background:rgba(28,43,51,.1)"></i>faded out</span><span><i style="background:var(--blue);box-shadow:0 0 0 3px rgba(0,130,251,.25)"></i>worth a look: $HATCH</span><span class="example" style="margin-left:auto">example data</span></div>
+      <div class="tiles-foot"><span><i style="background:var(--blue)"></i>just launched</span><span><i style="background:rgba(28,43,51,.1)"></i>faded out</span><span><i style="background:var(--blue);box-shadow:0 0 0 3px rgba(0,130,251,.25)"></i><span id="tilesStar">worth a look: $HATCH</span></span><span class="example" style="margin-left:auto">example data</span></div>
     </div>
   </div>
 </section>
@@ -706,15 +707,15 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <article class="lc">
         <div class="lc-h"><h4><span class="ic-b"><svg class="ic"><use href="#i-wallet"/></svg></span>Holding</h4><span class="pill sand">paper</span></div>
         <div id="posList" style="display:grid;gap:10px"></div>
-        <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> 0x7a3f…c19e</span><span>2 of 3 slots</span></div>
+        <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> paper wallet</span><span id="slotsTxt">2 of 3 slots</span></div>
       </article>
       <article class="lc">
-        <div class="lc-h"><h4><span class="ic-b"><svg class="ic"><use href="#b-x"/></svg></span>Posting next</h4><span class="pill blue">in 2 min</span></div>
+        <div class="lc-h"><h4><span class="ic-b"><svg class="ic"><use href="#b-x"/></svg></span>Posting next</h4><span class="pill blue" id="npPill">in 2 min</span></div>
         <div id="nextPost"></div>
-        <div class="lc-foot"><span>4 of 6 posts today</span><span class="post-dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="post-dots" id="postDots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
       </article>
     </div>
-    <div class="live-foot"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Robinhood Chain · block <b class="num" id="blk">70,556,234</b></span><span>synced <b class="num" id="sync">1</b>s ago</span><span class="ok">journal intact ✓</span><span>mode: paper</span></div>
+    <div class="live-foot"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Robinhood Chain · block <b class="num" id="blk">70,556,234</b></span><span>synced <b class="num" id="sync">1</b>s ago</span><span class="ok" id="jrnl">journal intact ✓</span><span id="modeTxt">mode: paper</span></div>
   </div>
 </section>
 
@@ -745,13 +746,13 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <span class="pill amber">PAPER · simulated, not onchain</span>
     </div>
     <div class="score-row">
-      <div class="stat"><div class="big" data-count="23">23</div><div class="lbl">trades closed</div></div>
-      <div class="stat"><div class="big g" data-count="13">13</div><div class="lbl">wins</div></div>
-      <div class="stat"><div class="big c" data-count="10">10</div><div class="lbl">losses, same size on purpose</div></div>
-      <div class="stat"><div class="big" data-count="0.184" data-dec="3" data-prefix="+">+0.184</div><div class="lbl">net ETH</div></div>
+      <div class="stat"><div class="big" id="scClosed" data-count="23">23</div><div class="lbl">trades closed</div></div>
+      <div class="stat"><div class="big g" id="scWins" data-count="13">13</div><div class="lbl">wins</div></div>
+      <div class="stat"><div class="big c" id="scLosses" data-count="10">10</div><div class="lbl">losses, same size on purpose</div></div>
+      <div class="stat"><div class="big" id="scNet" data-count="0.184" data-dec="3" data-prefix="+">+0.184</div><div class="lbl">net ETH</div></div>
     </div>
     <div class="spark-wrap" id="sparkWrap">
-      <div class="spark-top"><span>Cumulative paper P&amp;L in ETH · hover the line</span><span>example data</span></div>
+      <div class="spark-top"><span id="spLbl">Cumulative paper P&amp;L in ETH · hover the line</span><span class="example">example data</span></div>
       <svg class="spark" id="spark" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Cumulative profit and loss"></svg>
       <div class="spark-tip" id="sparkTip"></div>
     </div>
@@ -777,7 +778,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   <div class="wrap">
     <a class="brand" href="#top"><span class="face" aria-hidden="true"></span>MOOSE<span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> @MooseOnMuse</a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
-    <p class="legal">MOOSE, powered by Muse. MOOSE is an automated account run by software; its reasoning uses Meta's Muse Spark model through the public API. Not affiliated with Meta, Robinhood or Pons. Not financial advice. Paper trades are simulated and not onchain. Holdings are disclosed in every trade post. All figures on this page are example data.</p>
+    <p class="legal">MOOSE, powered by Muse. MOOSE is an automated account run by software; its reasoning uses Meta's Muse Spark model through the public API. Not affiliated with Meta, Robinhood or Pons. Not financial advice. Paper trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
   </div>
 </footer>
 
@@ -795,6 +796,15 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>');
   const xAct = (cls, icon, n) => `<span class="xp-act ${cls}"><span class="hit">${I(icon)}</span>${n || ""}</span>`;
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@MooseOnMuse · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
+  /* live data: text from X and the news is escaped before it touches the page */
+  const API = "https://api.mooseonmuse.com";
+  let LIVE = false;   // true once real data has loaded; the example animations then stand down
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const shortA = a => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "";
+  const ago = iso => { if (!iso) return ""; const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    return s < 60 ? `${Math.floor(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`; };
+  const hhmm = iso => iso ? new Date(iso).toISOString().slice(11, 16) + " UTC" : "";
+  const setCount = (el, n, dec = 0, pre = "") => { if (!el) return; el.dataset.count = n; el.textContent = pre + (dec ? (+n).toFixed(dec) : fmt(Math.round(n))); };
   const onView = (el, fn, t = .35) => { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { fn(); o.disconnect(); } }, { threshold: t }); o.observe(el); };
 
   addEventListener("scroll", () => $("#nav").classList.toggle("scrolled", scrollY > 8), { passive: true });
@@ -802,8 +812,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   /* count-up (numbers are already visible at rest) */
   $$("[data-count]").forEach(el => onView(el, () => {
     if (reduce) return;
-    const target = +el.dataset.count, dec = +(el.dataset.dec || 0), pre = el.dataset.prefix || "", t0 = performance.now();
-    const step = t => { const p = Math.min(1, (t - t0) / 1300), v = target * (1 - Math.pow(1 - p, 3)); el.textContent = pre + (dec ? v.toFixed(dec) : fmt(Math.round(v))); if (p < 1) requestAnimationFrame(step); };
+    const dec = +(el.dataset.dec || 0), t0 = performance.now();
+    const step = t => { const target = +el.dataset.count, pre = el.dataset.prefix || "", p = Math.min(1, (t - t0) / 1300), v = target * (1 - Math.pow(1 - p, 3)); el.textContent = pre + (dec ? v.toFixed(dec) : fmt(Math.round(v))); if (p < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }, .5));
 
@@ -839,7 +849,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     });
     stage.addEventListener("pointerleave", () => { $$(".float", stage).forEach(f => f.style.transform = ""); coins.forEach(c => c.el.style.transform = ""); });
     addEventListener("scroll", () => { coins.filter(c => !stage.contains(c.el)).forEach(c => { const r = c.el.parentElement.getBoundingClientRect(); c.el.style.transform = `translateY(${(r.top - innerHeight / 2) * -.06 * c.depth}px)`; }); }, { passive: true });
-    let hp = 91; setInterval(() => { hp = hp >= 95 ? 88 : hp + 1; $("#heroBar").style.width = hp + "%"; $("#heroBarTxt").textContent = `curve ${hp}% · buys speeding up`; }, 2600);
+    let hp = 91; setInterval(() => { if (LIVE) return; hp = hp >= 95 ? 88 : hp + 1; $("#heroBar").style.width = hp + "%"; $("#heroBarTxt").textContent = `curve ${hp}% · buys speeding up`; }, 2600);
   }
 
   /* ---------- 2 SCALE ---------- */
@@ -850,7 +860,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const pulseTile = () => {
     const t = pick(tileEls.filter(x => !x.classList.contains("star")));
     t.className = "tile new"; setTimeout(() => { t.className = "tile"; }, 700); setTimeout(() => { t.className = "tile dead"; }, 4200 + rnd(0, 3000));
-    launches++; $("#bigCount").textContent = fmt(launches); $("#fn0").textContent = fmt(launches);
+    if (!LIVE) { launches++; $("#bigCount").textContent = fmt(launches); $("#fn0").textContent = fmt(launches); }
   };
   onView($("#scale"), () => {
     $$(".funnel .fb[data-s]").forEach(b => b.style.transform = `scaleX(${b.dataset.s})`);
@@ -859,7 +869,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   $$(".funnel .fb[data-s]").forEach(b => b.style.transform = `scaleX(${reduce ? b.dataset.s : 0})`);
 
   /* ---------- 3 LISTENS ---------- */
-  const sources = [
+  let sources = [
     { ic: B("x"), bg: "#000", who: "@loudtrader", where: "X · 14:01", txt: 'hearing $HATCH gets a big listing 👀 <code>0x47a3…94d4</code>',
       lead: { h: "$HATCH listing rumour", st: ["sand", "rumour · 1 source"], rows: [["Said by", "5 accounts"], ["All citing", "the same unnamed post"], ["Counted as", "1 claim"]], note: "5 reposts of one rumour count once. It can't trigger a trade alone." } },
     { ic: B("twitch"), bg: "#9146FF", who: "streamer · live", where: "Twitch · 14:04 · 2:05 in", txt: 'the contract is <code>0x47a3…94d4</code>, I\'m in',
@@ -868,8 +878,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       lead: { h: "HATCH v1 launch post", st: ["green", "first-party · verified link"], rows: [["Published", "13:58 UTC"], ["Links the exact contract", "yes"], ["Counts toward a buy", "yes"]], note: null } },
   ];
   const srcs = $("#srcs"), leadCard = $("#leadCard");
-  srcs.innerHTML = sources.map((s, i) => `<button class="src" type="button" aria-pressed="${i === 2}" data-i="${i}"><div class="src-top"><span class="src-ic" style="background:${s.bg}">${s.ic}</span><b>${s.who}</b><span>${s.where}</span></div><p>${s.txt}</p></button>`).join("");
-  let srcI = 2;
+  const renderSrcs = () => { srcs.innerHTML = sources.map((s, i) => `<button class="src" type="button" aria-pressed="${i === srcI}" data-i="${i}"><div class="src-top"><span class="src-ic" style="background:${s.bg}">${s.ic}</span><b>${s.who}</b><span>${s.where}</span></div><p>${s.txt}</p></button>`).join(""); };
+  let srcI = 2; renderSrcs();
   const drawWires = () => {
     const svg = $("#wires"), panel = $("#listenPanel"), pr = panel.getBoundingClientRect(), hub = $(".hub .ring").getBoundingClientRect(), lr = leadCard.getBoundingClientRect();
     if (!hub.width) { svg.innerHTML = ""; return; }
@@ -890,7 +900,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   if (document.fonts) document.fonts.ready.then(drawWires);
 
   /* ---------- 4 VERIFY ---------- */
-  const leads = [
+  let leads = [
     { a: "0x47a3…94d4", src: "heard on a Twitch stream", k: "tw", fail: -1 },
     { a: "0x9c1e…0b7a", src: "posted on X", k: "x", fail: 0, why: "It's a Solana token" },
     { a: "0x3fd2…e901", src: "stream chat", k: "tw", fail: 1, why: "Not a Pons launch" },
@@ -904,11 +914,12 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     d.innerHTML = `<span class="src-ic" style="background:${SRC[1]}">${SRC[0]}</span><span><b>${L.a}</b><span class="why">${L.fail === -1 ? "Verified · sent to the AI" : L.why}</span></span><span class="st">${I(L.fail === -1 ? "check" : "x")}</span>`;
     pile.prepend(d); while (pile.children.length > 7) pile.lastChild.remove(); };
   let checkedToday = 1284;
+  const refillPile = () => { pile.innerHTML = ""; leads.slice(1).reverse().forEach(addPile); $("#pileCount").textContent = `${pile.children.length} of ${fmt(checkedToday)} today`; };
   [5, 4, 3, 2, 1].forEach(i => addPile(leads[i]));
-  let li = 0, running = false;
+  let li = 0, running = false, gen = 0;
   const runLead = async () => {
     if (running) return; running = true; runBtn.disabled = true;
-    const L = leads[li++ % leads.length], wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
+    const myGen = gen, L = leads[li++ % leads.length], wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
     $("#tkAddr").textContent = L.a; const SRCI = { x: [B("x"), "#000"], tw: [B("twitch"), "#9146FF"], news: [I("newspaper"), "#0064E0"] }[L.k];
     $("#tkIc").innerHTML = SRCI[0]; $("#tkIc").style.background = SRCI[1];
     $("#tkSrc").textContent = { "heard on a Twitch stream": "Heard on a Twitch stream", "posted on X": "Posted on X", "stream chat": "Said in Twitch chat", "5 posts on X": "5 posts on X", "a news article": "In a news article" }[L.src] || L.src;
@@ -916,17 +927,20 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     verdict.className = "verdict"; verdict.innerHTML = `${I("shield-check")}<span>Checking…</span>`;
     for (let i = 0; i < 4; i++) {
       await wait(520);
-      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".stt").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.className = "verdict no"; verdict.innerHTML = `${I("circle-stop")}<span><b>Stopped.</b> ${L.why}. It never reaches the AI.</span>`; break; }
+      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".stt").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.className = "verdict no"; verdict.innerHTML = L.fail === 3 ? `${I("circle-stop")}<span><b>Real launch, but ${L.why.toLowerCase()}.</b> Muse can watch it, never buy on it alone.</span>` : `${I("circle-stop")}<span><b>Stopped.</b> ${L.why}. It never reaches the AI.</span>`; break; }
       stamps[i].className = "stamp pass"; stamps[i].querySelector(".stt").innerHTML = I("check");
     }
     if (L.fail === -1) { verdict.className = "verdict ok"; verdict.innerHTML = `${I("shield-check")}<span><b>All four passed.</b> Sent to the AI.</span>`; }
-    addPile(L); checkedToday++; $("#pileCount").textContent = `${pile.children.length} of ${fmt(checkedToday)} today`; running = false; runBtn.disabled = false;
+    running = false; runBtn.disabled = false;
+    if (myGen !== gen) { if (LIVE) runLead(); return; }  // data changed mid-run: show a real lead instead
+    if (!LIVE) { addPile(L); checkedToday++; }  // live: the pile is the real list; replays only animate the card
+    $("#pileCount").textContent = `${pile.children.length} of ${fmt(checkedToday)} today`;
   };
   runBtn.addEventListener("click", runLead);
   onView($("#verify"), runLead, .45);
 
   /* ---------- 5 THINKS (chat) ---------- */
-  const talks = [
+  let talks = [
     { sym: "$HATCH", act: ["solid-blue", "BUY"], why: "Real news + real buying", time: "14:06 UTC", conf: .72,
       open: "New candidate: $HATCH · curve 91% · 4/4 checks passed",
       bot: ["The team's own post links this exact contract, and the chain confirms it's a real Pons launch in the genuine pool.", "Buyers are speeding up across 5 minutes, 15 minutes and an hour, from 38 different wallets. The creator hasn't bought any."],
@@ -950,7 +964,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       gates: [["coral", "blocked: deployer concentration"], ["coral", "blocked: wash-trading clues"]] },
   ];
   const picksEl = $("#picks"), msgs = $("#msgs");
-  picksEl.innerHTML = talks.map((t, i) => `<button class="pick" role="tab" aria-selected="${i === 0}" data-i="${i}"><span><span class="sym">${t.sym}</span><br><span class="why">${t.why}</span></span><span class="pill ${t.act[0]}">${t.act[1]}</span></button>`).join("");
+  const renderPicks = () => { picksEl.innerHTML = talks.map((t, i) => `<button class="pick" role="tab" aria-selected="${i === 0}" data-i="${i}"><span><span class="sym">${t.sym}</span><br><span class="why">${t.why}</span></span><span class="pill ${t.act[0]}">${t.act[1]}</span></button>`).join(""); };
+  renderPicks();
   let run = 0;
   const say = (html, cls) => { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; msgs.appendChild(d); msgs.scrollTop = msgs.scrollHeight; return d; };
   const typingFor = async (ms, id) => { if (reduce) return; const t = document.createElement("div"); t.className = "typing"; t.innerHTML = "<i></i><i></i><i></i>"; msgs.appendChild(t); msgs.scrollTop = msgs.scrollHeight; await new Promise(r => setTimeout(r, ms)); t.remove(); };
@@ -972,11 +987,11 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   say(talks[0].open, "sys");
 
   /* ---------- 6 LIVE ---------- */
-  const watch = [
+  let watch = [
     { s: "HATCH", p: 91, st: "bought", c: "blue" }, { s: "PIXEL", p: 87, st: "watching", c: "beige" },
     { s: "ANONPAD", p: 100, st: "graduated", c: "white" }, { s: "JOLLY", p: 88, st: "passed", c: "beige" },
   ];
-  const positions = [
+  let positions = [
     { s: "HATCH", entry: .05, c: "blue", age: "18m", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
     { s: "MOSS", entry: .05, c: "beige", age: "3h", hist: [.05, .0492, .0488, .0495, .0479, .0468, .0472, .0455, .0449, .0437] },
   ];
@@ -986,23 +1001,24 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
     $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, w.c === "white")}<div><b>$${w.s}</b><small class="${w.st === "bought" ? "bought" : ""}">${w.st}</small></div><div class="pring ${w.p >= 100 ? "done" : ""}"><svg viewBox="0 0 44 44"><circle class="bg" cx="22" cy="22" r="19"/><circle class="fg" cx="22" cy="22" r="19" stroke-dasharray="${RC}" stroke-dashoffset="${RC * (1 - w.p / 100)}"/></svg><span>${w.p}%</span></div></div>`).join("");
-    $("#posList").innerHTML = positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(2)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
+    $("#posList").innerHTML = (LIVE && !positions.length) ? `<p class="empty">No open trades right now. MOOSE only buys with a verified source.</p>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(2)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
   };
   renderLive();
   $("#nextPost").innerHTML = `<div class="xtl">${xPost({ t: "2m", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." })}</div>`;
   let blk = 70556234, since = 1;
   if (!reduce) {
     setInterval(() => {
+      if (LIVE) return;
       blk += Math.floor(rnd(8, 14)); since = 0; $("#blk").textContent = fmt(blk);
       watch.forEach(w => { if (w.p < 100) w.p = Math.max(80, Math.min(99, w.p + Math.round(rnd(-1, 2)))); });
       positions.forEach(p => { p.hist.push(Math.max(.02, p.hist.at(-1) * (1 + rnd(-.02, .022)))); if (p.hist.length > 14) p.hist.shift(); });
       renderLive(Math.floor(rnd(0, watch.length)));
     }, 2500);
-    setInterval(() => { since++; $("#sync").textContent = since; }, 1000);
+    setInterval(() => { if (!LIVE) { since++; $("#sync").textContent = since; } }, 1000);
   }
 
   /* ---------- 8 RECORD: live feed of floating X posts ---------- */
-  const feedPosts = [
+  let feedPosts = [
     { t: "2m", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
     { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −25.3%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
     { t: "31m", body: "Passing on $JOLLY. The deployer bought 52% of its own curve. That isn't demand.", s: [9, 5, 41, 3900] },
@@ -1011,16 +1027,18 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   ];
   const kfmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
   const slots = $$(".ftw"); let nextPost = 3;
-  const fill = (slot, p) => { slot.querySelector(".xtl").innerHTML = xPost({ ...p, s: p.s.map(kfmt) }); slot.dataset.i = feedPosts.indexOf(p); };
+  const fill = (slot, p) => { slot.querySelector(".xtl").innerHTML = xPost({ ...p, s: (p.s || []).map(kfmt) }); slot.dataset.i = feedPosts.indexOf(p); };
   slots.forEach((slot, i) => fill(slot, feedPosts[i]));
   if (!reduce) {
     let turn = 0;
     setInterval(() => {   // a new post arrives from the laptop and replaces the oldest one
+      if (feedPosts.length <= slots.length) return;  // nothing new to rotate in
       const slot = slots[turn++ % slots.length];
       fill(slot, feedPosts[nextPost++ % feedPosts.length]);
       slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
     }, 5200);
-    setInterval(() => {   // likes and views keep ticking up
+    setInterval(() => {   // likes and views keep ticking up (example posts only; real metrics aren't fetched)
+      if (LIVE) return;
       const slot = pick(slots), p = feedPosts[+slot.dataset.i];
       p.s[2] += 1 + Math.floor(Math.random() * 3); p.s[3] += 20 + Math.floor(Math.random() * 90);
       const acts = slot.querySelectorAll(".xp-act");
@@ -1030,13 +1048,170 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   }
 
   /* ---------- 9 SCORE sparkline ---------- */
-  const pnl = [0, .012, .004, -.013, .008, .031, .022, .046, .038, .029, .061, .074, .052, .088, .097, .081, .115, .132, .12, .149, .161, .158, .184];
-  const sp = $("#spark"), SW = 1000, SH = 200, pad = 12, mn = Math.min(...pnl), mx = Math.max(...pnl);
-  const px = i => i / (pnl.length - 1) * SW, py = v => pad + (1 - (v - mn) / (mx - mn)) * (SH - pad * 2);
-  const pts = pnl.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" L ");
-  sp.innerHTML = `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0082FB" stop-opacity=".45"/><stop offset="1" stop-color="#0082FB" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${SW}" y1="${py(0)}" y2="${py(0)}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/><path d="M ${pts} L ${SW},${SH} L 0,${SH} Z" fill="url(#sg)"/><path d="M ${pts}" fill="none" stroke="#4DA8FF" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line id="spX" x1="0" x2="0" y1="0" y2="${SH}" stroke="#fff" stroke-opacity="0" vector-effect="non-scaling-stroke"/><circle id="spEnd" cx="${px(pnl.length - 1)}" cy="${py(pnl.at(-1))}" r="5" fill="#fff"/>`;
+  let pnl = [0, .012, .004, -.013, .008, .031, .022, .046, .038, .029, .061, .074, .052, .088, .097, .081, .115, .132, .12, .149, .161, .158, .184];
+  const sp = $("#spark"), SW = 1000, SH = 200, pad = 12;
+  let mn, mx, px, py;
+  const drawSpark = () => {
+  const series = pnl.length > 1 ? pnl : [0, 0];
+  mn = Math.min(...series, 0); mx = Math.max(...series, 0); if (mx === mn) { mx += .01; mn -= .01; }
+  px = i => i / (series.length - 1) * SW; py = v => pad + (1 - (v - mn) / (mx - mn)) * (SH - pad * 2);
+  const pts = series.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" L ");
+  sp.innerHTML = `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0082FB" stop-opacity=".45"/><stop offset="1" stop-color="#0082FB" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${SW}" y1="${py(0)}" y2="${py(0)}" stroke="#fff" stroke-opacity=".25" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/><path d="M ${pts} L ${SW},${SH} L 0,${SH} Z" fill="url(#sg)"/><path d="M ${pts}" fill="none" stroke="#4DA8FF" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line id="spX" x1="0" x2="0" y1="0" y2="${SH}" stroke="#fff" stroke-opacity="0" vector-effect="non-scaling-stroke"/><circle id="spEnd" cx="${px(series.length - 1)}" cy="${py(series.at(-1))}" r="5" fill="#fff"/>`;
+  };
+  drawSpark();
   const sTip = $("#sparkTip"), sWrap = $("#sparkWrap");
-  sp.addEventListener("pointermove", e => { const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .3); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
+  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .3); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
+
+  /* ---------- LIVE DATA: everything above starts as example data, then this swaps in the real thing ---------- */
+  const KIND = { x: [B("x"), "#000", "X"], news: [I("newspaper"), "#0064E0", "News"], twitch_transcript: [B("twitch"), "#9146FF", "Twitch"],
+    twitch_chat: [B("twitch"), "#9146FF", "Twitch chat"], manual: [I("notebook-pen"), "#1C2B33", "Note"] };
+  const CONF = { verified: ["green", "verified"], first_party: ["green", "first-party"], reported: ["blue", "reported"], rumor: ["sand", "rumour"], sentiment: ["sand", "chatter"] };
+  const buyGrade = c => ["verified", "first_party", "reported"].includes(c);
+  const cut = (t, n) => { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
+  const hl = t => esc(t).replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${shortA(m)}</code>`);
+  const kindOf = k => KIND[k] || KIND.manual;
+  const hide = el => { if (el) el.style.display = "none"; };
+  const hideFloat = id => hide($(id)?.closest(".float"));
+  let syncedAt = 0;
+  const seen = { decisions: "", sources: "", leads: "", posts: "" };
+
+  const hydrate = d => {
+    LIVE = true;
+    document.body.classList.toggle("killed", !!d.kill_switch?.on);
+    $$(".example").forEach(hide);
+    $("#dataNote").textContent = "Figures on this page are live from MOOSE's public API.";
+    const f = d.funnel, st = d.stats;
+
+    /* hero */
+    setCount($("#hsLaunch"), f.launched_24h); setCount($("#hsClaims"), st.claims_checked_24h); setCount($("#hsPosts"), st.posts_sent);
+    $("#hsPostsLbl").textContent = "posts on X";
+    const top = d.watching[0];
+    if (top) {
+      const p = Math.round((top.progress || 0) * 100);
+      $("#hfWatch").textContent = `Watching $${top.symbol || "?"}`; $("#heroBar").style.width = p + "%";
+      $("#heroBarTxt").textContent = top.stage === "migrated" ? "graduated · trading in its pool" : `curve ${p}% · ${top.status}`;
+    } else hideFloat("#hfWatch");
+    const lead = d.leads.find(l => l.status === "verified");
+    if (lead) {
+      $("#hfLead").textContent = `${lead.symbol ? "$" + lead.symbol + " · " : ""}${shortA(lead.address)} is a real Pons launch`;
+      $("#hfChecks").lastChild.textContent = buyGrade(lead.source_confidence) ? " 4/4 checks" : " 3/4 checks";
+    } else hideFloat("#hfLead");
+    const call = d.decisions.find(x => x.action === "buy") || d.decisions.find(x => x.action === "watch");
+    if (call) {
+      $("#hfCallPill").textContent = call.action === "buy" ? "PAPER BUY" : "WATCH";
+      $("#hfCallSym").textContent = "$" + (call.symbol || "?");
+      $("#hfCallTxt").textContent = cut(call.risks[0] ? "risk: " + call.risks[0] : call.thesis, 46);
+    } else hideFloat("#hfCallPill");
+    const pass = d.decisions.find(x => x.action === "pass");
+    if (pass) { $("#hfPassSym").textContent = "$" + (pass.symbol || "?"); $("#hfPassTxt").textContent = cut(pass.reasons[0] || pass.thesis, 46); }
+    else hideFloat("#hfPassSym");
+
+    /* scale: the day's funnel, bars on a log scale so 1 in 10,000 still shows */
+    $("#bigCount").textContent = fmt(f.launched_24h);
+    [f.launched_24h, f.near_graduation, f.screened_24h, f.traded_24h].forEach((n, i) => { $("#fn" + i).textContent = fmt(n); });
+    $("#fl2").textContent = "Passed the screen"; $("#fl3").textContent = "Traded";
+    const L0 = Math.log10(f.launched_24h + 1) || 1;
+    $$(".funnel .fb[data-s]").forEach((b, i) => {
+      const n = [f.near_graduation, f.screened_24h, f.traded_24h][i];
+      b.dataset.s = Math.max(.02, Math.log10(n + 1) / L0).toFixed(3); b.style.transform = `scaleX(${b.dataset.s})`;
+    });
+    $("#tilesStar").textContent = top ? `worth a look: $${top.symbol || "?"}` : "worth a look";
+
+    /* listening: the newest real source of each kind */
+    const sk = JSON.stringify(d.sources.map(x => x.id));
+    if (d.sources.length && sk !== seen.sources) {
+      seen.sources = sk;
+      sources = d.sources.map(x => {
+        const K = kindOf(x.kind), C = CONF[x.confidence] || ["sand", x.confidence], who = x.author || x.channel || K[2];
+        const ld = x.lead;
+        const contract = !ld ? "none named"
+          : ld.status === "verified" ? `${shortA(ld.address)} ✓ real Pons launch${ld.symbol ? " ($" + ld.symbol + ")" : ""}`
+          : ld.status === "rejected" ? `${shortA(ld.address)} ✗ ${ld.verify_note}` : `${shortA(ld.address)} · checking`;
+        return { ic: K[0], bg: K[1], who: esc(cut(who, 26)), where: `${K[2]} · ${hhmm(x.at)}`, txt: hl(cut(x.excerpt, 150)),
+          lead: { h: esc(ld?.symbol ? `$${ld.symbol} mentioned` : cut(x.excerpt, 48)),
+                  st: [C[0], `${C[1]} · ${!buyGrade(x.confidence) ? "can't trigger a buy alone" : ld?.status === "verified" ? "can back a buy" : "names no token"}`],
+                  rows: [["Said by", esc(cut(who, 30))], ["When", hhmm(x.at)], ["Contract", esc(contract)]],
+                  note: !buyGrade(x.confidence) ? "Rumours and chatter can put a token on the watch list. They never trigger a buy on their own."
+                    : ld?.status === "verified" ? null : "General news. It only counts toward a buy when it names a contract that checks out onchain." } };
+      });
+      srcI = 0; renderSrcs(); showSrc(srcI);
+    }
+
+    /* checking: real onchain lead checks */
+    const lk = JSON.stringify(d.leads.map(x => x.id));
+    if (d.leads.length && lk !== seen.leads) {
+      seen.leads = lk;
+      leads = d.leads.map(l => {
+        const k = l.source_kind === "x" ? "x" : l.source_kind === "news" ? "news" : "tw";
+        let fail = -1, why = "";
+        if (l.status === "rejected") { fail = /refers to/.test(l.verify_note || "") ? 0 : 1; why = cut(l.verify_note, 60); }
+        else if (!buyGrade(l.source_confidence)) { fail = 3; why = "Only a rumour so far"; }
+        return { a: (l.symbol ? `$${l.symbol} · ` : "") + shortA(l.address), k, fail, why,
+                 src: { x: "posted on X", news: "a news article", tw: "heard on a Twitch stream" }[k] };
+      });
+      checkedToday = st.claims_checked_24h; li = 0; gen++; refillPile();
+      if (!running) runLead();
+    }
+
+    /* thinking: Muse's actual reasoning on real tokens */
+    const dk = JSON.stringify(d.decisions.map(x => x.id));
+    if (d.decisions.length && dk !== seen.decisions) {
+      seen.decisions = dk;
+      talks = d.decisions.map(x => {
+        if ((x.thesis || "").replace(/[^a-z0-9]/gi, "").length < 8) x.thesis = "";  // ignore a garbled one-word thesis
+        const sym = "$" + esc(x.symbol || "?");
+        const act = { buy: ["solid-blue", "BUY"], watch: ["sand", "WATCH"], pass: ["ink", "PASS"] }[x.action] || ["ink", x.action.toUpperCase()];
+        return { sym, act, why: esc(cut(x.thesis || x.reasons[0] || x.action, 38)), time: hhmm(x.ts), conf: x.confidence || 0,
+          open: `New candidate: ${sym} · ${x.stage === "migrated" ? "graduated · genuine pool found" : `curve ${Math.round((x.progress || 0) * 100)}%`} · checked onchain`,
+          bot: [x.thesis, ...x.reasons.slice(0, 2)].filter(Boolean).map(t => esc(t)),
+          att: x.evidence.map(e => { const K = kindOf(e.kind); return [K[0], K[1], esc(cut(e.author || e.channel || K[2], 30)), `${(CONF[e.confidence] || ["", e.confidence])[1]} · ${hhmm(e.at)}`, false]; }),
+          lesson: null, risk: esc(x.risks[0] || "Not stated."),
+          gates: x.gates.length ? x.gates.map(g => ["coral", "blocked: " + esc(g)]) : [["green", "onchain checks ✓"], ["green", "screen passed ✓"]] };
+      });
+      renderPicks();
+      if (run > 0) playTalk(0); else { msgs.innerHTML = ""; say(talks[0].open, "sys"); }
+    }
+
+    /* live */
+    watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), p: Math.round((w.progress || 0) * 100),
+      st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6] }));
+    positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
+      hist: p.marks.length > 1 ? p.marks : [p.entry_eth, p.entry_eth] }));
+    renderLive();
+    if (!watch.length) $("#wl").innerHTML = `<p class="empty">Nothing close to graduating right now.</p>`;
+    $("#slotsTxt").textContent = `${positions.length} of ${d.slots} slots`;
+    const np = d.next_post, last = d.posts[0];
+    $("#npPill").textContent = np ? "queued" : "last post";
+    $("#nextPost").innerHTML = np ? `<div class="xtl">${xPost({ t: "now", body: esc(np.body) })}</div>`
+      : last ? `<div class="xtl">${xPost({ t: ago(last.sent_at), body: esc(last.body) })}</div>` : `<p class="empty">Nothing queued.</p>`;
+    $("#postsTxt").textContent = `${d.posts_24h} post${d.posts_24h === 1 ? "" : "s"} in the last 24h`; hide($("#postDots"));
+    $("#blk").textContent = fmt(d.chain.block || 0); syncedAt = Date.parse(d.chain.synced_at) || 0;
+    $("#jrnl").textContent = d.chain.journal_intact ? "journal intact ✓" : "journal check failed";
+    $("#modeTxt").textContent = `mode: ${d.mode}`;
+
+    /* on the record: real posts from @MooseOnMuse */
+    const pk = JSON.stringify(d.posts.map(p => p.x_post_id));
+    if (d.posts.length && pk !== seen.posts) {
+      seen.posts = pk;
+      feedPosts = d.posts.map(p => ({ t: ago(p.sent_at), body: esc(p.body) }));
+      slots.forEach((slot, i) => { slot.style.display = feedPosts[i] ? "" : "none"; if (feedPosts[i]) fill(slot, feedPosts[i]); });
+      nextPost = slots.length;
+    }
+
+    /* scorecard */
+    const sc = d.score;
+    setCount($("#scClosed"), sc.closed); setCount($("#scWins"), sc.wins); setCount($("#scLosses"), sc.losses);
+    const net = $("#scNet"); net.dataset.prefix = sc.net_eth >= 0 ? "+" : ""; setCount(net, sc.net_eth, 3, net.dataset.prefix);
+    pnl = sc.series; drawSpark();
+    $("#spLbl").textContent = sc.closed ? "Cumulative paper P&L in ETH · hover the line" : "No closed trades yet. The line starts with the first one.";
+  };
+  setInterval(() => { if (LIVE && syncedAt) $("#sync").textContent = Math.max(0, Math.round((Date.now() - syncedAt) / 1000)); }, 1000);
+  const load = async () => {
+    try { const r = await fetch(API + "/site", { cache: "no-store" }); if (!r.ok) throw new Error(r.status); hydrate(await r.json()); }
+    catch (e) { console.warn("live data unavailable, showing example data", e); }
+  };
+  load(); setInterval(load, 30000);
+
 })();
 </script>
