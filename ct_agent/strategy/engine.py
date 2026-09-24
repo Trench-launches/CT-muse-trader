@@ -185,9 +185,11 @@ def _market_cap(ctx: Context, token: str, price_eth: float | None) -> str:
     try:
         if not price_eth:
             return ""
+        row = ctx.conn.execute("SELECT decimals, quote_symbol FROM launches WHERE token=?", (token,)).fetchone()
+        if row and row["quote_symbol"] and row["quote_symbol"] != "ETH":
+            return ""  # priced in a stock token or stablecoin: the price isn't in ETH
         supply = kv_get(ctx.conn, f"supply:{token.lower()}")
         if supply is None:
-            row = ctx.conn.execute("SELECT decimals FROM launches WHERE token=?", (token,)).fetchone()
             dec = row["decimals"] if row and row["decimals"] is not None else 18
             supply = ctx.pons.total_supply(token) / 10 ** dec
             kv_set(ctx.conn, f"supply:{token.lower()}", supply)
