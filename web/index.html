@@ -3,7 +3,9 @@
 <title>MooseOnMuse</title>
 <meta name="description" content="MOOSE reads thousands of new memecoins a day on Robinhood Chain, checks every claim onchain and trades the rare good ones in public. Losses included.">
 <link rel="canonical" href="https://www.mooseonmuse.com/">
-<link rel="icon" href="/assets/moose.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon-64.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.mooseonmuse.com/">
 <meta property="og:title" content="MOOSE, powered by Muse">
@@ -15,6 +17,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<!-- preloader: the MOOSE letters are slices of the 3D render; "powered by Muse" is Fredoka (just its letters) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&text=powerdbyMus&display=swap">
+<link rel="preload" as="image" href="assets/moose-l0.webp"><link rel="preload" as="image" href="assets/moose-l1.webp">
+<link rel="preload" as="image" href="assets/moose-l2.webp"><link rel="preload" as="image" href="assets/moose-l3.webp">
+<link rel="preload" as="image" href="assets/moose-l4.webp">
 <style>
 /* MOOSE landing page, v2. Layout language: big centred headlines, large soft-gradient
    panels, clean product cards floating on top. Every section is sized to fit one screen.
@@ -153,12 +160,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .xp-act.vw:hover { color: #1D9BF0; } .xp-act.vw:hover .hit { background: rgba(29,155,240,.1); }
 .xp-end { display: flex; }
 .xp-end .xp-act:hover { color: #1D9BF0; } .xp-end .xp-act:hover .hit { background: rgba(29,155,240,.1); }
-.face { width: 34px; height: 34px; border-radius: 50%; background: var(--sand) url("assets/moose.png") 50% 24% / 250% no-repeat; box-shadow: 0 0 0 1px var(--line); flex: none; }
+.face { width: 34px; height: 34px; background: url("assets/moose-face.webp") center / contain no-repeat; flex: none; }
 
 /* coins (placeholder decor until the generated 3D coins arrive) */
 .coin { position: absolute; pointer-events: none; will-change: transform; transition: transform .6s var(--ease); filter: drop-shadow(0 14px 18px rgba(0,60,140,.18)); z-index: 1; }
 .coin svg { width: 100%; height: 100%; display: block; }
 .coin .inner { animation: floaty 6s ease-in-out infinite; }
+.coin .inner { width: 100%; height: 100%; }
+.glyph .gl { width: 100%; height: 100%; display: grid; place-items: center; border-radius: 30%;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -4px 8px rgba(28,43,51,.08), 0 0 0 1px rgba(28,43,51,.06); }
+.glyph .gl .ic { width: 48%; height: 48%; vertical-align: 0; }
+.glyph.link { pointer-events: auto; cursor: pointer; z-index: 4; }
+.glyph.link .gl { transition: transform .35s var(--spring), box-shadow .3s; }
+.glyph.link:hover .gl { transform: scale(1.1); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 0 0 1px rgba(28,43,51,.1), 0 10px 22px -8px rgba(15,20,25,.35); }
 @keyframes floaty { 0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); } 50% { transform: translateY(-12px) rotate(calc(var(--rot, 0deg) + 6deg)); } }
 
 /* ---------- NAV ---------- */
@@ -166,6 +180,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .nav.scrolled { border-bottom-color: var(--line); }
 .nav .wrap { display: flex; align-items: center; gap: 20px; height: 64px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--f-display); font-size: 25px; font-weight: 600; letter-spacing: -0.01em; }
+/* wordmark: the 3D MOOSE render */
+.wordmark { display: block; height: 28px; width: auto; }
+
+/* ---------- PRELOADER: letters rise and fade in one by one, then "powered by Muse"; 2s, then it fades away ---------- */
+.preload { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: var(--white); animation: plOut .45s ease 2s forwards; }
+@keyframes plOut { to { opacity: 0; visibility: hidden; } }
+.pl-word { display: flex; justify-content: center; gap: 0; height: clamp(56px, 12vw, 96px); }
+.pl-word img { height: 100%; width: auto; opacity: 0; transform: translateY(45%); animation: plIn .6s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(var(--i) * .13s); }
+@keyframes plIn { to { opacity: 1; transform: none; } }
+.pl-sub { margin-top: 14px; text-align: center; font-family: "Fredoka", var(--f-body); font-weight: 600; font-size: clamp(15px, 1.6vw, 18px); letter-spacing: .02em; color: var(--ink-3); }
+.pl-sub span { display: inline-block; white-space: pre; opacity: 0; transform: translateY(70%); animation: plIn .45s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(.75s + var(--i) * .045s); }
+.pl-sub .mu { color: var(--blue); }
+.pl-sub .st { color: var(--blue); }
+.pl-sub .st .ic { width: .95em; height: .95em; vertical-align: -0.12em; }
 .brand-tag { font-family: var(--f-body); font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--ink-3); display: inline-flex; align-items: center; gap: 4px; margin-left: 2px; }
 .brand-tag .ic { color: var(--blue); }
 .kickers { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
@@ -386,12 +414,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (max-width: 1000px) { .think .wrap { grid-template-columns: 1fr; } .think .chat-panel { order: 0; height: 560px; } }
 
 /* ---------- 6 LIVE ---------- */
-.live-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; text-align: left; }
+.live-grid { margin-top: clamp(32px, 6vh, 72px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3.4vw, 56px); align-items: stretch; text-align: left; }
 .lc { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); padding: clamp(14px, 2.2vh, 20px) 20px; display: flex; flex-direction: column; gap: clamp(8px, 1.5vh, 14px); }
-.lc { box-shadow: 0 1px 2px rgba(28,43,51,.06), 0 18px 40px -18px rgba(28,43,51,.18), 0 34px 60px -34px rgba(0,130,251,.55);
-      transition: transform .5s var(--spring), box-shadow .5s var(--ease); }
+.lc { transition: transform .5s var(--spring); }
 .lc:nth-child(1) { transform: rotate(-1.2deg); } .lc:nth-child(2) { transform: rotate(.8deg); } .lc:nth-child(3) { transform: rotate(-.6deg); }
-.lc:hover { transform: translateY(-4px); box-shadow: 0 1px 2px rgba(28,43,51,.06), 0 22px 44px -18px rgba(28,43,51,.2), 0 40px 70px -32px rgba(0,130,251,.65); }
+.lc:hover { transform: translateY(-4px); }
 .lc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lc-h h4 { font-family: var(--f-display); font-weight: 500; font-size: var(--t-xl); letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
 .lc-h .ic-b { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); }
@@ -435,30 +462,31 @@ body.killed .pring .fg { stroke: var(--ink-3); }
 body.killed .paused-note { display: block; }
 @media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } }
 
-/* ---------- 8 RECORD ---------- */
-#record { --stage: clamp(460px, calc(var(--fit) - 160px), 640px); }
-.record-grid { margin-top: clamp(56px, 7vh, 88px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 72px); align-items: center; }
-.desk { display: block; justify-self: center; width: auto; max-width: 100%; height: auto; max-height: min(820px, calc(var(--stage) * 1.3)); pointer-events: none; filter: drop-shadow(0 30px 40px rgba(15,20,25,.06)); }
-.post-stage { position: relative; min-height: var(--stage); display: flex; flex-direction: column; justify-content: space-between; gap: 20px; }
-.ftw { position: relative; z-index: 2; width: min(420px, 86%); animation: tweetfloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
-.ftw .xtl { border-color: #CFD9DE; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); }
-.ftw .xp { cursor: default; }
-.ftw .xp:hover { background: #FFFFFF; }
-/* every card is the same height whatever the post says, so swapping a post never moves anything:
-   the text box is always 6 lines tall and longer posts end in an ellipsis */
-.ftw .xp-text { height: 120px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; }
-.ftw.pop .xtl { animation: tweetpop .6s var(--spring); }
-.ftw-0 { align-self: flex-start; --r: -2deg; --d: 7s; }
-.ftw-1 { align-self: flex-end; --r: 2deg; --d: 8.5s; --delay: -3s; }
-.ftw-2 { align-self: flex-start; margin-left: 6%; --r: -1deg; --d: 7.8s; --delay: -5s; }
-@keyframes tweetfloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-14px) rotate(calc(var(--r) + 1.2deg)); } }
-@keyframes tweetpop { from { opacity: 0; transform: translateY(40px) scale(.9); } to { opacity: 1; transform: none; } }
+/* ---------- 8 RECORD: copy on the left, one X timeline on the right; always fits one screen ---------- */
+.record .wrap { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
+.rec-stats { display: flex; gap: clamp(22px, 3vw, 44px); margin-top: clamp(18px, 3vh, 30px); }
+.rec-stats b { display: block; font-family: var(--f-display); font-weight: 500; font-size: clamp(30px, min(3vw, 5vh), 46px); letter-spacing: -0.04em; line-height: 1; }
+.rec-stats span { display: block; margin-top: 6px; font-size: var(--t-sm); color: var(--ink-2); }
+.record .ctas { justify-content: flex-start; margin-top: clamp(18px, 3vh, 30px); }
+.rec-panel { position: relative; overflow: visible; height: clamp(440px, var(--fit), 640px); padding: clamp(16px, 2.6vh, 30px); display: flex; justify-content: flex-end; }
+/* two tweet cards float in the panel; every 5s one swaps post. Each is a fixed height (text is always
+   5 lines), so a swap never moves anything */
+.rec-card { position: absolute; z-index: 2; width: min(400px, 64%); animation: recFloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+.rec-card-0 { top: 7%; right: 4%; --r: 1.4deg; }
+.rec-card-1 { bottom: 8%; right: 3%; --r: -1.6deg; --d: 8.5s; --delay: -3s; }
+@keyframes recFloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-12px) rotate(calc(var(--r) * .4)); } }
+.rec-card .xtl { border-color: #E1E8ED; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); transition: opacity .3s ease, transform .3s ease; }
+.rec-card .xtl.out { opacity: 0; transform: translateY(10px) scale(.98); }
+.rec-card .xp { cursor: default; }
+.rec-card .xp:hover { background: #FFFFFF; }
+.rec-card .xp-text { height: 100px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: hidden; }
 .xp-act.bump { color: #F91880; }
+.rec-desk { position: absolute; z-index: 1; left: -14%; bottom: 0; height: 53%; width: auto; max-width: none; pointer-events: none; filter: drop-shadow(0 24px 30px rgba(28,43,51,.12)); }
 @media (max-width: 1000px) {
-  .record-grid { grid-template-columns: 1fr; }
-  .desk { max-height: 420px; }
-  .post-stage { min-height: 0; gap: 14px; }
-  .ftw { width: 100%; margin-left: 0; align-self: stretch; animation: none; }
+  .record .wrap { grid-template-columns: minmax(0, 1fr); }
+  .rec-panel { height: auto; flex-direction: column; gap: 14px; }
+  .rec-card { position: static; width: 100%; animation: none; }
+  .rec-desk { display: none; }
 }
 
 /* ---------- 9 SCORE ---------- */
@@ -500,7 +528,7 @@ body.killed .paused-note { display: block; }
 .spark { width: 100%; height: clamp(90px, 17vh, 200px); display: block; margin-top: 18px; overflow: visible; }
 .spark-tip { position: absolute; background: var(--white); color: var(--ink); font-family: var(--f-mono); font-size: 12px; padding: 6px 10px; border-radius: 8px; pointer-events: none; transform: translate(-50%, calc(-100% - 12px)); opacity: 0; transition: opacity .15s; white-space: nowrap; }
 
-/* ---------- 9b ASK MUSE ---------- */
+/* ---------- 5b ASK MUSE ---------- */
 .ask .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
 .ask-points { list-style: none; padding: 0; margin: clamp(18px, 3vh, 28px) 0 0; display: grid; gap: 12px; }
 .ask-points li { display: flex; align-items: center; gap: 12px; color: var(--ink-2); }
@@ -523,8 +551,7 @@ body.killed .paused-note { display: block; }
 .ask-card a { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-2); border: 1px solid var(--line); transition: color .2s, border-color .2s; }
 .ask-card a:hover { color: var(--blue-deep); border-color: var(--blue); }
 .ask-card a .ic { width: 15px; height: 15px; vertical-align: 0; }
-.ask-sugg { display: flex; gap: 8px; padding: 0 18px 10px; overflow-x: auto; scrollbar-width: none; }
-.ask-sugg::-webkit-scrollbar { display: none; }
+.ask-sugg { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 10px; }
 .ask-sugg button { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--white); border-radius: var(--r-pill); padding: 7px 13px; font-size: 13px; font-weight: 600; color: var(--ink-2); transition: border-color .2s, color .2s; }
 .ask-sugg button .ic { width: 14px; height: 14px; vertical-align: 0; color: var(--blue); }
 .ask-sugg button:hover { border-color: var(--blue); color: var(--blue-deep); }
@@ -575,12 +602,12 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   .hero .sub { margin-top: 10px; }
   .hero-stage { min-height: 280px; }
   .listen-panel { margin-top: 10px; }
-  #record { --stage: 400px; }
   #record .sub { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  .preload { display: none; }
 }
 </style>
 <!-- Icons: brand marks from Simple Icons (CC0), UI icons from Lucide (ISC) -->
@@ -626,16 +653,18 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
 </svg>
 
+<div class="preload" id="preload" aria-hidden="true"><div><div class="pl-word"><img src="assets/moose-l0.webp" alt="" width="256" height="240" style="--i:0"><img src="assets/moose-l1.webp" alt="" width="241" height="240" style="--i:1"><img src="assets/moose-l2.webp" alt="" width="241" height="240" style="--i:2"><img src="assets/moose-l3.webp" alt="" width="194" height="240" style="--i:3"><img src="assets/moose-l4.webp" alt="" width="204" height="240" style="--i:4"></div><p class="pl-sub"><span class="st" style="--i:0"><svg class="ic"><use href="#i-sparkles"/></svg> </span><span style="--i:1">p</span><span style="--i:2">o</span><span style="--i:3">w</span><span style="--i:4">e</span><span style="--i:5">r</span><span style="--i:6">e</span><span style="--i:7">d</span><span style="--i:8"> </span><span style="--i:9">b</span><span style="--i:10">y</span><span style="--i:11"> </span><span class="mu" style="--i:12">M</span><span class="mu" style="--i:13">u</span><span class="mu" style="--i:14">s</span><span class="mu" style="--i:15">e</span></p></div></div>
+
 <header class="nav" id="nav">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span>MOOSE<span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
+    <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav class="nav-links" aria-label="Sections">
       <a href="#listens">Sources</a>
       <a href="#verify">Checks</a>
       <a href="#think">How it thinks</a>
+      <a href="#ask">Ask Muse</a>
       <a href="#live">Live</a>
       <a href="#record">Journal</a>
-      <a href="#ask">Ask Muse</a>
     </nav>
     <div class="nav-right">
       <a class="btn btn-dark btn-sm" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow</a>
@@ -771,6 +800,32 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
+<!-- 5b ASK: now ask it yourself -->
+<section class="sec ask" id="ask" aria-labelledby="h-ask" style="background:var(--surface)">
+  <div class="wrap">
+    <div>
+      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask Muse</span>
+      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
+      <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
+      <ul class="ask-points">
+        <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What MOOSE decided, if it looked at it already</li>
+      </ul>
+      <p class="ask-fine"><svg class="ic"><use href="#i-lock"/></svg> 10 questions an hour per visitor. Research only, not financial advice.</p>
+    </div>
+    <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
+      <div class="chat ask-chat">
+        <div class="chat-h"><span class="face"></span><div><b>Muse</b><small>Research for MOOSE</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
+        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
+        <div class="ask-sugg" id="askSugg"></div>
+        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
+        <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- 6 LIVE: here it is, working right now -->
 <section class="sec" id="live" aria-labelledby="h-live">
   <div class="wrap center">
@@ -799,20 +854,22 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 </section>
 
 <!-- 8 RECORD: every trade on the record, even the losses -->
-<section class="sec" id="record" aria-labelledby="h-rec" style="background:var(--surface)">
+<section class="sec record" id="record" aria-labelledby="h-rec" style="background:var(--surface)">
   <div class="wrap">
-    <div class="center">
+    <div>
       <span class="kicker">On the record</span>
       <h2 class="h2" id="h-rec">Every trade on the record. <span class="blue">Even the losses.</span></h2>
-      <p class="sub">Every decision is sealed in a journal and posted to X by @MooseOnMuse, an automated account.</p>
-    </div>
-    <div class="record-grid">
-      <img class="desk" src="assets/moose-desk.webp" alt="MOOSE at a laptop, posting to X" width="912" height="1000" loading="lazy">
-      <div class="post-stage" id="postStage">
-        <div class="ftw ftw-0"><div class="xtl"></div></div>
-        <div class="ftw ftw-1"><div class="xtl"></div></div>
-        <div class="ftw ftw-2"><div class="xtl"></div></div>
+      <p class="sub">Every decision is sealed in a journal and posted to X by @MooseOnMuse, an automated account. Buys, sells, passes and losses, as they happen.</p>
+      <div class="rec-stats">
+        <div><b id="recDay" data-count="19">19</b><span>posts in the last 24h</span></div>
+        <div><b id="recAll" data-count="312">312</b><span>posts in total</span></div>
       </div>
+      <div class="ctas"><a class="btn btn-dark" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseOnMuse <span class="arr">→</span></a></div>
+    </div>
+    <div class="panel grid-bg rec-panel" style="background:var(--panel-warm)">
+      <img class="rec-desk" src="assets/moose-desk.webp" alt="" aria-hidden="true" width="912" height="1000" loading="lazy">
+      <div class="rec-card rec-card-0"><div class="xtl"></div></div>
+      <div class="rec-card rec-card-1"><div class="xtl"></div></div>
     </div>
   </div>
 </section>
@@ -846,32 +903,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
-<!-- 9b ASK: ask Muse about any coin -->
-<section class="sec ask" id="ask" aria-labelledby="h-ask">
-  <div class="wrap">
-    <div>
-      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask Muse</span>
-      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
-      <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
-      <ul class="ask-points">
-        <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
-        <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
-        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What MOOSE decided, if it looked at it already</li>
-      </ul>
-      <p class="ask-fine"><svg class="ic"><use href="#i-lock"/></svg> 10 questions an hour per visitor. Research only, not financial advice.</p>
-    </div>
-    <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
-      <div class="chat ask-chat">
-        <div class="chat-h"><span class="face"></span><div><b>Muse</b><small>Research for MOOSE</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
-        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
-        <div class="ask-sugg" id="askSugg"></div>
-        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
-        <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- 10 FOLLOW -->
 <section class="sec" id="follow" aria-labelledby="h-cta">
   <div class="wrap">
@@ -889,7 +920,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 
 <footer>
   <div class="wrap">
-    <a class="brand" href="#top"><span class="face" aria-hidden="true"></span>MOOSE<span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
+    <a class="brand" href="#top"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> @MooseOnMuse</a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
     <p class="legal">MOOSE, powered by Muse. MOOSE is an automated account run by software; its reasoning uses Meta's Muse Spark model through the public API. Not affiliated with Meta, Robinhood or Pons. Not financial advice. Paper trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
   </div>
@@ -923,6 +954,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const onView = (el, fn, t = .35) => { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { fn(); o.disconnect(); } }, { threshold: t }); o.observe(el); };
 
   addEventListener("scroll", () => $("#nav").classList.toggle("scrolled", scrollY > 8), { passive: true });
+  const pre = $("#preload");
+  if (pre) { pre.addEventListener("animationend", e => { if (e.target === pre) pre.remove(); }); setTimeout(() => pre.remove(), 3000); }
 
   /* count-up (numbers are already visible at rest) */
   $$("[data-count]").forEach(el => onView(el, () => {
@@ -940,22 +973,29 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const coinAv = (kind, size, shades = false, logo = null) => `<span class="coinav" style="width:${size}px;height:${size}px">${coinSVG(...COINS[kind])}${logoImg(logo)}</span>`;
   $$(".coinav[data-coin]").forEach(el => el.innerHTML = coinSVG(...COINS[el.dataset.coin]));
   const coins = [];
-  const addCoin = (host, kind, size, x, y, rot, shades = false, depth = 1) => {
-    const d = document.createElement("div"); d.className = "coin"; d.setAttribute("aria-hidden", "true");
+  // floating decor: glossy app-icon tiles carrying the site's own marks (where MOOSE listens, what it trades on)
+  const GLYPH = { x: [B("x"), "#0F1419", "#FFFFFF"], rh: [B("robinhood"), "#CCFF00", "#000000"], eth: [B("eth"), "#627EEA", "#FFFFFF"],
+                  muse: [I("sparkles"), "#0082FB", "#FFFFFF"], shield: [I("shield-check"), "#1E9E4A", "#FFFFFF"], eye: [I("eye"), "#0064E0", "#FFFFFF"] };
+  const addCoin = (host, kind, size, x, y, rot, depth = 1) => {
+    const [ic, fg, bg] = GLYPH[kind];
+    // the X tiles are links to @MooseOnMuse; the rest are decoration
+    const d = document.createElement(kind === "x" ? "a" : "div"); d.className = "coin glyph";
+    if (kind === "x") { d.href = "https://x.com/MooseOnMuse"; d.target = "_blank"; d.rel = "noopener"; d.setAttribute("aria-label", "MOOSE on X"); d.classList.add("link"); }
+    else d.setAttribute("aria-hidden", "true");
     d.style.cssText = `width:${size}px;height:${size}px;left:${x};top:${y};--rot:${rot}deg`;
-    d.innerHTML = `<div class="inner" style="animation-delay:${rnd(-6, 0).toFixed(1)}s">${coinSVG(...COINS[kind])}</div>`;
+    d.innerHTML = `<div class="inner" style="animation-delay:${rnd(-6, 0).toFixed(1)}s"><span class="gl" style="color:${fg};background:${bg}">${ic}</span></div>`;
     host.appendChild(d); coins.push({ el: d, depth }); return d;
   };
   const stage = $("#stage");
-  addCoin(stage, "blue", 62, "30%", "10%", -14, false, 1.4);
-  addCoin(stage, "beige", 48, "64%", "58%", 12, false, .8);
-  addCoin(stage, "white", 54, "70%", "6%", 8, true, 1.2);
-  addCoin($(".tiles-panel"), "beige", 56, "88%", "-4%", 16, false, 1);
-  addCoin($(".cta-panel"), "blue", 70, "56%", "12%", -10, true, 1.3);
-  addCoin($(".chat-panel"), "white", 50, "80%", "30%", 10, true, 1.2);
-  addCoin($(".chat-panel"), "blue", 40, "14%", "28%", -12, false, .9);
-  addCoin($(".chat-panel"), "beige", 36, "20%", "68%", 14, false, 1.1);
-  addCoin($(".cta-panel"), "white", 46, "52%", "74%", 14, false, .9);
+  addCoin(stage, "muse", 56, "30%", "10%", -10, 1.4);
+  addCoin(stage, "x", 42, "3%", "48%", 8, .8);
+  addCoin(stage, "rh", 48, "91%", "44%", 10, 1.2);
+  addCoin($(".tiles-panel"), "eth", 52, "88%", "-4%", 12, 1);
+  addCoin($(".cta-panel"), "x", 60, "56%", "12%", -8, 1.3);
+  addCoin($(".chat-panel"), "shield", 48, "80%", "30%", 8, 1.2);
+  addCoin($(".chat-panel"), "eye", 40, "14%", "28%", -10, .9);
+  addCoin($(".chat-panel"), "rh", 34, "20%", "68%", 12, 1.1);
+  addCoin($(".cta-panel"), "muse", 44, "52%", "74%", 10, .9);
 
   /* hero parallax: floating cards + coins drift with the cursor */
   if (!reduce) {
@@ -1131,7 +1171,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     }, 2500);
   }
 
-  /* ---------- 8 RECORD: live feed of floating X posts ---------- */
+  /* ---------- 8 RECORD: the @MooseOnMuse timeline ---------- */
   let feedPosts = [
     { t: "2m", body: "PAPER BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
     { t: "14m", body: "PAPER SOLD $NEZU @ 1.6e-9 ETH, −25.3%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
@@ -1140,23 +1180,29 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     { t: "3h", body: "Paper scorecard 2026-W39: 23 closed, 13W/10L, net +0.184 ETH.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
   ];
   const kfmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
-  const slots = $$(".ftw"); let nextPost = 3;
-  const fill = (slot, p) => { slot.querySelector(".xtl").innerHTML = xPost({ ...p, s: (p.s || []).map(kfmt) }); slot.dataset.i = feedPosts.indexOf(p); };
-  slots.forEach((slot, i) => fill(slot, feedPosts[i]));
+  // Two cards show two posts; every 5s one of them fades to the next post (they take turns).
+  const recCards = $$(".rec-card"); let recNext = 0;
+  const recShow = (card, p) => { card.querySelector(".xtl").innerHTML = xPost({ ...p, s: (p.s || []).map(kfmt) }); card._p = p; };
+  const recReset = () => {
+    recCards.forEach((c, i) => { c.style.visibility = feedPosts[i] ? "" : "hidden"; if (feedPosts[i]) recShow(c, feedPosts[i]); });  // hidden, not removed: nothing moves
+    recNext = recCards.length;
+  };
+  recReset();
   if (!reduce) {
     let turn = 0;
-    setInterval(() => {   // a new post arrives from the laptop and replaces the oldest one
-      if (feedPosts.length <= slots.length) return;  // nothing new to rotate in
-      const slot = slots[turn++ % slots.length];
-      fill(slot, feedPosts[nextPost++ % feedPosts.length]);
-      slot.classList.remove("pop"); void slot.offsetWidth; slot.classList.add("pop");
-    }, 5200);
+    setInterval(() => {
+      if (feedPosts.length <= recCards.length) return;  // nothing new to show
+      const card = recCards[turn++ % recCards.length], box = card.querySelector(".xtl"), p = feedPosts[recNext++ % feedPosts.length];
+      box.classList.add("out");
+      setTimeout(() => { recShow(card, p); box.classList.remove("out"); }, 320);
+    }, 5000);
     setInterval(() => {   // likes and views keep ticking up (example posts only; real metrics aren't fetched)
       if (LIVE) return;
-      const slot = pick(slots), p = feedPosts[+slot.dataset.i];
+      const card = pick(recCards), p = card._p;
+      if (!p || !p.s || !p.s.length) return;
       p.s[2] += 1 + Math.floor(Math.random() * 3); p.s[3] += 20 + Math.floor(Math.random() * 90);
-      const acts = slot.querySelectorAll(".xp-act");
-      acts[2].innerHTML = acts[2].innerHTML.replace(/[\d.]+K?$/, kfmt(p.s[2])); acts[3].innerHTML = acts[3].innerHTML.replace(/[\d.]+K?$/, kfmt(p.s[3]));
+      const acts = card.querySelectorAll(".xp-act");
+      acts[2].innerHTML = acts[2].innerHTML.replace(/[\d.]*K?$/, kfmt(p.s[2])); acts[3].innerHTML = acts[3].innerHTML.replace(/[\d.]*K?$/, kfmt(p.s[3]));
       acts[2].classList.add("bump"); setTimeout(() => acts[2].classList.remove("bump"), 700);
     }, 1600);
   }
@@ -1196,7 +1242,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .3); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i}${pnlLbl[i - 1] ? " · $" + pnlLbl[i - 1] : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
 
-  /* ---------- 9b ASK MUSE: a real chat with Muse, rate limited by the API ---------- */
+  /* ---------- 5b ASK MUSE: a real chat with Muse, rate limited by the API ---------- */
   const askBox = $("#askMsgs"), askIn = $("#askIn"), askSend = $("#askSend"), askLeft = $("#askLeft");
   const askHist = [];   // this visit only: {role, text}
   let askBusy = false, askOut = false, askToken = null;  // askToken: address of the coin being discussed
@@ -1241,7 +1287,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     } finally { askBusy = false; askSync(); }
   };
   const askSuggest = coins => {   // coins: [{s: symbol, t: address}]; the address travels with the chip so it always resolves
-    const chips = [...coins.slice(0, 2).map(c => ({ q: `Research $${c.s}`, t: c.t })), { q: "How does MOOSE pick trades?" }, { q: "What do you check on a coin?" }];
+    const chips = [...coins.slice(0, 2).map(c => ({ q: `Research $${c.s}`, t: c.t })), { q: "How does MOOSE pick trades?" }];
     $("#askSugg").innerHTML = chips.map(c => `<button type="button"${c.t ? ` data-token="${esc(c.t)}"` : ""}>${c.t ? I("search") : I("sparkles")}${esc(c.q)}</button>`).join("");
   };
   askSuggest([]);
@@ -1386,9 +1432,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (d.posts.length && pk !== seen.posts) {
       seen.posts = pk;
       feedPosts = d.posts.map(p => ({ t: ago(p.sent_at), body: esc(p.body) }));
-      slots.forEach((slot, i) => { slot.style.visibility = feedPosts[i] ? "" : "hidden"; if (feedPosts[i]) fill(slot, feedPosts[i]); });  // hidden, not removed: the layout keeps its shape
-      nextPost = slots.length;
+      recReset();
     }
+    setCount($("#recDay"), d.posts_24h); setCount($("#recAll"), st.posts_sent);
 
     /* scorecard */
     const sc = d.score, sgn = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(3), cls = v => v > 0 ? "up-t" : v < 0 ? "down-t" : "";
