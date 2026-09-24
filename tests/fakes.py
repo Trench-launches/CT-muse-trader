@@ -14,7 +14,7 @@ from eth_abi import encode
 from eth_utils import to_checksum_address
 
 from ct_agent.chain.abi import ZERO_ADDRESS, address_topic, selector
-from ct_agent.chain.pons import CURVE_BUY, CURVE_SELL, LAUNCH_SWEPT, POOL_GRADUATED, TOKEN_LAUNCHED
+from ct_agent.chain.pons import CURVE_BUY, CURVE_SELL, LAUNCH_SWEPT, POOL_GRADUATED, TOKEN_LAUNCHED, TRANSFER
 
 FACTORY = "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e"
 HOOK = "0xE5e702641eA86F4aE6CC3cdAED2b886f976be044"
@@ -87,6 +87,15 @@ class FakeChain:
             "blockNumber": hex(block),
             "transactionHash": "0x" + f"{block:062x}{log_index:02x}",
             "logIndex": hex(log_index),
+        })
+        frm, to = (t.curve, trader) if side == "buy" else (trader, t.curve)
+        self.logs.append({
+            "address": t.token,
+            "topics": [TRANSFER, address_topic(frm), address_topic(to)],
+            "data": "0x" + encode(["uint256"], [tokens]).hex(),
+            "blockNumber": hex(block),
+            "transactionHash": "0x" + f"{block:062x}{log_index:02x}",
+            "logIndex": hex(log_index + 100),
         })
         if side == "buy":
             t.real_quote += quote - fee

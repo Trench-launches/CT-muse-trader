@@ -162,6 +162,14 @@ def _research(ctx: Any, token: str) -> dict[str, Any]:
                 f["pool"] = "no market data for the genuine pool yet"
     except Exception as exc:  # a missing figure must never break the answer
         f["data_gap"] = f"some live numbers could not be read ({type(exc).__name__})"
+    if launch:
+        from ..strategy.engine import fees_paid_eth, holder_facts
+        paid = fees_paid_eth(ctx, launch)
+        if paid is not None:
+            f["trading_fees_paid_eth"] = round(paid, 4)
+        hs = holder_facts(ctx, launch)
+        if hs:
+            f["holders"] = hs
     att = kv_get(conn, f"x_attention:{token.lower()}")
     if att:
         f["x_mentions_24h"] = att.get("count_24h")
@@ -222,6 +230,9 @@ def onchain_detail(f: dict[str, Any]) -> str:
     fee = (f.get("curve_fee_pct") or 0) + (f.get("creator_tax_pct") or 0)
     if fee:
         bits.append(f"{fee:g}% fees")
+    hs = f.get("holders") or {}
+    if hs.get("top10_share") is not None:
+        bits.append(f"top 10 hold {hs['top10_share']:.0%}")
     flags = len((f.get("moose_screen") or {}).get("red_flags") or [])
     if flags:
         bits.append(f"{flags} red flag{'s' if flags != 1 else ''}")

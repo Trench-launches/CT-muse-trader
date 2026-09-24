@@ -562,3 +562,39 @@ def test_thin_chart_gate_blocks_a_buy(tmp_path):
                                    excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
     research_once(ctx2)
     assert [x for x in trader_once(ctx2)["decisions"] if x["token"] == hot.token][0]["action"] == "buy"
+
+
+def test_holder_gate_blocks_a_buy(tmp_path):
+    from ct_agent.strategy.engine import holder_facts
+    ch, hot, _ = _scenario()
+    ch.trade(hot, ch.head - 2_000, "buy", int(0.05 * ETH), 4 * 10**26, addr(0xBADBAD))  # one wallet takes 40% of supply
+    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=_muse())
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert d["action"] == "watch" and any("10 biggest wallets hold" in g for g in d["gates"]), d
+    launch = rows(ctx.conn, "SELECT * FROM launches WHERE token=?", (hot.token,))[0]
+    hs = holder_facts(ctx, launch)
+    assert hs["top_wallet_share"] == pytest.approx(0.4) and hs["holders"] == 12  # the curve itself isn't counted
+    assert hs["deployer_share"] == 0
+
+
+def test_rug_guards_fail_safe_when_the_chain_cant_be_read(tmp_path):
+    ch, hot, _ = _scenario()
+    ctx = build(_settings(tmp_path, min_fees_paid_eth=0.001), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=_muse())
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+
+    def rate_limited(*a, **k):
+        raise RuntimeError("429 too many requests")
+    ctx.pons.token_transfers = rate_limited
+    ctx.pons.curve_fees = rate_limited
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert d["action"] == "watch", d
+    assert "couldn't check who holds the supply" in d["gates"] and "couldn't check the fees traders have paid" in d["gates"]

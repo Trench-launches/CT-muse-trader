@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     max_slippage_bps: int = 300
     max_trade_tax_bps: int = 1_000
     kill_switch_file: str = "data/KILL"
-    stop_loss_pct: float = 30.0
+    stop_loss_pct: float = 70.0
     # Take-profit ladder: (price multiple of entry, share of the ORIGINAL position to sell).
     # After the first rung the stop moves to entry. Whatever the rungs don't sell rides until the stop
     # or max_hold_hours, when it is sold.
@@ -123,6 +123,10 @@ class Settings(BaseSettings):
     # over its life, or the chart was likely pumped by a handful of (bundled or botted) trades.
     fee_check_mc_usd: float = 20_000
     min_fees_paid_eth: float = 0.02
+    # Holder guard: skip coins whose deployer still holds too much of the supply, or whose 10 biggest wallets
+    # (not counting the curve, the pool or burn addresses) hold too much: they can dump on everyone else.
+    max_deployer_hold_share: float = 0.10
+    max_top10_hold_share: float = 0.35
     max_top_buyer_share: float = 0.40
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
     candidates_per_cycle: int = 5

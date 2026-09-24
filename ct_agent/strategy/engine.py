@@ -159,6 +159,7 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         "limits": {"max_position_eth": s.max_position_eth, "mode": s.trading_mode.value},
         "rules": {"verified_source_required": s.min_independent_sources_for_buy > 0},
         "fees_and_size": _fee_facts(ctx, a),
+        "holders": holder_facts(ctx, a.launch),
         "lore": _lore(ctx, a.cand.token),
     }
     if a.pool:
@@ -227,6 +228,43 @@ def fees_paid_eth(ctx: Context, launch: dict[str, Any]) -> float | None:
         return int(st["wei"]) / ETH
     except Exception as exc:  # never let a failed read block a decision; the gate just can't apply
         log.warning("fees paid unavailable for %s: %s", launch.get("token"), exc)
+        return None
+
+
+DEAD = {"0x0000000000000000000000000000000000000000", "0x000000000000000000000000000000000000dead"}
+
+
+def holder_facts(ctx: Context, launch: dict[str, Any]) -> dict[str, Any] | None:
+    """Who holds the supply: rebuilt from the token's own Transfer events (cached, extended from the last
+    block read). The curve, the pool manager, the hook, burn addresses and the token itself don't count."""
+    try:
+        token = launch["token"]
+        key = f"holders:{token.lower()}"
+        st = kv_get(ctx.conn, key) or {"to": int(launch["block_number"]) - 1, "bal": {}}
+        head = ctx.rpc.block_number()
+        if head > st["to"]:
+            bal = {a: int(v) for a, v in st["bal"].items()}
+            for frm, to, amt in ctx.pons.token_transfers(token, st["to"] + 1, head, ctx.settings.launch_log_chunk_blocks):
+                bal[frm] = bal.get(frm, 0) - amt
+                bal[to] = bal.get(to, 0) + amt
+            st = {"to": head, "bal": {a: str(v) for a, v in bal.items() if v > 0}}
+            kv_set(ctx.conn, key, st)
+        supply = ctx.pons.total_supply(token)
+        if not supply:
+            return None
+        skip = set(DEAD) | {token.lower(), str(launch.get("curve") or "").lower()}
+        for getter in (ctx.pons.pool_manager, ctx.pons.meme_hook):
+            try:
+                skip.add(getter().lower())
+            except Exception:
+                pass
+        wallets = sorted((int(v) for a, v in st["bal"].items() if a not in skip), reverse=True)
+        dev = int(st["bal"].get(str(launch.get("deployer") or "").lower(), 0))
+        return {"holders": len(wallets), "top10_share": round(sum(wallets[:10]) / supply, 4),
+                "top_wallet_share": round((wallets[0] if wallets else 0) / supply, 4),
+                "deployer_share": round(dev / supply, 4)}
+    except Exception as exc:  # a failed read never blocks a decision; the gate just can't apply
+        log.warning("holders unavailable for %s: %s", launch.get("token"), exc)
         return None
 
 
@@ -325,8 +363,18 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
             gates.append("no concrete risk named")
         fz = pack.get("fees_and_size") or {}
         mc, paid = fz.get("market_cap_usd"), fz.get("trading_fees_paid_eth")
-        if mc and paid is not None and mc > s.fee_check_mc_usd and paid < s.min_fees_paid_eth:
+        # both guards fail safe: if the chain can't be read right now, don't buy (a later cycle can)
+        if s.min_fees_paid_eth > 0 and paid is None:
+            gates.append("couldn't check the fees traders have paid")
+        elif mc and paid is not None and mc > s.fee_check_mc_usd and paid < s.min_fees_paid_eth:
             gates.append(f"only {paid:.3f} ETH of trading fees paid at a ${mc:,.0f} market cap: thin or botted chart")
+        hs = pack.get("holders") or {}
+        if not hs:
+            gates.append("couldn't check who holds the supply")
+        if hs.get("deployer_share", 0) > s.max_deployer_hold_share:
+            gates.append(f"the deployer still holds {hs['deployer_share']:.0%} of the supply")
+        if hs.get("top10_share", 0) > s.max_top10_hold_share:
+            gates.append(f"the 10 biggest wallets hold {hs['top10_share']:.0%} of the supply")
         verdict = ctx.risk.check_entry(token=token, quote_symbol=a.launch.get("quote_symbol") or "", mode=s.trading_mode.value)
         gates.extend(verdict.reasons)
         fill = None

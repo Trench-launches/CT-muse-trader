@@ -35,6 +35,7 @@ POOL_GRADUATED = topic("PoolGraduated(address,uint256,uint256,uint256)")
 LAUNCH_SWEPT = topic("LaunchSwept(address,uint256,uint256)")
 CURVE_BUY = topic("CurveBuy(address,address,uint256,uint256,uint256,uint256)")
 CURVE_SELL = topic("CurveSell(address,address,uint256,uint256,uint256,uint256)")
+TRANSFER = topic("Transfer(address,address,uint256)")
 
 _LAUNCHED_TOKEN_TUPLE = (
     "(address,address,address,address,address,uint256,uint24,int24,uint16,bool,uint8,"
@@ -284,6 +285,18 @@ class PonsV2:
                 trader=topic_to_address(lg["topics"][1]), quote_amount=int(quote_amt),
                 token_amount=int(token_amt), fee=int(fee), tax=int(tax),
             ))
+        return out
+
+    def token_transfers(self, token: str, from_block: int, to_block: int, chunk: int) -> list[tuple[str, str, int]]:
+        """(from, to, amount) for every transfer of a token over a block range."""
+        logs = self.rpc.get_logs_chunked(address=[checksum(token)], topics=[[TRANSFER]],
+                                         from_block=from_block, to_block=to_block, chunk=chunk)
+        out = []
+        for lg in logs:
+            if len(lg["topics"]) < 3:
+                continue
+            out.append((topic_to_address(lg["topics"][1]).lower(), topic_to_address(lg["topics"][2]).lower(),
+                        int(decode_output(["uint256"], lg["data"])[0])))
         return out
 
     def curve_fees(self, curve: str, from_block: int, to_block: int, chunk: int) -> tuple[int, int]:
