@@ -286,6 +286,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .verdict.ok { background: var(--blue-soft); color: var(--blue-deep); } .verdict.ok b { color: var(--blue-deep); }
 .verdict.no { background: var(--coral-soft); color: var(--ink); } .verdict.no .ic, .verdict.no b { color: var(--coral); }
 .pile { position: relative; z-index: 2; background: rgba(255,255,255,.92); border-radius: var(--r-card); box-shadow: var(--shadow); padding: 14px 16px 6px; }
+/* a slight tilt, like cards laid on a desk; they straighten when you point at them */
+.token-card { transform: rotate(-1.5deg); transition: transform .5s var(--spring); }
+.pile { transform: rotate(2deg); transition: transform .5s var(--spring); }
+.token-card:hover, .pile:hover { transform: none; }
 .pile-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
 .pile-h h5 { margin: 0; font-family: var(--f-body); font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
 .pile-h small { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-3); }
@@ -384,6 +388,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- 6 LIVE ---------- */
 .live-grid { margin-top: clamp(18px, 3.5vh, 44px); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; text-align: left; }
 .lc { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); padding: clamp(14px, 2.2vh, 20px) 20px; display: flex; flex-direction: column; gap: clamp(8px, 1.5vh, 14px); }
+.lc { box-shadow: 0 1px 2px rgba(28,43,51,.06), 0 18px 40px -18px rgba(28,43,51,.18), 0 34px 60px -34px rgba(0,130,251,.55);
+      transition: transform .5s var(--spring), box-shadow .5s var(--ease); }
+.lc:nth-child(1) { transform: rotate(-1.2deg); } .lc:nth-child(2) { transform: rotate(.8deg); } .lc:nth-child(3) { transform: rotate(-.6deg); }
+.lc:hover { transform: translateY(-4px); box-shadow: 0 1px 2px rgba(28,43,51,.06), 0 22px 44px -18px rgba(28,43,51,.2), 0 40px 70px -32px rgba(0,130,251,.65); }
 .lc-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .lc-h h4 { font-family: var(--f-display); font-weight: 500; font-size: var(--t-xl); letter-spacing: -0.02em; display: flex; align-items: center; gap: 10px; }
 .lc-h .ic-b { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); }
@@ -492,6 +500,46 @@ body.killed .paused-note { display: block; }
 .spark { width: 100%; height: clamp(90px, 17vh, 200px); display: block; margin-top: 18px; overflow: visible; }
 .spark-tip { position: absolute; background: var(--white); color: var(--ink); font-family: var(--f-mono); font-size: 12px; padding: 6px 10px; border-radius: 8px; pointer-events: none; transform: translate(-50%, calc(-100% - 12px)); opacity: 0; transition: opacity .15s; white-space: nowrap; }
 
+/* ---------- 9b ASK MUSE ---------- */
+.ask .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
+.ask-points { list-style: none; padding: 0; margin: clamp(18px, 3vh, 28px) 0 0; display: grid; gap: 12px; }
+.ask-points li { display: flex; align-items: center; gap: 12px; color: var(--ink-2); }
+.ask-points .ic-b { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); flex: none; }
+.ask-points .ic-b .ic { width: 17px; height: 17px; vertical-align: 0; }
+.ask-fine { margin-top: clamp(16px, 2.6vh, 24px); font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+.ask-panel { padding: clamp(14px, 2.4vh, 28px) clamp(14px, 2vw, 28px); height: clamp(480px, var(--fit), 660px); display: flex; }
+.ask-chat { min-height: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.ask-chat .msgs { min-height: 0; }
+.msg.rich { white-space: pre-line; overflow-wrap: anywhere; }
+.msg code { font-family: var(--f-mono); font-size: 12.5px; background: rgba(28,43,51,.06); padding: 1px 6px; border-radius: 5px; overflow-wrap: anywhere; }
+.msg.sys code { background: rgba(255,255,255,.18); }
+.msg .tag { font-weight: 600; color: var(--blue-deep); }
+.msg.sys .tag { color: inherit; }
+.msg.warn { align-self: flex-start; display: flex; gap: 10px; align-items: flex-start; background: var(--sand); color: var(--sand-ink); border-bottom-left-radius: 6px; }
+.msg.warn .ic { flex: none; margin-top: 3px; }
+.ask-card { min-width: min(320px, 100%); }
+.ask-card b { font-weight: 700; } .ask-card .nm { color: var(--ink-3); font-size: 13.5px; margin-left: 4px; }
+.ask-card a { margin-left: auto; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-2); border: 1px solid var(--line); transition: color .2s, border-color .2s; }
+.ask-card a:hover { color: var(--blue-deep); border-color: var(--blue); }
+.ask-card a .ic { width: 15px; height: 15px; vertical-align: 0; }
+.ask-sugg { display: flex; gap: 8px; padding: 0 18px 10px; overflow-x: auto; scrollbar-width: none; }
+.ask-sugg::-webkit-scrollbar { display: none; }
+.ask-sugg button { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--white); border-radius: var(--r-pill); padding: 7px 13px; font-size: 13px; font-weight: 600; color: var(--ink-2); transition: border-color .2s, color .2s; }
+.ask-sugg button .ic { width: 14px; height: 14px; vertical-align: 0; color: var(--blue); }
+.ask-sugg button:hover { border-color: var(--blue); color: var(--blue-deep); }
+.ask-bar { display: flex; align-items: flex-end; gap: 10px; margin: 0 14px; padding: 7px 7px 7px 16px; border: 1.5px solid var(--line); border-radius: 22px; background: var(--white); transition: border-color .2s, box-shadow .2s; }
+.ask-bar:focus-within { border-color: var(--blue); box-shadow: 0 0 0 4px var(--blue-soft); }
+.ask-bar textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; font: inherit; font-size: 15px; line-height: 1.45; padding: 7px 0; max-height: 120px; background: transparent; color: var(--ink); }
+.ask-bar textarea:focus-visible { outline: none; }
+.ask-bar textarea::placeholder { color: var(--ink-3); }
+.ask-send { width: 38px; height: 38px; border-radius: 50%; border: 0; background: var(--blue); color: var(--white); display: grid; place-items: center; flex: none; transition: background .2s, transform .25s var(--spring); }
+.ask-send:hover:not(:disabled) { background: var(--blue-deep); transform: translateY(-1px); }
+.ask-send:disabled { background: var(--line); color: var(--ink-3); cursor: default; }
+.ask-send .ic { width: 18px; height: 18px; vertical-align: 0; }
+.ask-chat .chat-foot { border-top: 0; padding-top: 8px; }
+@media (max-width: 1000px) { .ask .wrap { grid-template-columns: minmax(0, 1fr); } .ask-panel { height: 580px; } }
+
 /* ---------- 10 CTA + FOOTER ---------- */
 .cta-panel { padding: clamp(36px, 6vw, 80px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: center; gap: 24px; min-height: 0; }
 .cta-panel h2 { font-size: var(--t-h2); position: relative; z-index: 2; }
@@ -572,6 +620,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <symbol id="i-signal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01" /> <path d="M7 20v-4" /> <path d="M12 20v-8" /> <path d="M17 20V8" /> <path d="M22 4v16" /></symbol>
 <symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01" /> <path d="M2 8.82a15 15 0 0 1 20 0" /> <path d="M5 12.859a10 10 0 0 1 14 0" /> <path d="M8.5 16.429a5 5 0 0 1 7 0" /></symbol>
 <symbol id="i-battery-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="10" x="2" y="7" rx="2" ry="2" /> <line x1="22" x2="22" y1="11" y2="13" /> <line x1="6" x2="6" y1="11" y2="13" /> <line x1="10" x2="10" y1="11" y2="13" /> <line x1="14" x2="14" y1="11" y2="13" /></symbol>
+<symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></symbol>
+<symbol id="i-arrow-up-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10" /> <path d="M7 17 17 7" /></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
 </svg>
 
@@ -584,6 +635,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <a href="#think">How it thinks</a>
       <a href="#live">Live</a>
       <a href="#record">Journal</a>
+      <a href="#ask">Ask Muse</a>
     </nav>
     <div class="nav-right">
       <a class="btn btn-dark btn-sm" href="https://x.com/MooseOnMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow</a>
@@ -710,7 +762,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div class="chat-foot"><span>Hard rules run after this.</span><span class="num" id="chatTime">14:06 UTC</span></div>
         <div class="home-ind" aria-hidden="true"></div>
       </div>
-      <div class="holder" aria-hidden="true"><img src="assets/moose.png" alt=""></div>
+      <div class="holder" aria-hidden="true"><img src="assets/moose-phone.webp" alt="" width="722" height="900"></div>
       <div class="fl fl-1" aria-hidden="true"><span class="tile" style="background:var(--blue-soft);color:var(--blue-deep)"><svg class="ic"><use href="#i-sparkles"/></svg></span>Muse Spark <small>thinking…</small></div>
       <div class="fl fl-2" aria-hidden="true"><span class="tile" style="background:var(--green-soft);color:var(--green)"><svg class="ic"><use href="#i-shield-check"/></svg></span>4/4 checks passed</div>
       <div class="fl fl-3" aria-hidden="true"><span class="rh"><svg class="ic"><use href="#b-robinhood"/></svg></span>Robinhood Chain</div>
@@ -794,6 +846,32 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
+<!-- 9b ASK: ask Muse about any coin -->
+<section class="sec ask" id="ask" aria-labelledby="h-ask">
+  <div class="wrap">
+    <div>
+      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask Muse</span>
+      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
+      <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
+      <ul class="ask-points">
+        <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What MOOSE decided, if it looked at it already</li>
+      </ul>
+      <p class="ask-fine"><svg class="ic"><use href="#i-lock"/></svg> 10 questions an hour per visitor. Research only, not financial advice.</p>
+    </div>
+    <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
+      <div class="chat ask-chat">
+        <div class="chat-h"><span class="face"></span><div><b>Muse</b><small>Research for MOOSE</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
+        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
+        <div class="ask-sugg" id="askSugg"></div>
+        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Muse about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
+        <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- 10 FOLLOW -->
 <section class="sec" id="follow" aria-labelledby="h-cta">
   <div class="wrap">
@@ -833,6 +911,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@MooseOnMuse · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   /* live data: text from X and the news is escaped before it touches the page */
   const API = "https://api.mooseonmuse.com";
+  // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
+  const CHAT_API = location.hostname === "localhost" ? "http://localhost:8000" : API;
   let LIVE = false;   // true once real data has loaded; the example animations then stand down
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const shortA = a => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "";
@@ -964,7 +1044,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     verdict.className = "verdict"; verdict.innerHTML = `${I("shield-check")}<span>Checking…</span>`;
     for (let i = 0; i < 4; i++) {
       await wait(520);
-      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".stt").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.className = "verdict no"; verdict.innerHTML = L.fail === 3 ? `${I("circle-stop")}<span><b>Real launch, but ${L.why.toLowerCase()}.</b> Muse can watch it, never buy on it alone.</span>` : `${I("circle-stop")}<span><b>Stopped.</b> ${L.why}. It never reaches the AI.</span>`; break; }
+      if (L.fail === i) { stamps[i].className = "stamp fail"; stamps[i].querySelector(".stt").innerHTML = I("x"); stamps.slice(i + 1).forEach(s => s.classList.add("skip")); verdict.className = "verdict no"; verdict.innerHTML = L.fail === 3 ? `${I("circle-stop")}<span><b>Real launch, but ${L.why.toLowerCase()}.</b> It counts as chatter, so Muse leans on the onchain numbers.</span>` : `${I("circle-stop")}<span><b>Stopped.</b> ${L.why}. It never reaches the AI.</span>`; break; }
       stamps[i].className = "stamp pass"; stamps[i].querySelector(".stt").innerHTML = I("check");
     }
     if (L.fail === -1) { verdict.className = "verdict ok"; verdict.innerHTML = `${I("shield-check")}<span><b>All four passed.</b> Sent to the AI.</span>`; }
@@ -1116,6 +1196,65 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .3); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i}${pnlLbl[i - 1] ? " · $" + pnlLbl[i - 1] : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
 
+  /* ---------- 9b ASK MUSE: a real chat with Muse, rate limited by the API ---------- */
+  const askBox = $("#askMsgs"), askIn = $("#askIn"), askSend = $("#askSend"), askLeft = $("#askLeft");
+  const askHist = [];   // this visit only: {role, text}
+  let askBusy = false, askOut = false, askToken = null;  // askToken: address of the coin being discussed
+  const askFmt = t => esc(t).replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${m}</code>`)
+    .replace(/(^|[\s(])\$([A-Za-z][A-Za-z0-9]{0,19})\b/g, '$1<span class="tag">$$$2</span>');
+  const askAdd = (cls, html) => { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; askBox.appendChild(d); askBox.scrollTop = askBox.scrollHeight; return d; };
+  const askSync = () => { askSend.disabled = askBusy || askOut || !askIn.value.trim(); $("#askCount").textContent = `${askIn.value.length}/500`; };
+  const askSize = () => { askIn.style.height = "auto"; askIn.style.height = Math.min(askIn.scrollHeight, 120) + "px"; };
+  const askLimit = r => { if (!r) return; const n = Math.min(r.hour, r.day); askOut = !n; askLeft.textContent = n ? `${n} left this hour` : "limit reached"; askLeft.className = "pill " + (n ? "blue" : "coral"); askSync(); };
+  const askCard = t => {
+    const where = t.curve_progress_pct != null ? `curve ${Math.round(t.curve_progress_pct)}%` : /graduated/.test(t.stage || "") ? "graduated" : (t.stage || "");
+    const mc = t.market_cap_usd && t.market_cap_usd !== "unknown" ? ` · ${t.market_cap_usd} MC` : "";
+    return `${coinAv("blue", 36, false, t.logo)}<div><b>$${esc(t.symbol || "?")}</b><span class="nm">${esc(t.name || "")}</span><small>${esc(where + mc)}</small></div>`
+      + (t.explorer ? `<a href="${esc(t.explorer)}" target="_blank" rel="noopener" aria-label="View $${esc(t.symbol || "")} on the explorer">${I("arrow-up-right")}</a>` : "");
+  };
+  const ask = async (text, token) => {
+    text = text.trim();
+    if (!text || askBusy || askOut) return;
+    askBusy = true; askIn.value = ""; askSize(); askSync();
+    askAdd("sys", askFmt(text));
+    const typing = document.createElement("div"); typing.className = "typing"; typing.innerHTML = "<i></i><i></i><i></i>";
+    askBox.appendChild(typing); askBox.scrollTop = askBox.scrollHeight;
+    try {
+      const r = await fetch(CHAT_API + "/chat", { method: "POST", headers: { "content-type": "application/json" },
+                                             body: JSON.stringify({ message: text, history: askHist.slice(-8),
+                                             // a new coin named in the message wins over the one we were on
+                                             token: token || (/\$[A-Za-z]|0x[0-9a-fA-F]{40}/.test(text) ? undefined : askToken) || undefined }) });
+      const d = await r.json().catch(() => ({}));
+      typing.remove();
+      if (!r.ok) {
+        askAdd("warn", I("triangle-alert") + `<span>${esc(typeof d.detail === "string" ? d.detail : "Something went wrong. Try again in a moment.")}</span>`);
+        if (r.status === 429) askLimit({ hour: 0, day: 0 });
+        return;
+      }
+      askHist.push({ role: "user", text }, { role: "muse", text: d.reply });
+      if (d.token) { askAdd("att ask-card", askCard(d.token)); askToken = d.token.address; }
+      askAdd("bot rich", askFmt(d.reply));
+      askLimit(d.remaining);
+    } catch {
+      typing.remove();
+      askAdd("warn", I("triangle-alert") + "<span>Couldn't reach Muse. Check your connection and try again.</span>");
+    } finally { askBusy = false; askSync(); }
+  };
+  const askSuggest = coins => {   // coins: [{s: symbol, t: address}]; the address travels with the chip so it always resolves
+    const chips = [...coins.slice(0, 2).map(c => ({ q: `Research $${c.s}`, t: c.t })), { q: "How does MOOSE pick trades?" }, { q: "What do you check on a coin?" }];
+    $("#askSugg").innerHTML = chips.map(c => `<button type="button"${c.t ? ` data-token="${esc(c.t)}"` : ""}>${c.t ? I("search") : I("sparkles")}${esc(c.q)}</button>`).join("");
+  };
+  askSuggest([]);
+  $("#askSugg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) ask(b.textContent, b.dataset.token); });
+  $("#askForm").addEventListener("submit", e => { e.preventDefault(); ask(askIn.value); });
+  askIn.addEventListener("input", () => { askSize(); askSync(); });
+  askIn.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(askIn.value); } });
+  onView($("#ask"), () => fetch(CHAT_API + "/chat/limits").then(r => r.ok ? r.json() : null).then(d => {
+    if (!d) return;
+    if (!d.enabled) { askOut = true; askLeft.textContent = "offline"; askLeft.className = "pill grey"; askSync(); return; }
+    askLimit(d.remaining);
+  }).catch(() => {}), .1);
+
   /* ---------- LIVE DATA: everything above starts as example data, then this swaps in the real thing ---------- */
   const KIND = { x: [B("x"), "#000", "X"], news: [I("newspaper"), "#0064E0", "News"], twitch_transcript: [B("twitch"), "#9146FF", "Twitch"],
     twitch_chat: [B("twitch"), "#9146FF", "Twitch chat"], manual: [I("notebook-pen"), "#1C2B33", "Note"] };
@@ -1232,6 +1371,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), logo: p.logo, entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
       hist: p.marks.length > 1 ? p.marks : [p.entry_eth, p.entry_eth] }));
     renderLive();
+    askSuggest(d.watching.filter(w => w.symbol && /^[A-Za-z][A-Za-z0-9]{0,19}$/.test(w.symbol) && /^0x[0-9a-fA-F]{40}$/.test(w.token || ""))
+      .map(w => ({ s: w.symbol, t: w.token })));
     if (!watch.length) $("#wl").innerHTML = `<p class="empty">Nothing close to graduating right now.</p>`;
     $("#slotsTxt").textContent = `${positions.length} of ${d.slots} slots`;
     const np = d.next_post, last = d.posts[0];
