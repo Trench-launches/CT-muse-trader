@@ -18,7 +18,7 @@ from ..brain.muse import MuseDecision, MuseResult
 from ..context import Context
 from ..db import journal_append, journal_recent, kv_get, kv_set, rows, tx, utcnow
 from ..execution.live import LiveTradingBlocked
-from ..execution.paper import close_position, open_position
+from ..execution.paper import close_position, open_position, take_partial
 from ..execution.pricing import FillEstimate, curve_buy, curve_sell, pool_estimate
 from ..social import compose
 from ..social.outbox import enqueue
@@ -157,6 +157,7 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         "past_journal_for_token": past,
         "recent_losing_trades": mistakes,
         "limits": {"max_position_eth": s.max_position_eth, "mode": s.trading_mode.value},
+        "rules": {"verified_source_required": s.min_independent_sources_for_buy > 0},
     }
     if a.pool:
         pack["pool_indicative"] = {"source": a.pool.source, "volume_h1_usd": a.pool.volume_h1_usd,
@@ -242,12 +243,14 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     if _awaiting_research(ctx, token):
         return {"token": token, "skipped": "waiting for X research"}
     pack = build_pack(ctx, a)
-    if pack["evidence"]:
+    no_source_ok = not s.min_independent_sources_for_buy
+    if pack["evidence"] or (no_source_ok and a.cand.eligible):
         res = ctx.brain.decide(pack)
     else:
-        # No source mentions this token, so the evidence rule already makes it
-        # a pass. Recording that without asking Muse saves a paid call per token.
-        res = MuseResult(MuseDecision(action="pass", confidence=1.0, thesis="", reasons=[NO_EVIDENCE], risks=[],
+        # Nothing Muse could buy: no source when one is required, or no source and the screen already
+        # blocks it. Recording the pass without asking Muse saves a paid call per token.
+        why = "screen blockers: " + "; ".join(a.cand.blockers) if no_source_ok else NO_EVIDENCE
+        res = MuseResult(MuseDecision(action="pass", confidence=1.0, thesis="", reasons=[why], risks=[],
                                       evidence_ids=[], underfollowed=None, post_angle="", public_line=""),
                          raw="", model="rule", prompt_hash="")
     gates: list[str] = []
@@ -301,19 +304,19 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     elif action == "watch" and conf >= 0.6 and res.decision:
         skip, parent = _thread(conn, token, "watch")
         if not skip:
-            try:
-                price_now = spot_price(ctx, token)[0]
-            except Exception:
-                price_now = None
-            d = compose.watch_note(symbol=symbol, token=token, thesis=res.decision.public_line or thesis or "on my list",
-                                   risk=(risks or ["unclear"])[0], decision_id=did, mc=_market_cap(ctx, token, price_now))
+            pb = res.decision.post
+            d = compose.watch_note(symbol=symbol, token=token, decision_id=did, narrative=pb.narrative,
+                                   confirmation=pb.confirmation, watching=pb.watching, trigger=pb.trigger,
+                                   line=res.decision.public_line or thesis)
             d.reply_to = parent
             enqueue(conn, d)
     elif action == "pass" and res.decision and pack["evidence"] and conf >= 0.7:
         skip, parent = _thread(conn, token, "pass")
         if not skip:
-            d = compose.pass_note(symbol=symbol, token=token,
-                                  reason=res.decision.public_line or (reasons or ["not convinced"])[0], decision_id=did)
+            pb = res.decision.post
+            d = compose.pass_note(symbol=symbol, token=token, decision_id=did, narrative=pb.narrative,
+                                  concern=pb.concern, reconsider_if=pb.reconsider_if,
+                                  line=res.decision.public_line or (reasons or ["not convinced"])[0])
             d.reply_to = parent
             enqueue(conn, d)
     return out
@@ -347,7 +350,7 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
                             stage=a.cand.stage, meta={"evidence_ids": used})
         entry_price, spent = fill.avg_price, fill.quote_in
     cited = [e for e in pack["evidence"] if e["id"] in used]
-    catalyst = _describe_source(cited[0]) if cited else "a verified source"
+    catalyst = _describe_source(cited[0]) if cited else "broad onchain buying"
     # Only claim momentum that was actually measured (curve tokens); graduated
     # tokens are screened on pool volume instead, so say that.
     windows = a.cand.metrics.get("windows") or []
@@ -379,84 +382,188 @@ def _describe_source(src: dict[str, Any]) -> str:
 
 # --- exits ------------------------------------------------------------------
 
-def _mark(ctx: Context, pos: dict[str, Any]) -> tuple[FillEstimate | None, str]:
+def _left(pos: dict[str, Any]) -> float:
+    """Tokens still held: all of them until a take-profit rung sells some."""
+    return pos["tokens_left"] if pos.get("tokens_left") is not None else pos["entry_tokens"]
+
+
+def _mark(ctx: Context, pos: dict[str, Any], tokens: float) -> tuple[FillEstimate | None, str]:
+    """What selling `tokens` of this position would return right now."""
     rec = ctx.pons.launch_record(pos["token"])
     fee = 100
     if rec.phase == Phase.NOT_GRADUATED:
         q, t = ctx.pons.curve_reserves(rec.curve)
         st = ctx.pons.curve_state(rec.curve)
-        return curve_sell(int(pos["entry_tokens"] * ETH), q, t, st.fee_bps, st.creator_tax_bps), "curve"
+        return curve_sell(int(tokens * ETH), q, t, st.fee_bps, st.creator_tax_bps), "curve"
     if rec.phase == Phase.POOL_CREATED:
         pool = ctx.market.genuine_pool_stats(pos["token"], ctx.pons.genuine_pool_id(rec))
         eth = ctx.market.eth_usd()
         if pool and pool.price_native and pool.liquidity_usd and eth:
-            return pool_estimate(pos["entry_tokens"], pool.price_native, pool.liquidity_usd, eth,
+            return pool_estimate(tokens, pool.price_native, pool.liquidity_usd, eth,
                                  fee + rec.creator_tax_bps, buy=False), "pool"
         return None, "pool data unavailable"
     return None, f"phase {rec.phase.name}"
 
 
+def _live_sell(ctx: Context, pos: dict[str, Any], venue: str, tokens: float) -> FillEstimate:
+    """Sell `tokens` onchain. Raises LiveTradingBlocked if it can't."""
+    if venue != "curve":
+        ctx.live.swap_on_pool()
+    rec = ctx.pons.launch_record(pos["token"])
+    st = ctx.pons.curve_state(rec.curve)
+    lf = ctx.live.sell_on_curve(token=pos["token"], curve=rec.curve, tokens_in_wei=int(tokens * ETH),
+                                fee_bps=st.fee_bps, tax_bps=st.creator_tax_bps)
+    return FillEstimate(lf.quote_amount / ETH, lf.token_amount / ETH,
+                        (lf.quote_amount / lf.token_amount) if lf.token_amount else 0, 0, 0, 0, "onchain")
+
+
+def _at(ctx: Context, token: str, fill: FillEstimate) -> str:
+    """Where a sell happened, for the post: market cap if known, else the fill price."""
+    mc = _market_cap(ctx, token, fill.spot_price or fill.avg_price)
+    return f"{mc} MC" if mc else f"{fill.avg_price:.3g} ETH"
+
+
+def _post_mortem(ctx: Context, pos: dict[str, Any], reason: str, pnl_pct: float, age_h: float,
+                 symbol: str) -> dict[str, str]:
+    """Muse's honest read on a losing trade for the exit post, journalled so it isn't lost.
+    Falls back to the original thesis alone if Muse can't answer."""
+    conn = ctx.conn
+    d = conn.execute("SELECT thesis, reasons, risks FROM decisions WHERE id=?", (pos["decision_id"],)).fetchone() \
+        if pos.get("decision_id") else None
+    buy = {"thesis": d["thesis"], "reasons": json.loads(d["reasons"] or "[]"), "risks": json.loads(d["risks"] or "[]")} if d else {}
+    r = ctx.brain.review_loss({"symbol": symbol, "token": pos["token"], "entry_eth": pos["entry_quote"],
+                               "pnl_pct": round(pnl_pct, 1), "held_hours": round(age_h, 1), "exit_reason": reason,
+                               "buy_decision": buy, "marks": kv_get(conn, f"marks:{pos['id']}") or [],
+                               "evidence": evidence_for_token(conn, pos["token"], 10)})
+    out = {"bought": (buy.get("thesis") or "")}
+    if r.decision:
+        out = {"bought": r.decision.bought_because or out["bought"], "underestimated": r.decision.underestimated,
+               "lesson": r.decision.lesson}
+        journal_append(conn, "lesson", {"position_id": pos["id"], "token": pos["token"], "symbol": symbol,
+                                        "pnl_pct": round(pnl_pct, 1), **out}, ref=pos["token"])
+    return out
+
+
+def _plan(s: Any, hits: int) -> str:
+    """Where the exits are now, in words, for the milestone posts."""
+    ladder = sorted(s.take_profit_ladder)
+    if not hits:
+        return f"Stop -{s.stop_loss_pct:.0f}%, first take-profit at {ladder[0][0]:g}x."
+    return f"Stop at entry, next take-profit at {ladder[hits][0]:g}x." if hits < len(ladder) else "Stop at entry."
+
+
 def manage_positions(ctx: Context) -> list[dict[str, Any]]:
+    """Exits. Before the first take-profit: stop loss, first rung, max hold, Muse's thesis review.
+    After it the stop sits at entry and the rest only leaves at the next rungs, so a runner can reach the last one."""
     s, conn = ctx.settings, ctx.conn
+    ladder = sorted(s.take_profit_ladder)
     results = []
     for pos in ctx.risk.open_positions(s.trading_mode.value):
-        fill, venue = _mark(ctx, pos)
+        left, hits = _left(pos), pos.get("tp_hits") or 0
+        fill, venue = _mark(ctx, pos, left)
         if fill is None:
             journal_append(conn, "mark_failed", {"position_id": pos["id"], "why": venue}, ref=pos["token"])
             continue
-        pnl_pct = (fill.quote_in / pos["entry_quote"] - 1) * 100 if pos["entry_quote"] else 0
+        realized = pos.get("realized_quote") or 0.0
+        value = realized + fill.quote_in  # the whole trade: sold so far plus the rest at market
+        pnl_pct = (value / pos["entry_quote"] - 1) * 100 if pos["entry_quote"] else 0
+        # price multiple on what's still held: what it sells for now per token vs what it cost per token
+        cost = pos["entry_quote"] / pos["entry_tokens"] if pos["entry_tokens"] else 0
+        mult = (fill.quote_in / left) / cost if left and cost else 0
         marks = (kv_get(conn, f"marks:{pos['id']}") or [])[-29:]  # recent marks for the site's sparkline
-        kv_set(conn, f"marks:{pos['id']}", marks + [round(fill.quote_in, 8)])
+        kv_set(conn, f"marks:{pos['id']}", marks + [round(value, 8)])
         age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
-        reason = None
-        if pnl_pct <= -s.stop_loss_pct:
-            reason = f"stop loss at {pnl_pct:.1f}%"
-        elif pnl_pct >= s.take_profit_pct:
-            reason = f"take profit at {pnl_pct:.1f}%"
-        elif age_h >= s.max_hold_hours:
-            reason = f"max hold {s.max_hold_hours:.0f}h reached"
-        else:
-            last = kv_get(conn, f"exit_review:{pos['id']}")
-            if not last or (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() > 1800:
-                kv_set(conn, f"exit_review:{pos['id']}", utcnow())
-                r = ctx.brain.review_exit({"position": pos, "mark_quote": fill.quote_in, "pnl_pct": pnl_pct,
-                                           "venue": venue, "evidence": evidence_for_token(conn, pos["token"], 10),
-                                           "journal": journal_recent(conn, ref=pos["token"], limit=10)})
-                if r.decision and r.decision.action == "sell" and r.decision.confidence >= 0.6:
-                    reason = "thesis review: " + "; ".join(r.decision.reasons)[:120]
+        crossed = [i for i, (m, _) in enumerate(ladder) if i >= hits and mult >= m]
+        row = conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone()
+        symbol = (row["symbol"] if row else None) or "?"
+        reason = why = None  # reason is the record; why is how the post says it ("...because <why>")
+        if not hits and pnl_pct <= -s.stop_loss_pct:
+            reason, why = f"stop loss at {pnl_pct:.1f}%", f"it hit my -{s.stop_loss_pct:.0f}% stop"
+        elif hits and mult <= 1.0:
+            reason = f"back to entry after taking profit at {ladder[0][0]:g}x"
+            why = "the runner came back to my entry"
+        elif crossed:
+            top = crossed[-1]  # a jump past several rungs sells them all at once
+            sell = min(left, pos["entry_tokens"] * sum(f for _, f in ladder[hits:top + 1]))
+            if top == len(ladder) - 1 or sell >= left * 0.999:
+                reason, why = f"final take profit at {mult:.1f}x", f"it hit my final target at {mult:.1f}x"
+            else:
+                results.append(_take_profit(ctx, pos, venue, sell, top + 1, mult, symbol, ladder))
+                continue
+        elif not hits:
+            if age_h >= s.max_hold_hours:
+                reason = f"max hold {s.max_hold_hours:.0f}h reached"
+                why = f"{s.max_hold_hours:.0f}h passed without the move"
+            else:
+                last = kv_get(conn, f"exit_review:{pos['id']}")
+                if not last or (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() > 1800:
+                    kv_set(conn, f"exit_review:{pos['id']}", utcnow())
+                    r = ctx.brain.review_exit({"position": pos, "mark_quote": value, "pnl_pct": pnl_pct,
+                                               "venue": venue, "evidence": evidence_for_token(conn, pos["token"], 10),
+                                               "journal": journal_recent(conn, ref=pos["token"], limit=10)})
+                    if r.decision and r.decision.action == "sell" and r.decision.confidence >= 0.6:
+                        reason = "thesis review: " + "; ".join(r.decision.reasons)[:120]
+                        why = "the thesis changed: " + compose._phrase(r.decision.reasons[0] if r.decision.reasons else "", 50).lower()
         if not reason:
-            _milestone_update(ctx, pos, pnl_pct, fill)
+            _milestone_update(ctx, pos, pnl_pct, fill, hits)
             results.append({"position_id": pos["id"], "pnl_pct": round(pnl_pct, 2), "action": "hold"})
             continue
-        symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
         if pos["mode"] == "paper":
-            close_position(conn, pos, fill=fill, reason=reason, symbol=symbol or "?")
+            close_position(conn, pos, fill=fill, reason=reason, symbol=symbol)
         else:
             try:
-                if venue != "curve":
-                    ctx.live.swap_on_pool()
-                rec = ctx.pons.launch_record(pos["token"])
-                st = ctx.pons.curve_state(rec.curve)
-                lf = ctx.live.sell_on_curve(token=pos["token"], curve=rec.curve, tokens_in_wei=int(pos["entry_tokens"] * ETH),
-                                            fee_bps=st.fee_bps, tax_bps=st.creator_tax_bps)
-                fill = FillEstimate(lf.quote_amount / ETH, lf.token_amount / ETH,
-                                    (lf.quote_amount / lf.token_amount) if lf.token_amount else 0, 0, 0, 0, "onchain")
-                pnl = fill.quote_in - pos["entry_quote"]
+                fill = _live_sell(ctx, pos, venue, left)
+                total = realized + fill.quote_in
                 conn.execute("UPDATE positions SET status='closed', closed_at=?, exit_quote=?, exit_price=?, pnl_quote=?, "
-                             "exit_reason=? WHERE id=?", (utcnow(), fill.quote_in, fill.avg_price, pnl, reason, pos["id"]))
+                             "exit_reason=?, tokens_left=0 WHERE id=?",
+                             (utcnow(), total, fill.avg_price, total - pos["entry_quote"], reason, pos["id"]))
             except LiveTradingBlocked as exc:
                 journal_append(conn, "live_exit_blocked", {"position_id": pos["id"], "error": str(exc), "reason": reason},
                                ref=pos["token"], mode="live")
                 results.append({"position_id": pos["id"], "action": "exit_blocked", "error": str(exc)})
                 continue
-        pnl_pct = (fill.quote_in / pos["entry_quote"] - 1) * 100 if pos["entry_quote"] else 0
-        enqueue(conn, compose.trade_exit(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
-                                         exit_price=f"{fill.avg_price:.3g} ETH", reason=reason, position_id=pos["id"]))
+        pnl_eth = realized + fill.quote_in - pos["entry_quote"]
+        pnl_pct = pnl_eth / pos["entry_quote"] * 100 if pos["entry_quote"] else 0
+        story = _post_mortem(ctx, pos, reason, pnl_pct, age_h, symbol) if pnl_eth < 0 else {}
+        enqueue(conn, compose.trade_exit(mode=pos["mode"], symbol=symbol, token=pos["token"], pnl_pct=pnl_pct,
+                                         pnl_eth=pnl_eth, sold_pct=left / pos["entry_tokens"] * 100 if pos["entry_tokens"] else 100,
+                                         at=_at(ctx, pos["token"], fill), why=why or reason, position_id=pos["id"],
+                                         last_bit=bool(hits), **story))
         results.append({"position_id": pos["id"], "action": "exit", "reason": reason, "pnl_pct": round(pnl_pct, 2)})
     return results
 
 
-def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: FillEstimate) -> None:
+def _take_profit(ctx: Context, pos: dict[str, Any], venue: str, tokens: float, rung: int, mult: float, symbol: str,
+                 ladder: list[tuple[float, float]]) -> dict[str, Any]:
+    """Sell one or more take-profit rungs; the rest of the position stays open."""
+    conn = ctx.conn
+    reason = f"take profit at {mult:.1f}x"
+    if pos["mode"] == "paper":
+        fill, _ = _mark(ctx, pos, tokens)
+        if fill is None:
+            return {"position_id": pos["id"], "action": "take_profit_failed", "error": "no mark"}
+    else:
+        try:
+            fill = _live_sell(ctx, pos, venue, tokens)
+        except LiveTradingBlocked as exc:
+            journal_append(conn, "live_exit_blocked", {"position_id": pos["id"], "error": str(exc), "reason": reason},
+                           ref=pos["token"], mode="live")
+            return {"position_id": pos["id"], "action": "exit_blocked", "error": str(exc)}
+    take_partial(conn, pos, fill=fill, rung=rung, reason=reason, symbol=symbol, mode=pos["mode"])
+    share = fill.tokens_out / pos["entry_tokens"] if pos["entry_tokens"] else 0
+    left_pct = max(0.0, (_left(pos) - fill.tokens_out) / pos["entry_tokens"] * 100) if pos["entry_tokens"] else 0
+    nth = {1: "first", 2: "second", 3: "third"}.get(rung, f"#{rung}")
+    nxt = f", next one at {ladder[rung][0]:g}x" if rung < len(ladder) else ""
+    enqueue(conn, compose.take_profit(mode=pos["mode"], symbol=symbol, token=pos["token"], sold_pct=share * 100,
+                                      at=_at(ctx, pos["token"], fill),
+                                      why=f"{nth} target hit at {mult:.1f}x, stop moved to entry{nxt}",
+                                      left_pct=left_pct, realized_eth=fill.quote_in - pos["entry_quote"] * share,
+                                      position_id=pos["id"], rung=rung))
+    return {"position_id": pos["id"], "action": "take_profit", "rung": rung, "multiple": round(mult, 2),
+            "sold_eth": round(fill.quote_in, 6)}
+
+
+def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: FillEstimate, hits: int = 0) -> None:
     """Post once per milestone crossed (every +30%, and -15%), under the entry
     post. If several are crossed at once, only the furthest one is posted."""
     s, conn = ctx.settings, ctx.conn
@@ -471,8 +578,8 @@ def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: F
     m = max(crossed, key=abs)
     symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
     enqueue(conn, compose.position_update(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
-                                          price=f"{fill.avg_price:.3g} ETH", milestone=m, stop_pct=s.stop_loss_pct,
-                                          target_pct=s.take_profit_pct, position_id=pos["id"],
+                                          price=f"{fill.avg_price:.3g} ETH", milestone=m, plan=_plan(s, hits),
+                                          position_id=pos["id"],
                                           mc=_market_cap(ctx, pos["token"], fill.spot_price)))
 
 

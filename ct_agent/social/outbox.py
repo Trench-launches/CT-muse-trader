@@ -29,7 +29,7 @@ from .compose import Draft
 log = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
 # Trade posts go first, in the order they happened; anything else (watch, pass) is commentary.
-TRADE_KINDS = {"trade_entry", "update", "trade_exit", "correction", "scorecard"}
+TRADE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "correction", "scorecard"}
 
 
 def enqueue(conn: sqlite3.Connection, d: Draft) -> tuple[int, bool]:

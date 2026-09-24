@@ -32,18 +32,38 @@ def open_position(conn: sqlite3.Connection, *, token: str, symbol: str, decision
     return pid
 
 
+def take_partial(conn: sqlite3.Connection, position: dict[str, Any], *, fill: FillEstimate, rung: int, reason: str,
+                 symbol: str = "", mode: str = "paper") -> None:
+    """Sell part of an open position (a take-profit rung). The rest stays open.
+    `fill` is the sale of exactly the tokens sold here."""
+    left = (position["tokens_left"] if position.get("tokens_left") is not None else position["entry_tokens"])
+    with tx(conn):
+        conn.execute("UPDATE positions SET tokens_left=?, realized_quote=realized_quote+?, tp_hits=? "
+                     "WHERE id=? AND status='open'",
+                     (max(0.0, left - fill.tokens_out), fill.quote_in, rung, position["id"]))
+        journal_append(conn, "paper_partial_exit" if mode == "paper" else "live_partial_exit", {
+            "paper": mode == "paper", "onchain": mode != "paper", "position_id": position["id"], "side": "sell",
+            "token": position["token"], "symbol": symbol, "quote_out": fill.quote_in,
+            "quote_symbol": position["quote_symbol"], "tokens_in": fill.tokens_out, "avg_price": fill.avg_price,
+            "entry_price": position["entry_price"], "rung": rung, "reason": reason, "pricing": fill.method,
+        }, ref=position["token"], mode=mode, in_tx=True)
+
+
 def close_position(conn: sqlite3.Connection, position: dict[str, Any], *, fill: FillEstimate, reason: str,
                    symbol: str = "") -> float:
-    pnl = fill.quote_in - position["entry_quote"]
+    """Sell whatever is left. P&L counts earlier partial sells too."""
+    realized = position.get("realized_quote") or 0.0
+    total = realized + fill.quote_in
+    pnl = total - position["entry_quote"]
     with tx(conn):
         conn.execute("UPDATE positions SET status='closed', closed_at=?, exit_quote=?, exit_price=?, pnl_quote=?, "
-                     "exit_reason=? WHERE id=? AND status='open'",
-                     (utcnow(), fill.quote_in, fill.avg_price, pnl, reason, position["id"]))
+                     "exit_reason=?, tokens_left=0 WHERE id=? AND status='open'",
+                     (utcnow(), total, fill.avg_price, pnl, reason, position["id"]))
         journal_append(conn, "paper_exit", {
             "paper": True, "onchain": False, "position_id": position["id"], "side": "sell",
             "token": position["token"], "symbol": symbol, "quote_out": fill.quote_in,
             "quote_symbol": position["quote_symbol"], "tokens_in": fill.tokens_out, "avg_price": fill.avg_price,
-            "entry_price": position["entry_price"], "pnl_quote": pnl,
+            "entry_price": position["entry_price"], "realized_before": realized, "pnl_quote": pnl,
             "pnl_pct": (pnl / position["entry_quote"] * 100) if position["entry_quote"] else 0.0,
             "reason": reason, "pricing": fill.method,
         }, ref=position["token"], mode="paper", in_tx=True)

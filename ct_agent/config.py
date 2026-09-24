@@ -108,9 +108,13 @@ class Settings(BaseSettings):
     max_trade_tax_bps: int = 1_000
     kill_switch_file: str = "data/KILL"
     stop_loss_pct: float = 25.0
-    take_profit_pct: float = 60.0
+    # Take-profit ladder: (price multiple of entry, share of the ORIGINAL position to sell).
+    # After the first rung the stop moves to breakeven, and max hold / thesis review stop applying,
+    # so the runner can only leave at the last rung or back at entry.
+    take_profit_ladder: list[tuple[float, float]] = [(1.6, 0.50), (2.0, 0.25), (8.0, 0.25)]
     max_hold_hours: float = 24.0
-    min_independent_sources_for_buy: int = 1
+    # 0 = a buy can rest on onchain activity alone; 1+ = that many verified/first-party/reported sources required
+    min_independent_sources_for_buy: int = 0
     max_deployer_buy_share: float = 0.30
     max_top_buyer_share: float = 0.40
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often

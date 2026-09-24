@@ -24,9 +24,38 @@ def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
 
 
 def test_losses_are_posted():
-    d = compose.trade_exit(mode="paper", symbol="N", token=CA, pnl_pct=-25.3, exit_price="x", reason="stop loss",
-                           position_id=1)
-    assert "-25.3%" in d.body and "Loss logged" in d.body and "PAPER SOLD" in d.body
+    d = compose.trade_exit(mode="paper", symbol="N", token=CA, pnl_pct=-25.3, pnl_eth=-0.0127, sold_pct=100,
+                           at="$40K MC", why="it hit my -25% stop", position_id=1, bought="first-party launch news",
+                           underestimated="how thin the curve was", lesson="wait for 20+ buyer wallets")
+    assert d.body.startswith("Top blasted $N on paper. Entry was poor.")
+    assert "I bought because first-party launch news. Underestimated how thin the curve was." in d.body
+    assert "Cut because it hit my -25% stop.\nLesson: wait for 20+ buyer wallets." in d.body
+    assert "Realised P&L: -0.0127 ETH (-25%)." in d.body and d.body.endswith(CA)
+
+
+def test_post_formats_fit_and_keep_the_contract():
+    long = "x " * 60
+    posts = [
+        compose.watch_note(symbol="HOT", token=CA, decision_id=1, narrative=long, confirmation=long, watching=long,
+                           trigger=long),
+        compose.pass_note(symbol="HOT", token=CA, decision_id=2, narrative=long, concern=long, reconsider_if=long),
+        compose.take_profit(mode="paper", symbol="HOT", token=CA, sold_pct=50, at="$92.2K MC", why=long, left_pct=50,
+                            realized_eth=0.0173, position_id=1, rung=1),
+        compose.trade_exit(mode="paper", symbol="HOT", token=CA, pnl_pct=-40, pnl_eth=-0.02, sold_pct=100, at="$9K MC",
+                           why=long, position_id=1, bought=long, underestimated=long, lesson=long),
+        compose.trade_exit(mode="paper", symbol="HOT", token=CA, pnl_pct=80, pnl_eth=0.04, sold_pct=25, at="$1.2M MC",
+                           why="it hit my final target at 8.1x", position_id=1, last_bit=True),
+    ]
+    for d in posts:
+        assert len(d.body) <= 280 and d.body.endswith(f"CA {CA}"), d.body
+    w = compose.watch_note(symbol="HOT", token=CA, decision_id=1, narrative="HATCH v1 launch news",
+                           confirmation="more wallets buying", watching="graduation progress",
+                           trigger="it clears 90% with steady buys")
+    assert w.body.startswith("$HOT is on my radar. No position.\n\nHATCH v1 launch news caught my attention, "
+                             "but I want more wallets buying before buying.\n\nWatching graduation progress. If it "
+                             "clears 90% with steady buys, I take a starter. Until then, happy to wait.")
+    assert posts[4].body.startswith("Jeeted the last 25% of my $HOT paper bag at $1.2M MC.")
+    assert "Fully out. Realised P&L: +0.0400 ETH (+80%)." in posts[4].body
 
 
 def test_own_token_disclosed():
@@ -83,8 +112,11 @@ def test_crash_recovery_marks_unknown(db):
 
 
 def test_no_double_full_stops():
-    d = compose.pass_note(symbol="T", token=CA, reason="No real news is driving this.", decision_id=1)
-    assert ".." not in d.body and d.body.endswith("No real news is driving this.")
+    d = compose.pass_note(symbol="T", token=CA, line="No real news is driving this.", decision_id=1)
+    assert ".." not in d.body and d.body.startswith("Faded $T.\n\nNo real news is driving this.")
+    d = compose.pass_note(symbol="T", token=CA, decision_id=1, narrative="launch news.", concern="one wallet buying.",
+                          reconsider_if="buys spread out.")
+    assert ".." not in d.body and "I see the launch news thesis. Couldn't justify the entry with one wallet buying." in d.body
 
 
 def test_entry_post_never_says_none_or_unmeasured_momentum():
@@ -97,17 +129,17 @@ def test_entry_post_never_says_none_or_unmeasured_momentum():
 
 
 def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
-    enqueue(db, compose.watch_note(symbol="W", token=CA, thesis="t", risk="r", decision_id=1))
+    enqueue(db, compose.watch_note(symbol="W", token=CA, line="t", decision_id=1))
     enqueue(db, _entry(pid=1))
     enqueue(db, compose.position_update(mode="paper", symbol="NEZU", token=CA, pnl_pct=26, price="1e-9 ETH",
-                                        milestone=25, stop_pct=25, target_pct=60, position_id=1))
+                                        milestone=25, plan="Stop -25%, first take-profit at 1.6x.", position_id=1))
     got: list[dict] = []
 
     def h(r):
         got.append(json.loads(r.content))
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60)
-    assert [g["text"][:9] for g in got] == ["PAPER BUY", "$NEZU +26", "Watching "]
+    assert [g["text"][:9] for g in got] == ["PAPER BUY", "$NEZU +26", "$W is on "]
     assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
 
 

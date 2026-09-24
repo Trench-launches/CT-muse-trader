@@ -170,7 +170,10 @@ CREATE TABLE IF NOT EXISTS positions (
     exit_quote      REAL,
     exit_price      REAL,
     pnl_quote       REAL,
-    exit_reason     TEXT
+    exit_reason     TEXT,
+    tokens_left     REAL,               -- NULL until the first partial sell; then what is still held
+    realized_quote  REAL NOT NULL DEFAULT 0,  -- ETH already taken off by partial sells
+    tp_hits         INTEGER NOT NULL DEFAULT 0 -- take-profit rungs already sold
 );
 CREATE INDEX IF NOT EXISTS ix_positions_status ON positions(status, mode);
 

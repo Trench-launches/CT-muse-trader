@@ -54,6 +54,10 @@ def _muse(action="buy", ids=None):
         calls.append(text)
         if name == "exit_review":
             return json.dumps({"action": "hold", "confidence": 0.3, "reasons": ["thesis intact"]})
+        if name == "loss_review":
+            return json.dumps({"bought_because": "first-party news and fast buys",
+                               "underestimated": "how fast the buyers could leave",
+                               "lesson": "wait for buys from more wallets"})
         ev = ids if ids is not None else [int(x) for x in _ids_in(text)]
         return json.dumps({"action": action, "confidence": 0.72, "thesis": "first-party news plus accelerating buys",
                            "reasons": ["verified news", "buys accelerating across 5m/15m/1h"],
@@ -127,7 +131,9 @@ def test_full_paper_cycle(tmp_path):
     out3 = trader_once(ctx)
     assert out3["exits"][0]["action"] == "exit" and "stop loss" in out3["exits"][0]["reason"]
     social_once(ctx)
-    assert sent[-1].startswith("PAPER SOLD $HOT") and "Loss logged" in sent[-1]
+    assert sent[-1].startswith("Top blasted $HOT on paper. Entry was poor.") and "Realised P&L: -" in sent[-1], sent[-1]
+    assert "Underestimated how fast the buyers could leave." in sent[-1] and "Lesson: wait for buys from more wallets." in sent[-1]
+    assert journal_recent(ctx.conn, kind="lesson")[0]["payload"]["lesson"] == "wait for buys from more wallets"
     assert journal_verify(ctx.conn) == (True, None)
 
     # API reads it back; admin needs the token
@@ -148,15 +154,19 @@ def test_full_paper_cycle(tmp_path):
     assert r.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
     d = r.json()
     assert d["score"]["closed"] == 1 and d["score"]["losses"] == 1 and len(d["score"]["series"]) == 2
+    sc = d["score"]
+    assert sc["taken"] == 1 and sc["win_rate"] == 0 and sc["net_eth"] < 0 and sc["return_pct"] < 0
+    assert sc["worst"]["symbol"] == "HOT" and sc["recent"][0]["symbol"] == "HOT" and sc["labels"] == ["HOT"]
+    assert sc["avg_hold_h"] is not None and sc["recent"][0]["reason"]
     assert d["decisions"] and d["decisions"][0]["symbol"] == "HOT" and d["decisions"][0]["evidence"]
-    assert d["posts"][0]["body"].startswith("PAPER SOLD $HOT") and d["kill_switch"]["on"] is True
+    assert d["posts"][0]["body"].startswith("Top blasted $HOT") and d["kill_switch"]["on"] is True
     assert d["funnel"]["traded_24h"] == 1 and d["sources"] and d["chain"]["journal_intact"] is True
     assert "access-control-allow-origin" not in api.get("/site", headers={"origin": "https://evil.example"}).headers
 
 
 def test_rumor_only_cannot_trigger_buy(tmp_path):
     ch, hot, _ = _scenario()
-    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+    ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=_x_transport([]), completer=_muse())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="x", origin_id="x1", origin_url="https://x.com/a/status/1",
@@ -182,7 +192,7 @@ def test_muse_citing_unknown_evidence_is_gated(tmp_path):
 def test_no_evidence_passes_without_calling_muse(tmp_path):
     ch, hot, _ = _scenario()
     muse = _muse()
-    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+    ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=_x_transport([]), completer=muse)
     index_once(ctx)
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
@@ -249,7 +259,7 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     hot.real_quote = int(0.2 * ETH)  # collapse -> stop loss, exit replies under the entry too
     trader_once(ctx)
     social_once(ctx)
-    assert sent[-1]["text"].startswith("PAPER SOLD $HOT") and sent[-1]["reply"] == {"in_reply_to_tweet_id": "1001"}
+    assert sent[-1]["text"].startswith("Top blasted $HOT") and sent[-1]["reply"] == {"in_reply_to_tweet_id": "1001"}
     assert len(sent) == 3
 
 
@@ -261,7 +271,7 @@ def test_repeat_calls_are_not_reposted(tmp_path):
                 x_transport=_x_transport([]))
     tok = addr(0xA1)
     assert _thread(ctx.conn, tok, "watch") == (False, None)
-    enqueue(ctx.conn, compose.watch_note(symbol="HOT", token=tok, thesis="t", risk="r", decision_id=1))
+    enqueue(ctx.conn, compose.watch_note(symbol="HOT", token=tok, line="t", decision_id=1))
     assert _thread(ctx.conn, tok, "watch") == (True, "watch:1")        # same call again: skipped
     assert _thread(ctx.conn, tok, "pass") == (False, "watch:1")        # new call: threads under it
     assert _thread(ctx.conn, tok, "trade_entry") == (False, "watch:1")
@@ -283,7 +293,7 @@ def test_waits_for_x_research_before_deciding(tmp_path):
     from ct_agent.db import kv_set
     ch, hot, _ = _scenario()
     muse = _muse()
-    ctx = build(_settings(tmp_path, x_bearer_token="app"), rpc_transport=ch.transport(), market_transport=_market(),
+    ctx = build(_settings(tmp_path, x_bearer_token="app", min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=_x_transport([]), completer=muse)
     index_once(ctx)
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
@@ -296,7 +306,7 @@ def test_waits_for_x_research_before_deciding(tmp_path):
 def test_call_outcomes_are_tracked_and_reported(tmp_path):
     from ct_agent.strategy.outcomes import report
     ch, hot, _ = _scenario()
-    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+    ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=_x_transport([]), completer=_muse())
     index_once(ctx)
     trader_once(ctx)
@@ -314,3 +324,86 @@ def test_call_outcomes_are_tracked_and_reported(tmp_path):
     rep = report(ctx.conn)
     assert rep["calls_tracked"] >= 1 and rep["overall"]["hit_rate_+25%"] is not None
     assert "curve progress" in rep["by_variable"] and "pass" in rep["by_variable"]["action"]
+
+
+def _entered(tmp_path, **kw):
+    ch, hot, _ = _scenario()
+    sent: list[str] = []
+    ctx = build(_settings(tmp_path, **kw), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport(sent), completer=_muse())
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"HOT team ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+    trader_once(ctx)
+    social_once(ctx)
+    base = 1.68 * ETH + hot.real_quote  # curve price scales with (phantom + real reserve)^2
+    at = lambda m: int(base * m ** 0.5 - 1.68 * ETH)  # noqa: E731
+    return ctx, hot, sent, at
+
+
+def test_take_profit_ladder_then_breakeven_stop(tmp_path):
+    ctx, hot, sent, at = _entered(tmp_path, max_hold_hours=0.0)  # max hold would fire at once if it still applied
+    pos = lambda: rows(ctx.conn, "SELECT * FROM positions")[0]  # noqa: E731
+    entry_tokens = pos()["entry_tokens"]
+
+    hot.real_quote = at(1.75)
+    ex = trader_once(ctx)["exits"][0]
+    assert ex["action"] == "take_profit" and ex["rung"] == 1, ex
+    p = pos()
+    assert p["status"] == "open" and p["tp_hits"] == 1 and p["tokens_left"] == pytest.approx(entry_tokens * 0.5)
+    social_once(ctx)
+    assert sent[-1].startswith("Jeeted 50% of my $HOT paper bag at $") and "stop moved to entry" in sent[-1], sent[-1]
+    assert "50% still riding. Realised P&L: +" in sent[-1]
+
+    hot.real_quote = at(1.3)  # below the next rung, above entry: hold (max hold no longer applies)
+    assert trader_once(ctx)["exits"][0]["action"] == "hold"
+
+    hot.real_quote = at(2.3)
+    ex = trader_once(ctx)["exits"][0]
+    assert ex["action"] == "take_profit" and ex["rung"] == 2, ex
+    assert pos()["tokens_left"] == pytest.approx(entry_tokens * 0.25)
+
+    hot.real_quote = at(0.97)  # runner falls back under entry: breakeven stop sells the rest
+    ex = trader_once(ctx)["exits"][0]
+    assert ex["action"] == "exit" and "back to entry" in ex["reason"], ex
+    social_once(ctx)
+    out = [t for t in sent if t.startswith("Jeeted the last 25% of my $HOT paper bag")]
+    assert len(out) == 1 and "Fully out. Realised P&L: +" in out[0], sent
+    p = pos()
+    assert p["status"] == "closed" and p["pnl_quote"] > 0 and p["exit_quote"] > p["realized_quote"]
+    assert p["pnl_quote"] == pytest.approx(p["exit_quote"] - p["entry_quote"])
+    assert journal_verify(ctx.conn) == (True, None)
+
+
+def test_jump_past_every_rung_sells_it_all(tmp_path):
+    ctx, hot, sent, at = _entered(tmp_path)
+    hot.real_quote = at(9)
+    ex = trader_once(ctx)["exits"][0]
+    assert ex["action"] == "exit" and "final take profit" in ex["reason"], ex
+    p = rows(ctx.conn, "SELECT * FROM positions")[0]
+    assert p["status"] == "closed" and p["pnl_quote"] > 0.05 * 5
+
+
+def test_runner_after_first_rung_ignores_thesis_review(tmp_path):
+    ctx, hot, sent, at = _entered(tmp_path)
+    hot.real_quote = at(1.75)
+    trader_once(ctx)
+    ctx.brain.review_exit = lambda pack: (_ for _ in ()).throw(AssertionError("no thesis review after the first rung"))
+    hot.real_quote = at(1.4)
+    assert trader_once(ctx)["exits"][0]["action"] == "hold"
+
+
+def test_buys_on_onchain_activity_without_a_source(tmp_path):
+    ch, hot, _ = _scenario()
+    sent: list[str] = []
+    muse = _muse(ids=[])
+    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport(sent), completer=muse)
+    index_once(ctx)
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert muse.calls and '"verified_source_required": false' in muse.calls[0]  # asked with no source at all
+    assert d["action"] == "buy" and d.get("entered") and not d["gates"], d
+    assert rows(ctx.conn, "SELECT entry_quote FROM positions")[0]["entry_quote"] == pytest.approx(0.05)
+    social_once(ctx)
+    assert sent[0].startswith("PAPER BUY $HOT") and "Saw broad onchain buying" in sent[0], sent[0]

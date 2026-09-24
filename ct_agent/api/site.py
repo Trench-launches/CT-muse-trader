@@ -55,6 +55,40 @@ def _journal_ok(conn: Any) -> bool:
     return ok
 
 
+def _hours(a: str | None, b: str | None) -> float | None:
+    try:
+        return (datetime.fromisoformat(b) - datetime.fromisoformat(a)).total_seconds() / 3600  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+def _score(closed: list[dict[str, Any]], open_pos: list[dict[str, Any]], net: float, wins: int,
+           series: list[float]) -> dict[str, Any]:
+    """The paper scorecard: every closed trade counts, losses included."""
+    trades = []
+    for c in closed:
+        pnl, entry = c["pnl_quote"] or 0.0, c["entry_quote"] or 0.0
+        trades.append({"symbol": c["symbol"], "token": c["token"], "pnl_eth": round(pnl, 6),
+                       "pnl_pct": round(pnl / entry * 100, 2) if entry else 0.0,
+                       "hold_h": _hours(c["opened_at"], c["closed_at"]), "closed_at": c["closed_at"],
+                       "reason": c["exit_reason"]})
+    deployed = sum(c["entry_quote"] or 0 for c in closed)
+    holds = [t["hold_h"] for t in trades if t["hold_h"] is not None]
+    unreal = sum(p["marks"][-1] - p["entry_eth"] for p in open_pos if p["marks"])
+    by_pnl = sorted(trades, key=lambda t: t["pnl_eth"])
+    return {"closed": len(closed), "wins": wins, "losses": len(closed) - wins,
+            "taken": len(closed) + len(open_pos), "open": len(open_pos),
+            "net_eth": round(net, 6), "deployed_eth": round(deployed, 6),
+            "return_pct": round(net / deployed * 100, 2) if deployed else 0.0,
+            "win_rate": round(wins / len(closed) * 100, 1) if closed else None,
+            "avg_eth": round(net / len(closed), 6) if closed else None,
+            "avg_hold_h": round(sum(holds) / len(holds), 2) if holds else None,
+            "unrealized_eth": round(unreal, 6),
+            "best": by_pnl[-1] if by_pnl else None, "worst": by_pnl[0] if by_pnl else None,
+            "recent": trades[::-1][:5], "labels": [t["symbol"] for t in trades],
+            "series": series}
+
+
 def site_data(conn: Any, s: Settings) -> dict[str, Any]:
     hit = _CACHE.get("site")
     if hit and time.time() - hit[1] < CACHE_S:
@@ -168,14 +202,15 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
     posts = sorted(posts, key=lambda p: p["sent_at"] or "", reverse=True)[:6]
 
     # --- scorecard ---------------------------------------------------------------
-    closed = rows(conn, "SELECT p.pnl_quote, p.closed_at, l.symbol FROM positions p LEFT JOIN launches l "
-                        "ON l.token=p.token WHERE p.status='closed' AND p.mode=? ORDER BY p.closed_at",
-                        (s.trading_mode.value,))
+    closed = rows(conn, "SELECT p.token, p.pnl_quote, p.entry_quote, p.opened_at, p.closed_at, p.exit_reason, l.symbol "
+                        "FROM positions p LEFT JOIN launches l ON l.token=p.token "
+                        "WHERE p.status='closed' AND p.mode=? ORDER BY p.closed_at", (s.trading_mode.value,))
     cum, series = 0.0, [0.0]
     for c in closed:
         cum += c["pnl_quote"] or 0
         series.append(round(cum, 6))
     wins = sum(1 for c in closed if (c["pnl_quote"] or 0) > 0)
+    score = _score(closed, positions, cum, wins, series)
 
     # Coin logos: only for tokens that store one onchain; the site falls back to a coin if it won't load.
     with_logo = {r["token"].lower() for r in rows(conn, "SELECT token FROM launches WHERE logo_url IS NOT NULL "
@@ -195,6 +230,5 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "next_post": pending[0] if pending else None,
         "posts_24h": one("SELECT COUNT(*) FROM posts WHERE status='sent' AND sent_at>=?", (day,)),
         "posts": posts,
-        "score": {"closed": len(closed), "wins": wins, "losses": len(closed) - wins, "net_eth": round(cum, 6),
-                  "series": series},
+        "score": score,
     }

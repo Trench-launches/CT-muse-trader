@@ -42,6 +42,11 @@ def migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE posts ADD COLUMN reply_to_key TEXT")
     if "logo_url" not in {r["name"] for r in conn.execute("PRAGMA table_info(launches)")}:
         conn.execute("ALTER TABLE launches ADD COLUMN logo_url TEXT")
+    pcols = {r["name"] for r in conn.execute("PRAGMA table_info(positions)")}
+    for col, ddl in (("tokens_left", "REAL"), ("realized_quote", "REAL NOT NULL DEFAULT 0"),
+                     ("tp_hits", "INTEGER NOT NULL DEFAULT 0")):
+        if col not in pcols:
+            conn.execute(f"ALTER TABLE positions ADD COLUMN {col} {ddl}")
 
 
 def open_db(path: str) -> sqlite3.Connection:
