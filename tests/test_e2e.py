@@ -160,6 +160,7 @@ def test_full_paper_cycle(tmp_path):
     assert sc["taken"] == 1 and sc["win_rate"] == 0 and sc["net_eth"] < 0 and sc["return_pct"] < 0
     assert sc["worst"]["symbol"] == "HOT" and sc["recent"][0]["symbol"] == "HOT" and sc["labels"] == ["HOT"]
     assert sc["avg_hold_h"] is not None and sc["recent"][0]["reason"]
+    assert "logo" in sc["recent"][0]
     assert d["decisions"] and d["decisions"][0]["symbol"] == "HOT" and d["decisions"][0]["evidence"]
     assert d["posts"][0]["body"].startswith("Top blasted $HOT") and d["kill_switch"]["on"] is True
     assert d["funnel"]["traded_24h"] == 1 and d["sources"] and d["chain"]["journal_intact"] is True
