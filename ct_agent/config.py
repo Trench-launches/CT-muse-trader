@@ -130,7 +130,8 @@ class Settings(BaseSettings):
     max_top_buyer_share: float = 0.40
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
     candidates_per_cycle: int = 5
-    site_origins: list[str] = ["https://www.mooseonmuse.com", "https://mooseonmuse.com",
+    site_origins: list[str] = ["https://www.moosebymuse.com", "https://moosebymuse.com",
+                               "https://www.mooseonmuse.com", "https://mooseonmuse.com",
                                "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
     # Public "Ask Muse" chat on the website. Every request is a paid Muse call, so it is capped per
     # visitor and overall; the global cap is the hard ceiling on spend.

@@ -81,7 +81,7 @@ def site_summary(http: httpx.Client, url: str) -> dict[str, Any] | None:
             return None
         try:
             with http.stream("GET", url, follow_redirects=False, timeout=6,
-                             headers={"user-agent": "MOOSE research bot (+https://www.mooseonmuse.com)"}) as r:
+                             headers={"user-agent": "MOOSE research bot (+https://www.moosebymuse.com)"}) as r:
                 if r.is_redirect and r.headers.get("location"):
                     url = urljoin(url, r.headers["location"])
                     continue

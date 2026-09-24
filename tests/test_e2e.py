@@ -154,6 +154,8 @@ def test_full_paper_cycle(tmp_path):
     site_mod._CACHE.clear()
     r = api.get("/site", headers={"origin": "https://www.mooseonmuse.com"})
     assert r.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
+    new = api.get("/site", headers={"origin": "https://www.moosebymuse.com"})  # the new domain
+    assert new.headers["access-control-allow-origin"] == "https://www.moosebymuse.com"
     d = r.json()
     assert d["score"]["closed"] == 1 and d["score"]["losses"] == 1 and len(d["score"]["series"]) == 2
     sc = d["score"]
