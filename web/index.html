@@ -242,7 +242,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .f1 { left: 6%; top: 16%; } .f2 { right: 7%; top: 12%; } .f3 { right: 11%; bottom: 14%; } .f4 { left: 10%; bottom: 12%; }
 .hero-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 36px; margin-top: clamp(12px, 2vh, 20px); font-size: var(--t-sm); color: var(--ink-2); }
 .hero-stats b { color: var(--ink); font-family: var(--f-mono); font-weight: 500; }
-@media (max-width: 760px) { .hero { height: auto; min-height: 0; } .hero-stage { flex: none; height: 300px; } .f1, .f4 { display: none; } .f2 { right: 4%; top: 6%; } .f3 { right: 4%; bottom: 6%; } .hero-mascot { left: 34%; } }
+@media (max-width: 1000px) {
+  .hero { height: auto; min-height: 0; }
+  .hero-stage { flex: none; height: clamp(380px, 52vw, 460px); }
+  .hero-mascot { left: 50%; height: 86%; bottom: 0; }
+  .f1, .f2, .f4 { display: none; }            /* one compact card, under the mascot's face */
+  .f3 { left: 6%; right: 6%; bottom: 5%; max-width: 420px; margin-inline: auto; padding: 9px 12px; font-size: 13px; }
+  .f3 small { font-size: 11px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
 
 /* ---------- 2 SCALE ---------- */
 .scale .wrap { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 88px); align-items: center; }
@@ -377,7 +384,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .fl .tile .ic { width: 14px; height: 14px; }
 @keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .fl-1 { left: 0; top: 12%; } .fl-2 { left: -3%; top: 44%; animation-delay: -2s; } .fl-3 { right: 2%; top: 14%; animation-delay: -4s; } .fl-4 { left: 5%; bottom: 10%; animation-delay: -1s; }
-@media (max-width: 1000px) { .fl-2, .fl-4 { display: none; } .fl-1 { left: 0; top: 2%; } .fl-3 { right: 0; top: 4%; } }
+@media (max-width: 1000px) { .fl { display: none; } }  /* the floating labels would cover the phone on narrower screens */
 .holder { position: absolute; z-index: 3; right: -6%; bottom: -5%; height: 56%; pointer-events: none; }
 .holder img { height: 100%; width: auto; max-width: none; transform-origin: 30% 80%; animation: bob 4.8s ease-in-out infinite; filter: drop-shadow(0 18px 24px rgba(28,43,51,.18)); }
 @media (max-width: 1000px) { .chat.phone { transform: rotate(-2deg); } .holder { height: 40%; right: -4%; } }
@@ -606,13 +613,37 @@ footer nav { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
 footer nav a { text-decoration: none; } footer nav a:hover { color: var(--blue); }
 footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max-width: 110ch; }
 @media (max-width: 760px) { .cta-panel { grid-template-columns: 1fr; } footer .wrap { grid-template-columns: 1fr; } }
+/* ---------- phones and tablets: tabs for Live, a slideshow for Checking, a tidy Follow panel ---------- */
+.live-tabs, .vdots { display: none; }
+@media (max-width: 1000px) {
+  .live-tabs { position: relative; z-index: 2; display: flex; gap: 4px; padding: 5px; margin-bottom: 14px; border-radius: var(--r-pill); background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 1px rgba(28,43,51,.05); }
+  .live-tabs button { flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; background: transparent; padding: 10px 6px; border-radius: var(--r-pill); font-size: 14px; font-weight: 600; color: var(--ink-2); white-space: nowrap; transition: background .25s, color .25s, box-shadow .25s; }
+  .live-tabs button .ic { width: 15px; height: 15px; vertical-align: 0; flex: none; }
+  .live-tabs button[aria-selected="true"] { background: var(--white); color: var(--ink); box-shadow: 0 1px 2px rgba(28,43,51,.08), 0 6px 14px -8px rgba(28,43,51,.3); }
+  .live-grid .lc { display: none; }
+  .live-grid .lc.on { display: flex; animation: pop .35s var(--spring); }
+
+  .verify-panel { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .verify-panel > .token-card, .verify-panel > .pile { grid-area: 1 / 1; align-self: start; transition: opacity .5s ease, transform .6s var(--ease); }
+  .verify-panel > .token-card:not(.on), .verify-panel > .pile:not(.on) { opacity: 0; transform: translateX(28px); pointer-events: none; }
+  .verify-panel > .token-card.on, .verify-panel > .pile.on { opacity: 1; transform: none; }
+  .vdots { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+  .vdots button { width: 8px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: rgba(28,43,51,.18); transition: width .3s var(--ease), background .3s; }
+  .vdots button[aria-current="true"] { width: 24px; background: var(--blue); }
+
+  .coin.glyph { display: none; }            /* floating icon tiles only clutter a narrower screen */
+  footer .wrap { grid-template-columns: minmax(0, 1fr); }
+  .cta-panel { grid-template-columns: minmax(0, 1fr); }
+  .cta-panel .ctas { flex-wrap: wrap; }
+  .cta-mascot { height: auto; width: 100%; justify-self: center; }
+  .cta-mascot img { width: 100%; height: auto; max-width: 440px; max-height: 360px; object-fit: contain; display: block; margin-inline: auto; }
+}
 /* touch screens (phones and tablets): comfortable tap targets for the small footer links */
 @media (pointer: coarse) { footer nav a { padding-block: 11px; } }
 /* ---------- phones ---------- */
 @media (max-width: 760px) {
   :root { --sec-pad: clamp(52px, 8vh, 76px); }
   #live { padding-block: var(--sec-pad); }
-  .coin.glyph { display: none; }            /* floating icon tiles only clutter a narrow screen */
 }
 @media (max-width: 480px) {
   .xp-act .hit { width: 30px; height: 30px; }
@@ -798,7 +829,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div class="ctas" style="justify-content:flex-start"><button class="btn btn-primary" type="button" id="runCheck">Check the next lead <span class="arr">→</span></button></div>
     </div>
     <div class="panel verify-panel" style="background:var(--panel-cool)">
-      <div class="card token-card">
+      <div class="card token-card on">
         <div class="top"><span class="token-av"><span class="user-av" aria-hidden="true"><svg class="ic"><use href="#i-user"/></svg></span><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><div><h4 id="tkAddr">0x47a3…94d4</h4><span class="heard"><span class="src-ic" id="tkIc" style="background:#9146FF"><svg class="ic"><use href="#b-twitch"/></svg></span><span id="tkSrc">Heard on a Twitch stream</span></span></div></div>
         <div class="stamps" id="stamps">
           <div class="stamp"><span class="si"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span></span><span>On Robinhood Chain</span><span class="stt"></span></div>
@@ -810,6 +841,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       </div>
       <div class="pile"><div class="pile-h"><h5>Recent results</h5><small id="pileCount">5 of 1,284 today</small></div><div id="pile"></div></div>
     </div>
+    <div class="vdots" role="group" aria-label="Checking slides"><button type="button" aria-label="Show the checks" aria-current="true"></button><button type="button" aria-label="Show recent results" aria-current="false"></button></div>
   </div>
 </section>
 
@@ -873,8 +905,13 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     <p class="sub">What it's watching, what it's holding and what it'll post next. The same data backs every post.</p>
     <p class="paused-note"><span class="pill coral">Kill switch on: still watching, no new trades</span></p>
     <div class="panel grid-bg live-panel">
+    <div class="live-tabs" role="tablist" aria-label="Live">
+      <button type="button" role="tab" aria-selected="true" data-t="0"><svg class="ic"><use href="#i-eye"/></svg>Watching</button>
+      <button type="button" role="tab" aria-selected="false" data-t="1"><svg class="ic"><use href="#i-wallet"/></svg>Holding</button>
+      <button type="button" role="tab" aria-selected="false" data-t="2"><svg class="ic"><use href="#b-x"/></svg>Posting</button>
+    </div>
     <div class="live-grid">
-      <article class="lc">
+      <article class="lc on">
         <div class="lc-h"><span class="ic-b blue"><svg class="ic"><use href="#i-eye"/></svg></span><div><h4>Watching</h4><small>Close to graduating</small></div><span class="example">example</span></div>
         <div id="wl"></div>
         <div class="lc-foot"><span>Curve progress to graduation</span><span class="num">85% = almost bonded</span></div>
@@ -1231,6 +1268,22 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       renderLive(Math.floor(rnd(0, watch.length)));
     }, 2500);
   }
+
+  /* phones and tablets: Live cards as tabs */
+  const liveTabs = $$(".live-tabs button"), liveCards = $$(".live-grid .lc");
+  liveTabs.forEach((b, i) => b.addEventListener("click", () => {
+    liveTabs.forEach((x, k) => x.setAttribute("aria-selected", String(k === i)));
+    liveCards.forEach((c, k) => c.classList.toggle("on", k === i));
+  }));
+
+  /* phones and tablets: the Checking cards take turns, one at a time */
+  const vSlides = [$(".verify-panel .token-card"), $(".verify-panel .pile")], vDots = $$(".vdots button");
+  let vAt = 0, vTimer = null;
+  const vShow = i => { vAt = i; vSlides.forEach((el, k) => el.classList.toggle("on", k === i)); vDots.forEach((d, k) => d.setAttribute("aria-current", String(k === i))); };
+  const vStart = () => { clearInterval(vTimer); if (!reduce) vTimer = setInterval(() => { if (!document.hidden) vShow((vAt + 1) % vSlides.length); }, 5000); };
+  vDots.forEach((d, i) => d.addEventListener("click", () => { vShow(i); vStart(); }));
+  vStart();
+  $("#runCheck")?.addEventListener("click", () => { vShow(0); vStart(); });  // show the check that was just asked for
 
   /* ---------- 8 RECORD: the @MooseOnMuse timeline ---------- */
   let feedPosts = [
