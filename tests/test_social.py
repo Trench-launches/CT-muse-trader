@@ -143,6 +143,27 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
     assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
 
 
+def test_no_replies_under_a_previous_x_account(db):
+    """After the posting account changes, follow-ups to the old account's posts go out on their own."""
+    enqueue(db, _entry(pid=1))
+    db.execute("UPDATE posts SET status='sent', x_post_id='old1', sent_at='2026-09-24T10:00:00+00:00'")
+    enqueue(db, compose.position_update(mode="paper", symbol="NEZU", token=CA, pnl_pct=26, price="1e-9 ETH",
+                                        milestone=25, plan="Stop -30%.", position_id=1))
+    got: list[dict] = []
+
+    def h(r):
+        got.append(json.loads(r.content))
+        return httpx.Response(201, json={"data": {"id": str(len(got))}})
+    send_pending(db, _x(h), enabled=True, daily_cap=60, threads_since="2026-09-24T19:19:00+00:00")
+    assert len(got) == 1 and "reply" not in got[0]  # the parent is on the old account
+    enqueue(db, _entry(pid=2))
+    send_pending(db, _x(h), enabled=True, daily_cap=60, threads_since="2026-09-24T19:19:00+00:00")
+    enqueue(db, compose.position_update(mode="paper", symbol="NEZU", token=CA, pnl_pct=26, price="1e-9 ETH",
+                                        milestone=25, plan="Stop -30%.", position_id=2))
+    send_pending(db, _x(h), enabled=True, daily_cap=60, threads_since="2026-09-24T19:19:00+00:00")
+    assert got[-1]["reply"] == {"in_reply_to_tweet_id": "2"}  # a thread on the new account still threads
+
+
 def test_usd_compact():
     assert compose.usd_compact(42_130) == "$42.1K" and compose.usd_compact(1_234_000) == "$1.23M"
     assert compose.usd_compact(None) == "" and compose.usd_compact(950) == "$950"

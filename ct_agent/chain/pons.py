@@ -286,6 +286,17 @@ class PonsV2:
             ))
         return out
 
+    def curve_fees(self, curve: str, from_block: int, to_block: int, chunk: int) -> tuple[int, int]:
+        """(fee + tax paid in quote wei, number of trades) on one curve over a block range. Every curve
+        Buy/Sell event records the fee and tax actually charged, so this is exact, not an estimate."""
+        logs = self.rpc.get_logs_chunked(address=[checksum(curve)], topics=[[CURVE_BUY, CURVE_SELL]],
+                                         from_block=from_block, to_block=to_block, chunk=chunk)
+        total = 0
+        for lg in logs:
+            _a, _b, fee, tax = decode_output(["uint256"] * 4, lg["data"])
+            total += int(fee) + int(tax)
+        return total, len(logs)
+
     # --- verification -------------------------------------------------------
 
     def verify_token(self, address: str) -> tuple[bool, str, LaunchRecord | None]:

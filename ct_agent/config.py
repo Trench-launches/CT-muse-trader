@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # Written by `ctagent x-login`; the server seeds its token store from it
     x_refresh_token: str = ""
     x_posting_enabled: bool = False
+    # Posts sent before this time (ISO) belong to a previous X account: follow-ups post on their own
+    # instead of replying under them. Set when the posting account changes.
+    x_threads_since: str = ""
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
     x_update_step_pct: float = 30.0  # post an update under the entry at every +30% (30, 60, 90, ...)
     x_update_down_pct: list[float] = [-15.0]  # and once when it's down this much
@@ -116,6 +119,10 @@ class Settings(BaseSettings):
     # 0 = a buy can rest on onchain activity alone; 1+ = that many verified/first-party/reported sources required
     min_independent_sources_for_buy: int = 0
     max_deployer_buy_share: float = 0.30
+    # Thin-chart guard: above this market cap, a coin must have paid at least this much in trading fees
+    # over its life, or the chart was likely pumped by a handful of (bundled or botted) trades.
+    fee_check_mc_usd: float = 20_000
+    min_fees_paid_eth: float = 0.02
     max_top_buyer_share: float = 0.40
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
     candidates_per_cycle: int = 5

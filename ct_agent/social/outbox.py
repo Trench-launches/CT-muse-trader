@@ -59,7 +59,8 @@ def recover_interrupted(conn: sqlite3.Connection) -> int:
     return len(stuck)
 
 
-def send_pending(conn: sqlite3.Connection, x: XClient, *, enabled: bool, daily_cap: int) -> list[dict[str, Any]]:
+def send_pending(conn: sqlite3.Connection, x: XClient, *, enabled: bool, daily_cap: int,
+                 threads_since: str = "") -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     if not enabled:
         return results
@@ -67,7 +68,7 @@ def send_pending(conn: sqlite3.Connection, x: XClient, *, enabled: bool, daily_c
         if sent_last_24h(conn) >= daily_cap:
             break
         with tx(conn):
-            picked = _next_sendable(conn)
+            picked = _next_sendable(conn, threads_since)
             if not picked:
                 break
             row, parent_x_id = picked
@@ -79,18 +80,20 @@ def send_pending(conn: sqlite3.Connection, x: XClient, *, enabled: bool, daily_c
     return results
 
 
-def _next_sendable(conn: sqlite3.Connection) -> tuple[dict[str, Any], str | None] | None:
+def _next_sendable(conn: sqlite3.Connection, threads_since: str = "") -> tuple[dict[str, Any], str | None] | None:
     """Highest-priority pending post whose thread parent (if any) is settled."""
     pending = rows(conn, "SELECT * FROM posts WHERE status='pending'")
     pending.sort(key=lambda r: (r["kind"] not in TRADE_KINDS, r["id"]))
     for row in pending:
         if not row.get("reply_to_key"):
             return row, None
-        parent = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?",
+        parent = conn.execute("SELECT status, x_post_id, sent_at FROM posts WHERE idempotency_key=?",
                               (row["reply_to_key"],)).fetchone()
         if parent is None or parent["status"] in ("failed", "cancelled", "unknown"):
             return row, None  # nothing to thread under: post it on its own
         if parent["status"] == "sent":
+            if threads_since and (parent["sent_at"] or "") < threads_since:
+                return row, None  # the parent is on a previous X account: don't reply under it
             return row, parent["x_post_id"]
         # parent still pending/sending: wait so the thread reads in order
     return None

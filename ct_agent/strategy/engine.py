@@ -158,6 +158,7 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         "recent_losing_trades": mistakes,
         "limits": {"max_position_eth": s.max_position_eth, "mode": s.trading_mode.value},
         "rules": {"verified_source_required": s.min_independent_sources_for_buy > 0},
+        "fees_and_size": _fee_facts(ctx, a),
         "lore": _lore(ctx, a.cand.token),
     }
     if a.pool:
@@ -185,25 +186,63 @@ def _thread(conn, token: str, kind: str) -> tuple[bool, str | None]:
     return prev["kind"] == kind and kind != "trade_entry", prev["idempotency_key"]
 
 
-def _market_cap(ctx: Context, token: str, price_eth: float | None) -> str:
-    """Live market cap for a post, e.g. '$42.1K': price x total supply x ETH/USD.
-    '' when any part is unknown, so a post never shows an invented figure."""
+def _market_cap_usd(ctx: Context, token: str, price_eth: float | None) -> float | None:
+    """Market cap in USD: price x total supply x ETH/USD. None when any part is unknown."""
     try:
         if not price_eth:
-            return ""
+            return None
         row = ctx.conn.execute("SELECT decimals, quote_symbol FROM launches WHERE token=?", (token,)).fetchone()
         if row and row["quote_symbol"] and row["quote_symbol"] != "ETH":
-            return ""  # priced in a stock token or stablecoin: the price isn't in ETH
+            return None  # priced in a stock token or stablecoin: the price isn't in ETH
         supply = kv_get(ctx.conn, f"supply:{token.lower()}")
         if supply is None:
             dec = row["decimals"] if row and row["decimals"] is not None else 18
             supply = ctx.pons.total_supply(token) / 10 ** dec
             kv_set(ctx.conn, f"supply:{token.lower()}", supply)
         eth = ctx.market.eth_usd()
-        return compose.usd_compact(price_eth * supply * eth) if eth else ""
+        return price_eth * supply * eth if eth else None
     except Exception as exc:  # a missing figure must never block a post or a trade
         log.warning("market cap unavailable for %s: %s", token, exc)
-        return ""
+        return None
+
+
+def _market_cap(ctx: Context, token: str, price_eth: float | None) -> str:
+    """Live market cap for a post, e.g. '$42.1K'. '' when unknown, so a post never shows an invented figure."""
+    mc = _market_cap_usd(ctx, token, price_eth)
+    return compose.usd_compact(mc) if mc else ""
+
+
+def fees_paid_eth(ctx: Context, launch: dict[str, Any]) -> float | None:
+    """Trading fees + creator tax traders have paid on the coin's curve over its whole life, in ETH.
+    Read from the chain's own trade events, cached, and extended from the last block read."""
+    try:
+        token = launch["token"]
+        key = f"fees_paid:{token.lower()}"
+        st = kv_get(ctx.conn, key) or {"to": int(launch["block_number"]) - 1, "wei": "0", "trades": 0}
+        head = ctx.rpc.block_number()
+        if head > st["to"]:
+            fee, n = ctx.pons.curve_fees(launch["curve"], st["to"] + 1, head, ctx.settings.launch_log_chunk_blocks)
+            st = {"to": head, "wei": str(int(st["wei"]) + fee), "trades": st["trades"] + n}
+            kv_set(ctx.conn, key, st)
+        return int(st["wei"]) / ETH
+    except Exception as exc:  # never let a failed read block a decision; the gate just can't apply
+        log.warning("fees paid unavailable for %s: %s", launch.get("token"), exc)
+        return None
+
+
+def _fee_facts(ctx: Context, a: Assessed) -> dict[str, Any]:
+    """Market cap and lifetime fees paid, for Muse and for the thin-chart gate."""
+    try:
+        price = spot_price(ctx, a.cand.token)[0]
+    except Exception:
+        price = None
+    fees = fees_paid_eth(ctx, a.launch)
+    if fees is not None and a.pool and a.pool.volume_h24_usd and a.eth_usd:
+        # graduated: add what the pool took in the last 24h (its lifetime isn't readable cheaply)
+        rate = (a.cand.metrics.get("trade_fee_bps") or 0) / 10_000
+        fees += a.pool.volume_h24_usd * rate / a.eth_usd
+    mc = _market_cap_usd(ctx, a.cand.token, price)
+    return {"market_cap_usd": round(mc) if mc else None, "trading_fees_paid_eth": round(fees, 4) if fees is not None else None}
 
 
 def _lore(ctx: Context, token: str) -> dict[str, Any]:
@@ -284,6 +323,10 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
             gates.append("screen blockers: " + "; ".join(a.cand.blockers))
         if not risks:
             gates.append("no concrete risk named")
+        fz = pack.get("fees_and_size") or {}
+        mc, paid = fz.get("market_cap_usd"), fz.get("trading_fees_paid_eth")
+        if mc and paid is not None and mc > s.fee_check_mc_usd and paid < s.min_fees_paid_eth:
+            gates.append(f"only {paid:.3f} ETH of trading fees paid at a ${mc:,.0f} market cap: thin or botted chart")
         verdict = ctx.risk.check_entry(token=token, quote_symbol=a.launch.get("quote_symbol") or "", mode=s.trading_mode.value)
         gates.extend(verdict.reasons)
         fill = None

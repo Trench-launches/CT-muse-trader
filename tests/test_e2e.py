@@ -42,7 +42,7 @@ def _scenario() -> tuple[FakeChain, FakeToken, FakeToken]:
 def _settings(tmp_path, **kw) -> Settings:
     base = dict(_env_file=None, database_path=str(tmp_path / "e2e.db"), kill_switch_file=str(tmp_path / "KILL"),
                 x_posting_enabled=True, x_user_access_token="user-token", api_admin_token="admin-secret",
-                decision_cooldown_min=0)
+                decision_cooldown_min=0, min_fees_paid_eth=0)  # the thin-chart gate has its own test
     base.update(kw)
     return Settings(**base)
 
@@ -538,3 +538,27 @@ def test_chat_streams_each_research_step(tmp_path):
     assert [e["id"] for e in ev if e["type"] == "step"] == ["muse", "muse"] and ev[-1]["type"] == "answer"
     # limits still apply before anything streams
     assert api.post("/chat/stream", json={"message": "x" * 501}).status_code == 400
+
+
+def test_thin_chart_gate_blocks_a_buy(tmp_path):
+    ch, hot, _ = _scenario()  # ~$52K market cap, but only 11 small curve trades (~0.005 ETH of fees)
+    ctx = build(_settings(tmp_path, min_fees_paid_eth=0.02), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=_muse())
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+    d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
+    assert d["action"] == "watch" and any("trading fees paid" in g for g in d["gates"]), d
+    assert rows(ctx.conn, "SELECT COUNT(*) c FROM positions")[0]["c"] == 0
+    from ct_agent.strategy.engine import fees_paid_eth
+    launch = rows(ctx.conn, "SELECT * FROM launches WHERE token=?", (hot.token,))[0]
+    assert fees_paid_eth(ctx, launch) == pytest.approx(11 * 0.05 * 0.01, rel=0.3)  # summed from the trade events
+    # plenty of fees paid: the same coin passes the gate
+    ctx2 = build(_settings(tmp_path / "b", min_fees_paid_eth=0.001), rpc_transport=ch.transport(),
+                 market_transport=_market(), x_transport=_x_transport([]), completer=_muse())
+    index_once(ctx2)
+    add_source(ctx2.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                   excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
+    research_once(ctx2)
+    assert [x for x in trader_once(ctx2)["decisions"] if x["token"] == hot.token][0]["action"] == "buy"
