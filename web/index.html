@@ -1284,7 +1284,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   };
   drawSpark();
   const sTip = $("#sparkTip"), sWrap = $("#sparkWrap");
-  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .25); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; sTip.textContent = `trade ${i}${pnlLbl[i - 1] ? " · $" + pnlLbl[i - 1] : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
+  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .25); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; const v1n = +(/^MOOSE v1 \((\d+)/.exec(pnlLbl[0] || "") || [])[1] || 0, lb = pnlLbl[i - 1];
+    sTip.textContent = `${v1n && i === 1 ? `trades 1–${v1n}` : `trade ${i + (v1n && i ? v1n - 1 : 0)}`}${lb ? " · " + (lb.startsWith("MOOSE v1") ? "MOOSE v1" : "$" + lb) : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(3)} ETH`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
 
   /* ---------- 5b ASK MUSE: a real chat with Muse, rate limited by the API ---------- */
@@ -1524,7 +1525,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const open = sc.open ?? 0, unreal = sc.unrealized_eth ?? 0;
     $("#scMeta").innerHTML = (sc.closed ? `on <b>${(sc.deployed_eth ?? 0).toFixed(3)} ETH</b> traded` : "No closed trades yet")
       + (open ? ` · <b>${sgn(unreal)} ETH</b> unrealised on ${open} open trade${open === 1 ? "" : "s"}` : " · nothing open right now")
-      + (sc.history && !sc.history.includes.includes("net_eth") ? " · MOOSE v1 not in P&amp;L" : "");
+      + (sc.history ? (sc.history.includes.includes("net_eth") ? " · incl. MOOSE v1" : " · MOOSE v1 not in P&amp;L") : "");
     setCount($("#scTaken"), sc.taken ?? sc.closed); const v1 = sc.history?.v1_trades || 0;
     $("#scTakenS").textContent = v1 ? `incl. ${v1} paper trades from MOOSE v1 · ${open} open` : `${sc.closed} closed · ${open} open`;
     $("#scRate").textContent = sc.win_rate == null ? "—" : `${Math.round(sc.win_rate)}%`;

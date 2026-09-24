@@ -104,8 +104,19 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
     sc["losses"] += losses
     sc["win_rate"] = round(sc["wins"] / sc["closed"] * 100, 1) if sc["closed"] else None
     if v1.get("net_eth") is not None:
-        sc["net_eth"] = round(sc["net_eth"] + float(v1["net_eth"]), 6)
+        v1_net = float(v1["net_eth"])
+        sc["net_eth"] = round(sc["net_eth"] + v1_net, 6)
         sc["avg_eth"] = round(sc["net_eth"] / sc["closed"], 6)
+        # the chart starts with v1 as one step, then this bot's trades on top of it
+        sc["series"] = [0.0] + [round(v + v1_net, 6) for v in sc["series"]]
+        sc["labels"] = [f"MOOSE v1 ({n} trades)"] + list(sc["labels"])
+    if v1.get("deployed_eth") is not None:
+        sc["deployed_eth"] = round(sc["deployed_eth"] + float(v1["deployed_eth"]), 6)
+    if sc["deployed_eth"]:
+        sc["return_pct"] = round(sc["net_eth"] / sc["deployed_eth"] * 100, 2)
+    if v1.get("avg_hold_h") is not None:
+        mine = sc["closed"] - n
+        sc["avg_hold_h"] = round((float(v1["avg_hold_h"]) * n + (sc["avg_hold_h"] or 0) * mine) / sc["closed"], 2)
     if v1.get("best_eth") is not None and (not sc["best"] or float(v1["best_eth"]) > sc["best"]["pnl_eth"]):
         sc["best"] = {"symbol": v1.get("best_symbol"), "pnl_eth": float(v1["best_eth"]), "pnl_pct": v1.get("best_pct"),
                       "v1": True}
@@ -113,7 +124,7 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
         sc["worst"] = {"symbol": v1.get("worst_symbol"), "pnl_eth": float(v1["worst_eth"]), "pnl_pct": v1.get("worst_pct"),
                        "v1": True}
     sc["history"] = {"v1_trades": n, "v1_wins": wins, "v1_losses": losses,
-                     "includes": [k for k in ("net_eth", "best_eth", "worst_eth") if v1.get(k) is not None]}
+                     "includes": [k for k in ("net_eth", "deployed_eth", "avg_hold_h", "best_eth", "worst_eth") if v1.get(k) is not None]}
     return sc
 
 

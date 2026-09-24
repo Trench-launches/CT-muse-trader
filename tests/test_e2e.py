@@ -612,13 +612,17 @@ def test_rug_guards_fail_safe_when_the_chain_cant_be_read(tmp_path):
 def test_v1_history_folds_into_the_scorecard():
     from ct_agent.api.site import _with_v1
     now = {"closed": 2, "taken": 2, "wins": 0, "losses": 2, "win_rate": 0.0, "net_eth": -0.05, "avg_eth": -0.025,
-           "best": {"symbol": "MCAT", "pnl_eth": -0.005, "pnl_pct": -10.0}, "worst": {"symbol": "FOLD", "pnl_eth": -0.045}}
+           "best": {"symbol": "MCAT", "pnl_eth": -0.005, "pnl_pct": -10.0}, "worst": {"symbol": "FOLD", "pnl_eth": -0.045},
+           "deployed_eth": 0.1, "return_pct": -50.0, "avg_hold_h": 1.0, "series": [0.0, -0.005, -0.05], "labels": ["MCAT", "FOLD"]}
     assert _with_v1(now, {}) is now
     sc = _with_v1(now, {"trades": 100, "wins": 54, "losses": 46, "best_eth": 0.3})
     assert (sc["closed"], sc["wins"], sc["losses"], sc["win_rate"]) == (102, 54, 48, 52.9)
     assert sc["best"]["pnl_eth"] == 0.3 and sc["best"]["v1"] is True
     assert sc["net_eth"] == -0.05 and sc["worst"]["symbol"] == "FOLD"  # v1 didn't give these: current bot's own
     assert sc["history"] == {"v1_trades": 100, "v1_wins": 54, "v1_losses": 46, "includes": ["best_eth"]}
+    sc = _with_v1(now, {"trades": 100, "wins": 54, "net_eth": 0.35, "deployed_eth": 5.0, "avg_hold_h": 3.0})
+    assert sc["net_eth"] == 0.3 and sc["deployed_eth"] == 5.1 and sc["return_pct"] == 5.88
+    assert sc["avg_hold_h"] == 2.96 and sc["series"] == [0.0, 0.35, 0.345, 0.3] and sc["labels"][0] == "MOOSE v1 (100 trades)"
 
 
 def test_admin_can_queue_a_hand_written_post(tmp_path):
