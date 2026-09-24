@@ -177,6 +177,13 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         series.append(round(cum, 6))
     wins = sum(1 for c in closed if (c["pnl_quote"] or 0) > 0)
 
+    # Coin logos: only for tokens that store one onchain; the site falls back to a coin if it won't load.
+    with_logo = {r["token"].lower() for r in rows(conn, "SELECT token FROM launches WHERE logo_url IS NOT NULL "
+                                                        "AND logo_url != ''")}
+    for item in watching + positions + decisions + leads:
+        tok = item.get("token") or item.get("verified_token")
+        item["logo"] = f"/logo/{tok}" if tok and tok.lower() in with_logo else None
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "mode": s.trading_mode.value,

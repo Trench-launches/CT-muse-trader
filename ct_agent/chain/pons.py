@@ -234,6 +234,13 @@ class PonsV2:
         q, t = decode_output(["uint256", "uint256"], self.rpc.eth_call(curve, encode_call("getReserves()")))
         return int(q), int(t)
 
+    def token_logo(self, token: str) -> str:
+        """The image link a Pons token stores onchain (ipfs:// or https://), or ''."""
+        try:
+            return str(decode_output(["string"], self.rpc.eth_call(token, encode_call("logo()")))[0]).strip()
+        except Exception:
+            return ""
+
     def total_supply(self, token: str) -> int:
         return int(decode_output(["uint256"], self.rpc.eth_call(token, encode_call("totalSupply()")))[0])
 

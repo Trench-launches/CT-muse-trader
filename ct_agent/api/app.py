@@ -187,6 +187,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["Cache-Control"] = "public, max-age=15"
         return site_data(conn, s)
 
+    @app.get("/logo/{token}")
+    def logo(token: str, conn=Depends(db)) -> Response:
+        """A tracked token's own logo, re-encoded as a small WebP. 404 if it has none."""
+        import re
+        from pathlib import Path
+        from .logos import logo_file
+        if not re.fullmatch(r"0x[0-9a-fA-F]{40}", token):
+            raise HTTPException(404, "not a token address")
+        path = logo_file(conn, Path(s.database_path).parent, token)
+        if path is None:
+            raise HTTPException(404, "no logo")
+        return Response(path.read_bytes(), media_type="image/webp",
+                        headers={"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"})
+
     @app.get("/outcomes")
     def outcomes(hours: float | None = None, conn=Depends(db)) -> dict[str, Any]:
         """What happened after each call, split by the variables MOOSE saw."""

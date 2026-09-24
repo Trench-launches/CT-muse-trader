@@ -51,7 +51,8 @@ CREATE TABLE IF NOT EXISTS launches (
     creator_tax_bps       INTEGER,
     pool_fee              INTEGER,
     tick_spacing          INTEGER,
-    pool_id               TEXT
+    pool_id               TEXT,
+    logo_url              TEXT            -- from the token's own logo() function; '' if it has none
 );
 CREATE INDEX IF NOT EXISTS ix_launch_stage ON launches(last_phase, last_progress);
 

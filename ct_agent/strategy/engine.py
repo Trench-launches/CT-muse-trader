@@ -49,6 +49,10 @@ def _meta(ctx: Context, launch: dict[str, Any]) -> dict[str, Any]:
         ctx.conn.execute("UPDATE launches SET name=?, symbol=?, decimals=? WHERE token=?",
                          (m.name, m.symbol, m.decimals, launch["token"]))
         launch.update(name=m.name, symbol=m.symbol, decimals=m.decimals)
+    if launch.get("logo_url") is None:
+        logo = ctx.pons.token_logo(launch["token"])[:500]
+        ctx.conn.execute("UPDATE launches SET logo_url=? WHERE token=?", (logo, launch["token"]))
+        launch["logo_url"] = logo
     if not launch.get("quote_symbol"):
         # Many Pons launches are priced in Robinhood stock tokens or stablecoins
         # (GLD, NVDA, META, USDG...), not ETH. Record which, once per token.
