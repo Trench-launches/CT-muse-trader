@@ -52,9 +52,12 @@ def fetch_new(ctx: Context) -> int:
                           c.get("alert_price"), c.get("alert_mcap"), json.dumps(c), "watching", utcnow()))
         if calls:
             kv_set(conn, "scanner_cursor", max(int(c["id"]) for c in calls))
-        elif last is None:
-            kv_set(conn, "scanner_cursor", 0 if not rows(conn, "SELECT 1 FROM scanner_calls LIMIT 1") else
-                   conn.execute("SELECT MAX(id) m FROM scanner_calls").fetchone()["m"])
+    if last is None and not calls:  # nothing in the window yet: start after the newest call, not from zero
+        r = ctx.web.get(f"{s.supabase_url.rstrip('/')}/rest/v1/alert_performance?select=id&order=id.desc&limit=1",
+                        timeout=20, headers={"apikey": s.supabase_key, "Authorization": f"Bearer {s.supabase_key}"})
+        r.raise_for_status()
+        newest = r.json()
+        kv_set(conn, "scanner_cursor", int(newest[0]["id"]) if newest else 0)
     return len(calls)
 
 
