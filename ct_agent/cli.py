@@ -110,19 +110,16 @@ def _x_login(s, *, open_browser: bool) -> int:
 def _print_report(r: dict) -> None:
     cols = ["n", "avg_15m", "avg_1h", "avg_4h", "avg_24h", "hit_rate_+25%", "dead_rate", "graduated"]
     fmt = lambda v: "-" if v is None else str(v)  # noqa: E731
-    print(f"{r['calls_tracked']} calls tracked. {r['note']}
-")
+    print(f"{r['calls_tracked']} calls tracked. {r['note']}\n")
     head = f"{'':28}" + "".join(f"{c:>14}" for c in cols)
     print(head)
     print(f"{'ALL':28}" + "".join(f"{fmt(r['overall'].get(c)):>14}" for c in cols))
     for var, buckets in r["by_variable"].items():
-        print(f"
-{var}")
+        print(f"\n{var}")
         for b, v in buckets.items():
             print(f"  {b:26}" + "".join(f"{fmt(v.get(c)):>14}" for c in cols))
     if r["best_calls"]:
-        print("
-best calls:", ", ".join(f"${c['symbol']} {c['action']} {c['peak_pct']:+.0f}%" for c in r["best_calls"]))
+        print("\nbest calls:", ", ".join(f"${c['symbol']} {c['action']} {c['peak_pct']:+.0f}%" for c in r["best_calls"]))
 
 
 def _check() -> int:
