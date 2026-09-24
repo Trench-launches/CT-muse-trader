@@ -54,6 +54,8 @@ def _muse(action="buy", ids=None):
         calls.append(text)
         if name == "exit_review":
             return json.dumps({"action": "hold", "confidence": 0.3, "reasons": ["thesis intact"]})
+        if name == "site_chat":
+            return json.dumps({"reply": "HOT is on the curve and buyers are spreading out. Not advice."})
         if name == "loss_review":
             return json.dumps({"bought_because": "first-party news and fast buys",
                                "underestimated": "how fast the buyers could leave",
@@ -407,3 +409,69 @@ def test_buys_on_onchain_activity_without_a_source(tmp_path):
     assert rows(ctx.conn, "SELECT entry_quote FROM positions")[0]["entry_quote"] == pytest.approx(0.05)
     social_once(ctx)
     assert sent[0].startswith("PAPER BUY $HOT") and "Saw broad onchain buying" in sent[0], sent[0]
+
+
+def _chat_api(tmp_path, **kw):
+    ch, hot, cold = _scenario()
+    muse = _muse()
+    ctx = build(_settings(tmp_path, **kw), rpc_transport=ch.transport(), market_transport=_market(),
+                x_transport=_x_transport([]), completer=muse)
+    index_once(ctx)
+    app = create_app(ctx.settings)
+    app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market, "brain": ctx.brain}
+    return TestClient(app), hot, muse
+
+
+def test_ask_muse_researches_a_contract(tmp_path):
+    from ct_agent.api import chat
+    chat._RESEARCH.clear()
+    api, hot, muse = _chat_api(tmp_path)
+    # a suggestion chip sends the coin's address, so it resolves even before its ticker is indexed
+    d = api.post("/chat", json={"message": "Research $HOT", "token": hot.token}).json()
+    assert d["token"]["symbol"] == "HOT", d
+    chat._RESEARCH.clear()
+    r = api.post("/chat", json={"message": f"what do you think of {hot.token}?"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["reply"].startswith("HOT is on the curve") and d["remaining"]["hour"] == 8
+    assert d["token"]["symbol"] == "HOT" and d["token"]["stage"] == "on the bonding curve"
+    sent = muse.calls[-1]
+    assert '"curve_progress_pct"' in sent and '"onchain_activity"' in sent and "<visitor_conversation>" in sent
+    assert "visitor: what do you think of" in sent
+
+    d = api.post("/chat", json={"message": "is $hot risky?"}).json()  # ticker lookup, any case
+    assert d["token"]["address"].lower() == hot.token.lower()
+
+    # a follow-up with no coin named uses the one from earlier in the conversation
+    d = api.post("/chat", json={"message": "and the fees?", "history": [
+        {"role": "user", "text": f"look at {hot.token}"}, {"role": "muse", "text": "ok"}]}).json()
+    assert d["token"]["symbol"] == "HOT"
+
+    d = api.post("/chat", json={"message": f"check {addr(0xDEAD)}"}).json()  # not a Pons launch
+    assert d["token"] is None and '"is_pons_v2_launch_on_robinhood_chain": false' in muse.calls[-1]
+
+    assert api.post("/chat", json={"message": "x" * 501}).status_code == 400
+    pre = api.options("/chat", headers={"origin": "https://www.mooseonmuse.com", "access-control-request-method": "POST",
+                                        "access-control-request-headers": "content-type"})
+    assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
+    pre = api.options("/chat", headers={"origin": "https://www.mooseonmuse.com", "access-control-request-method": "POST",
+                                        "access-control-request-headers": "authorization"})
+    assert pre.status_code == 400  # no Authorization header from browsers: admin calls stay server-side
+
+
+def test_ask_muse_is_rate_limited(tmp_path):
+    api, hot, muse = _chat_api(tmp_path, chat_per_ip_hour=2, chat_global_day=3)
+    one = {"x-forwarded-for": "1.1.1.1"}
+    assert api.get("/chat/limits", headers=one).json()["remaining"] == {"hour": 2, "day": 30}
+    for _ in range(2):
+        assert api.post("/chat", json={"message": "hi"}, headers=one).status_code == 200
+    r = api.post("/chat", json={"message": "hi"}, headers=one)
+    assert r.status_code == 429 and "questions this hour" in r.json()["detail"] and int(r.headers["retry-after"]) >= 60
+    # a spoofed first X-Forwarded-For entry doesn't reset the limit: the proxy's last entry is used
+    assert api.post("/chat", json={"message": "hi"}, headers={"x-forwarded-for": "9.9.9.9, 1.1.1.1"}).status_code == 429
+    # another visitor still gets through until the site-wide daily cap
+    assert api.post("/chat", json={"message": "hi"}, headers={"x-forwarded-for": "2.2.2.2"}).status_code == 200
+    r = api.post("/chat", json={"message": "hi"}, headers={"x-forwarded-for": "3.3.3.3"})
+    assert r.status_code == 429 and "all it can for today" in r.json()["detail"]
+    calls = len(muse.calls)
+    assert calls == 3  # refused requests never reached Muse

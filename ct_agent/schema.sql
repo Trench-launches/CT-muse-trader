@@ -213,3 +213,14 @@ CREATE TABLE IF NOT EXISTS call_outcomes (
 );
 CREATE INDEX IF NOT EXISTS ix_call_outcomes_open ON call_outcomes(done, decided_at);
 CREATE INDEX IF NOT EXISTS ix_call_outcomes_token ON call_outcomes(token, decided_at);
+
+-- Public "Ask Muse" chat: one row per request, for rate limits. `who` is a salted hash of the IP.
+CREATE TABLE IF NOT EXISTS chat_requests (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts      TEXT NOT NULL,
+    who     TEXT NOT NULL,
+    token   TEXT,
+    status  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_chat_requests_who ON chat_requests(who, ts);
+CREATE INDEX IF NOT EXISTS ix_chat_requests_ts ON chat_requests(ts);

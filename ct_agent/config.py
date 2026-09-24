@@ -121,6 +121,13 @@ class Settings(BaseSettings):
     candidates_per_cycle: int = 5
     site_origins: list[str] = ["https://www.mooseonmuse.com", "https://mooseonmuse.com",
                                "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
+    # Public "Ask Muse" chat on the website. Every request is a paid Muse call, so it is capped per
+    # visitor and overall; the global cap is the hard ceiling on spend.
+    chat_enabled: bool = True
+    chat_per_ip_hour: int = 10
+    chat_per_ip_day: int = 30
+    chat_global_day: int = 500
+    chat_max_chars: int = 500
     max_entries_per_day: int = 10  # hard cap on new trades in any rolling 24h
     research_wait_min: int = 10  # wait this long for a token's X research before deciding without it
 

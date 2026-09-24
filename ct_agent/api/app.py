@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hmac
 import json
+from types import SimpleNamespace
 from typing import Any, Iterator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response
@@ -19,6 +20,7 @@ from ..db import journal_append, journal_recent, journal_verify, kv_get, open_db
 from ..execution.risk import RiskManager
 from ..sources.store import SourceIn, add_source, independent_origins
 from ..sources.twitch import TwitchSignatureError, handle_eventsub, ingest_transcript
+from . import chat
 
 
 class KillIn(BaseModel):
@@ -46,6 +48,18 @@ class TranscriptIn(BaseModel):
     spoken_at: str | None = None
 
 
+class ChatMsg(BaseModel):
+    role: str = Field(pattern="^(user|muse)$")
+    text: str = Field(max_length=2000)
+
+
+class ChatIn(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    history: list[ChatMsg] = Field(default_factory=list, max_length=20)
+    # the coin the site already knows the question is about (a suggestion chip, or the last coin discussed)
+    token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
+
+
 class ResolveIn(BaseModel):
     status: str = Field(pattern="^(sent|pending|cancelled)$")
     x_post_id: str | None = None
@@ -56,8 +70,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="CT Agent API", version="0.1.0",
                   description="Robinhood Chain research and paper-trading agent. Automated account; not financial advice.")
     open_db(s.database_path).close()  # run migrations once at startup
-    # The public website reads the API from the browser. Reads only: no cookies, no admin calls.
-    app.add_middleware(CORSMiddleware, allow_origins=s.site_origins, allow_methods=["GET"], allow_headers=[])
+    # The public website reads the API from the browser, and posts to /chat. No cookies, and no
+    # Authorization header allowed cross-origin, so admin calls can't come from a browser page.
+    app.add_middleware(CORSMiddleware, allow_origins=s.site_origins, allow_methods=["GET", "POST"],
+                       allow_headers=["content-type"])
 
     def db() -> Iterator[Any]:
         conn = open_db(s.database_path)
@@ -221,6 +237,69 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if status:
             return rows(conn, "SELECT * FROM posts WHERE status=? ORDER BY id DESC LIMIT 200", (status,))
         return rows(conn, "SELECT * FROM posts ORDER BY id DESC LIMIT 200")
+
+    # --- ask muse (public chat) ---------------------------------------------
+
+    def chat_services() -> dict[str, Any]:
+        """Chain, market and Muse clients for the chat, built once. Tests can preset app.state.chat_services."""
+        svc = getattr(app.state, "chat_services", None)
+        if svc is None:
+            from ..context import build
+            ctx = build(s)
+            ctx.conn.close()  # each request brings its own connection
+            svc = app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market,
+                                             "brain": ctx.brain}
+        return svc
+
+    def visitor(request: Request, conn: Any) -> str:
+        # Behind Railway's proxy the client address is the last X-Forwarded-For entry (earlier ones
+        # can be typed by the client). It is only ever stored as a salted hash.
+        fwd = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+        ip = fwd[-1] if fwd else (request.client.host if request.client else "unknown")
+        return chat.visitor_id(conn, ip)
+
+    @app.get("/chat/limits")
+    def chat_limits(request: Request, conn=Depends(db)) -> dict[str, Any]:
+        return {"enabled": s.chat_enabled, "max_chars": s.chat_max_chars,
+                "remaining": chat.remaining(conn, s, visitor(request, conn))}
+
+    @app.post("/chat")
+    def ask_muse(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
+        """Ask Muse about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
+        if not s.chat_enabled:
+            raise HTTPException(503, "The chat is switched off right now.")
+        msg = body.message.strip()
+        if len(msg) > s.chat_max_chars:
+            raise HTTPException(400, f"Keep it under {s.chat_max_chars} characters.")
+        who = visitor(request, conn)
+        try:
+            chat.check_limits(conn, s, who)
+        except chat.ChatLimited as exc:
+            raise HTTPException(429, str(exc), headers={"Retry-After": str(exc.retry_after_s)})
+        svc = chat_services()
+        if not svc["brain"].enabled:
+            raise HTTPException(503, "Muse isn't connected right now.")
+        # The coin: a contract pasted in this message, else the one the site says we're on (a suggestion
+        # chip, or the coin being discussed), else a $ticker in the message, else one named earlier.
+        if body.token and not chat.ADDRESS.search(msg):
+            token, how = body.token, "context"
+        else:
+            token, how = chat.find_token(conn, msg)
+        for m in reversed(body.history):
+            if token or how:
+                break
+            if m.role == "user":
+                token, how = chat.find_token(conn, m.text)
+        ctx = SimpleNamespace(settings=s, conn=conn, **svc)
+        facts = chat.research(ctx, token) if token else ({"lookup": how} if how else {})
+        ev = chat.evidence(conn, facts["address"]) if facts.get("is_pons_v2_launch_on_robinhood_chain") else []
+        chat.log_request(conn, who, token, "asked")  # counted before the paid call, whatever happens next
+        convo = [{"role": m.role, "text": m.text[:600]} for m in body.history[-8:]] + [{"role": "user", "text": msg}]
+        res = svc["brain"].chat(facts, ev, convo)
+        if res.decision is None:
+            raise HTTPException(502, "Muse didn't answer that one. Try again in a moment.")
+        return {"reply": res.decision.reply.strip()[:2000], "token": chat.token_card(facts),
+                "remaining": chat.remaining(conn, s, who)}
 
     # --- admin --------------------------------------------------------------
 
