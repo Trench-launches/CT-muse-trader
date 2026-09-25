@@ -191,6 +191,11 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     link = f"https://x.com/MooseByMuse/status/{ann['x_post_id']}" if posted else f"https://gmgn.ai/robinhood/token/{out.token}"
     _reply(conn, m, f"🚀 ${r['symbol']} is live\n\nCA: {out.token}\n\nCreator fees go to your wallet once the coin pays "
                     f"back its ~$2 launch.\n\n{link}")
+    # they asked before and it was refused (no image, say): the answer goes under that first post too
+    for old in rows(conn, "SELECT x_post_id FROM launch_requests WHERE author_id=? AND upper(symbol)=? AND "
+                          "status='refused' AND id<?", (r["author_id"], r["symbol"].upper(), r["id"])):
+        _reply(conn, {"id": old["x_post_id"], "author_id": r["author_id"]},
+               f"🚀 ${r['symbol']} is live now\n\nCA: {out.token}\n\nReceipt: {link}", kind="launch_followup")
     return 1
 
 

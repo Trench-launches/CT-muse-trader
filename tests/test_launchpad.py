@@ -199,3 +199,16 @@ def test_fees_pointed_at_the_launcher_stay_there_and_sweeps_stop_once_repaid(set
     assert [c for c in lp.calls if c[0] == "sweep"] == [("sweep", "0x" + "cc" * 20)]
     assert not [c for c in lp.calls if c[0] == "hand_over"]
     assert rows(db, "SELECT status FROM launch_requests")[0]["status"] == "handed_over"
+
+
+def test_a_retry_after_a_refusal_also_answers_under_the_first_post(settings, db):
+    ctx = _ctx(settings, db)
+    assert take_request(ctx, _m("40", images=())) == "refused"  # forgot the image
+    assert take_request(ctx, _m("41")) == "approved"            # asked again, properly
+    ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
+    launchpad_once(ctx, _Launcher())
+    _announced(db, "970")
+    launchpad_once(ctx, _Launcher())
+    under_first = rows(db, "SELECT body FROM posts WHERE reply_to_key='x:40' AND kind='launch_followup'")
+    assert under_first and under_first[0]["body"].startswith("🚀 $CAT is live now")
+    assert "x.com/MooseByMuse/status/970" in under_first[0]["body"] and ("0x" + "c0" * 20) in under_first[0]["body"]
