@@ -182,8 +182,8 @@ def to_analyse(conn: Any, window_hours: float, limit: int = 3) -> list[dict[str,
     ones MOOSE can't trade (priced in a stock token, or not a Pons coin). Only our own token is left out."""
     cutoff = (_now() - timedelta(hours=window_hours)).isoformat(timespec="seconds")
     return rows(conn, "SELECT * FROM scanner_calls WHERE decision_id IS NULL AND called_at>=? AND "
-                      "((status='watching' AND pool_id IS NOT NULL) OR (status='skipped' AND COALESCE(note,'')!='our own token')) "
-                      "ORDER BY id LIMIT ?", (cutoff, limit))
+                      "((status IN ('watching','bought') AND pool_id IS NOT NULL) OR "
+                      "(status='skipped' AND COALESCE(note,'')!='our own token')) ORDER BY id LIMIT ?", (cutoff, limit))
 
 
 def mark_analysed(conn: Any, call_id: int, decision_id: int) -> None:

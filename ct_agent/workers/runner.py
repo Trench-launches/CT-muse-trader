@@ -14,7 +14,7 @@ from typing import Callable
 from ..context import Context, build
 from ..db import journal_append, kv_set
 from ..social.outbox import recover_interrupted, send_pending
-from ..strategy.engine import assess, decide_and_act, manage_positions, scanner_cycle, weekly_scorecard
+from ..strategy.engine import assess, caller_once, decide_and_act, manage_positions, scanner_cycle, weekly_scorecard
 from ..strategy.outcomes import track_outcomes
 from .indexer import index_once
 from .research import research_once
@@ -67,7 +67,12 @@ def social_once(ctx: Context) -> dict:
     return {"sent": res, "replies": replied, "musing": mused}
 
 
+def fast_caller_once(ctx: Context) -> dict:
+    return {"bought": caller_once(ctx)}
+
+
 WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {
+    "caller": (fast_caller_once, 10.0),
     "indexer": (index_once, 10.0),
     "research": (research_once, 60.0),
     "trader": (trader_once, 60.0),

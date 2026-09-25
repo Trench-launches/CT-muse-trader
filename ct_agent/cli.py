@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("init-db")
     sub.add_parser("check")
     r = sub.add_parser("run")
-    r.add_argument("worker", choices=["indexer", "research", "trader", "social"])
+    r.add_argument("worker", choices=["indexer", "research", "trader", "social", "caller"])
     r.add_argument("--once", action="store_true")
     sub.add_parser("run-all")
     a = sub.add_parser("api")

@@ -211,10 +211,11 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
             did = analyse_call(ctx, a)
             call["decision_id"] = did
             out.append({"token": a.cand.token, "analysed": did})
-    for call in ready:
-        a = _assess_call(ctx, call, eth_usd)
-        if a:
-            out.append(buy_call(ctx, a))
+    if not s.scanner_buy_on_call:  # in buy-on-call mode the fast caller loop does the buying
+        for call in ready:
+            a = _assess_call(ctx, call, eth_usd)
+            if a:
+                out.append(buy_call(ctx, a))
     waiting = [{"token": c["token"], "symbol": c["symbol"], "stage": "scanner_call", "score": 0, "progress": None}
                for c in rows(conn, "SELECT token, symbol FROM scanner_calls WHERE status='watching' AND pool_id IS NOT NULL "
                                    "ORDER BY id DESC LIMIT 10")]
@@ -290,7 +291,9 @@ def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any]
                         gates=[], model=res.model)
         except Exception as exc:  # tracking is for analysis; it must never stop a trade
             log.warning("could not record call outcome for %s: %s", token, exc)
-    if d and not (tradeable and s.scanner_buy_on_call):
+    if d and tradeable and s.scanner_buy_on_call:
+        _post_read_under_buy(ctx, token, symbol, did, d)
+    elif d:
         skip, parent = _thread(conn, token, "watch")
         if not skip:
             pb = d.post
@@ -302,6 +305,44 @@ def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any]
             draft.reply_to = parent
             enqueue(conn, draft)
     return did
+
+
+def _post_read_under_buy(ctx: Context, token: str, symbol: str, did: int, d: Any) -> None:
+    """In buy-on-call mode the buy goes first; Muse's read on the coin follows as a reply under the BOUGHT post."""
+    conn = ctx.conn
+    pos = conn.execute("SELECT id, mode FROM positions WHERE lower(token)=lower(?) ORDER BY id DESC LIMIT 1",
+                       (token,)).fetchone()
+    if not pos:
+        return
+    why = (d.public_line or d.thesis or "").strip()
+    risk = (d.risks or [""])[0]
+    body = f"Why ${symbol}: {why}".strip()[:200]
+    if risk and len(body) + len(risk) + 8 <= 280:
+        body += f"\n\nRisk: {risk}"
+    enqueue(conn, compose.Draft("analysis", body, token, f"analysis:{did}", reply_to=f"entry:{pos['mode']}:{pos['id']}"))
+
+
+def caller_once(ctx: Context) -> list[dict[str, Any]]:
+    """The fast loop (every few seconds): new smart-money calls are bought as they land. Muse's analysis and
+    the rest of the trading cycle run in the slower trader loop."""
+    from ..sources import scanner
+    s = ctx.settings
+    if s.candidate_source != "scanner" or not s.scanner_buy_on_call or ctx.risk.kill_active()[0]:
+        return []
+    try:
+        if s.scanner_main_enabled:
+            scanner.fetch_new(ctx)
+        scanner.fetch_fibbot(ctx)
+    except Exception as exc:  # a missed poll is retried in a few seconds
+        log.warning("caller fetch failed: %s", exc)
+    out = []
+    ready = scanner.refresh(ctx)
+    eth_usd = ctx.market.eth_usd() if ready else None  # cached for 5 minutes
+    for call in ready:
+        a = _assess_call(ctx, call, eth_usd)
+        if a:
+            out.append(buy_call(ctx, a))
+    return out
 
 
 def account_eth(ctx: Context) -> float | None:
@@ -336,7 +377,8 @@ def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
     verdict = ctx.risk.check_entry(token=token, quote_symbol="ETH", mode=s.trading_mode.value,
                                    desired_eth=_trade_size(ctx))
     gates = list(verdict.reasons)
-    if s.trading_mode.value == "paper" and (a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd):
+    if s.trading_mode.value == "paper" and (a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd
+                                              or not a.eth_usd):
         gates.append("pool price unavailable this cycle")  # a paper fill needs it; live buys use the onchain quote
     if gates:
         journal_append(conn, "scanner_buy_held", {"token": token, "symbol": symbol, "move_pct": move, "why": gates},
@@ -347,7 +389,7 @@ def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
     thesis = (prior["thesis"] if prior else "") or "smart money called it"
     reasons = (["bought on the smart-money call"] if s.scanner_buy_on_call
                else [f"up {move:.0f}% since the smart-money call (buy rule: +{s.scanner_trigger_pct:g}%)"])
-    fill = _fill_for(ctx, a, verdict.size_eth) if a.pool and a.pool.price_native and a.pool.liquidity_usd else None
+    fill = _fill_for(ctx, a, verdict.size_eth) if a.pool and a.pool.price_native and a.pool.liquidity_usd and a.eth_usd else None
     with tx(conn):
         cur = conn.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,"
                            "model,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -400,6 +442,11 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
     if a.call:
         from ..sources.scanner import call_facts
         pack["scanner_call"] = call_facts(a.call, s.scanner_trigger_pct)
+        if s.scanner_buy_on_call:
+            pack["scanner_call"]["rule"] = (
+                "MOOSE buys every smart-money call the moment it lands, and has ALREADY BOUGHT this one. Give your "
+                "honest read: what the coin is, why smart money may be in, what could go wrong. Don't say you are "
+                "watching, waiting or passing; the position is open.")
     if a.pool:
         pack["pool_indicative"] = {"source": a.pool.source, "volume_h1_usd": a.pool.volume_h1_usd,
                                    "volume_h24_usd": a.pool.volume_h24_usd, "liquidity_usd": a.pool.liquidity_usd,
