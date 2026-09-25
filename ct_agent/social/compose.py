@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-LIMIT = 280
+LIMIT = 276  # X counts an emoji as 2 characters: the headline emoji and a little slack stay under 280
 
 
 @dataclass
@@ -109,20 +109,35 @@ def disclosure(*, holds: bool, mode: str, own_token: bool) -> str:
     return ""
 
 
+# House style for every post: an emoji headline with the $TICKER and the key number, a block of labelled
+# facts (one per line), then the thesis or reason in words. Every part that can run long has shorter
+# fallbacks, so a post never gets cut off mid-sentence.
+
+def _block(lines: list[str]) -> str:
+    return "\n".join(x for x in lines if x)
+
+
+def _alts(label: str, text: str, cuts: tuple[int, ...]) -> list[str]:
+    """`label: text` at full length, then shortened at a word, then dropped."""
+    text = " ".join((text or "").split())
+    if not text:
+        return [""]
+    out = [f"{label}{_s(text)}"] + [f"{label}{_s(_phrase(text, n))}" for n in cuts if len(text) > n]
+    return out + [""]
+
+
 def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, catalyst: str, progress: float | None,
                 momentum: str, risk: str, position_id: int, own_token: bool = False, mc: str = "",
                 plan: str = "") -> Draft:
     """A clean buy post: what, where it was bought, how much, the exit plan and why. Muse's longer read on the
     coin follows as a reply, so the buy itself stays short."""
-    head = f"{'Test buy' if mode == 'paper' else 'Bought'} ${symbol}"
-    facts = [f"Entry: {mc} MC" if mc else f"Entry: {entry}", f"Size: {size}"] + ([f"Exits: {plan}"] if plan else [])
-    why = ("Smart-money call on Robinhood Chain." if catalyst.startswith("a smart-money call")
-           else f"Why: {_s(catalyst)}")
-    tail = [why] + (["Simulated fill, not onchain."] if mode == "paper" else []) \
-        + ([disclosure(holds=False, mode=mode, own_token=True)] if own_token else [])
-    body = head + "\n\n" + "\n".join(facts) + "\n\n" + "\n".join(tail)
-    if len(body) > 280:  # a long reason is the only part that can overflow
-        body = body[:277].rstrip() + "..."
+    head = f"🟢 {'Test buy' if mode == 'paper' else 'Bought'} ${symbol}"
+    facts = _block([f"Entry: {mc} MC" if mc else f"Entry: {entry}", f"Size: {size}", f"Plan: {plan}" if plan else ""])
+    why = ["Why: smart-money call on Robinhood Chain."] if catalyst.startswith("a smart-money call") \
+        else _alts("Why: ", catalyst, (140, 100, 60))
+    tail = _block(["Testing phase, simulated fill, not onchain." if mode == "paper" else "",
+                   disclosure(holds=False, mode=mode, own_token=True) if own_token else ""])
+    body = _post([([head], None), ([facts], None), (why, 1), ([tail], None)])
     return Draft("trade_entry", body, token, f"entry:{mode}:{position_id}")
 
 
@@ -136,7 +151,7 @@ def buy_read(*, symbol: str, token: str, key: str, reply_to: str, why: str = "",
     risk = " ".join((risk or "").split())
 
     def build(n: int, cut: int, why_cut: int) -> str:
-        parts = [f"Why I bought ${symbol}:"] + ([_cap(_s(_phrase(why, why_cut)))] if why else [])
+        parts = [f"🧠 Why I bought ${symbol}"] + ([_cap(_s(_phrase(why, why_cut)))] if why else [])
         if n:
             parts.append("\n".join(f"• {_cap(_phrase(r, cut))}" for r in reasons[:n]))
         if risk:
@@ -154,32 +169,27 @@ def buy_read(*, symbol: str, token: str, key: str, reply_to: str, why: str = "",
 
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, plan: str,
                     position_id: int, mc: str = "", thesis: str = "") -> Draft:
-    """A milestone update, posted as a reply under the entry post. `plan` says where the exits are now;
-    `thesis` is Muse's updated read on the coin (dropped first if the post runs long)."""
-    head = f"${symbol} update: {pnl_pct:+.0f}% since entry\n" + (f"MC now: {mc}" if mc else f"Price now: {price}")
-    tail = f"Still holding. {plan}" + (" Testing phase." if mode == "paper" else "")
-    body = f"{head}\n\n{tail}"
-    thesis = " ".join((thesis or "").split())
-    room = LIMIT - len(f"{head}\n\nUpdated thesis: \n\n{tail}")
-    if thesis and room >= 40:
-        if len(thesis) > room:
-            thesis = thesis[:room - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
-        body = f"{head}\n\nUpdated thesis: {thesis}\n\n{tail}"
+    """A milestone update on an open trade. `plan` says where the exits are now; `thesis` is Muse's updated read
+    on the coin (shortened, then dropped, if the post runs long)."""
+    head = f"{'📈' if pnl_pct >= 0 else '📉'} ${symbol} {pnl_pct:+.0f}% since entry"
+    facts = _block([f"MC now: {mc}" if mc else f"Price now: {price}", f"Plan: {plan.strip().rstrip('.')[:1].lower()}{plan.strip().rstrip('.')[1:]}"])
+    hold = _alts("Still holding: ", thesis, (140, 90))[:-1] + ["Still holding."]  # the thesis, or just the fact
+    if mode == "paper":
+        hold = [h + " Testing phase." for h in hold]
+    body = _post([([head], None), ([facts], None), (hold, 1)])
     return Draft("update", body, token, f"update:{mode}:{position_id}:{milestone:+g}",
                  reply_to=f"entry:{mode}:{position_id}")
 
 
 def take_profit(*, mode: str, symbol: str, token: str, sold_pct: float, at: str, why: str, left_pct: float,
                 realized_eth: float, position_id: int, rung: int, thesis: str = "") -> Draft:
-    """A take-profit rung: part of the bag sold, the rest still open. Reply under the entry post. `thesis` is
-    Muse's read on why the rest is still worth holding (shortened, then dropped, if the post runs long)."""
-    thesis = " ".join((thesis or "").split())
-    hold = [f"Why I'm holding the rest: {_s(thesis)}", f"Holding the rest: {_s(thesis)}",
-            f"Holding the rest: {_s(_phrase(thesis, 90))}", ""] if thesis else [""]
-    body = _post([([f"Jeeted {sold_pct:.0f}% of my ${symbol} {_bag(mode)} at {at}."], None),
-                  ([_cap(_s(why)), "Stop moved to entry.", ""] if why else [""], 0),
-                  ([f"{left_pct:.0f}% still riding. Realised P&L: {_eth(realized_eth)}."], None),
-                  (hold, 1)])
+    """A take-profit rung: part of the bag sold, the rest still open. `why` is the plan now (target hit, stop
+    moved); `thesis` is Muse's read on why the rest is still worth holding (shortened, then dropped)."""
+    head = f"💰 Jeeted {sold_pct:.0f}% of my ${symbol} {_bag(mode)}"
+    facts = _block([f"Sold at: {at}", f"Realised: {_eth(realized_eth)}", f"Still riding: {left_pct:.0f}%"])
+    plan = [f"Plan: {_s(why)}", "Plan: stop moved to entry.", ""] if why else [""]
+    hold = _alts("Why I'm holding the rest: ", thesis, (120, 80)) if thesis else [""]
+    body = _post([([head], None), ([facts], None), (plan, 0), (hold, 1)])
     return Draft("take_profit", body, token, f"tp:{mode}:{position_id}:{rung}", reply_to=f"entry:{mode}:{position_id}")
 
 
@@ -188,45 +198,53 @@ def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, pnl_eth: f
                lesson: str = "") -> Draft:
     """Closing the rest of a position. In profit: Jeeted. At a loss: Top blasted, with the honest post-mortem.
     `why` is a clause that reads after "because", e.g. "it hit my -25% stop"."""
-    pnl = f"Realised P&L: {_eth(pnl_eth)} ({pnl_pct:+.0f}%)."
+    test = " (testing)" if mode == "paper" else ""
+    pnl = f"Realised P&L: {_eth(pnl_eth)} ({pnl_pct:+.0f}%)"
     if pnl_eth >= 0:
-        what = f"the last {sold_pct:.0f}%" if last_bit else f"{sold_pct:.0f}%"
-        parts = [([f"Jeeted {what} of my ${symbol} {_bag(mode)} at {at}."], None),
-                 ([f"Sold because {_phrase(why, 90)}.", ""] if why else [""], 1), ([f"Fully out. {pnl}"], None)]
-    else:
-        b, u, les = _phrase(bought, 60), _phrase(underestimated, 50), _phrase(lesson, 70)
-        story = [x for x in (f"I bought because {b}. Underestimated {u}." if b and u else "",
-                             f"Underestimated {u}." if u else "", f"I bought because {b}." if b else "") if x]
-        cut_ = f"Cut because {_phrase(why, 60)}." if why else "Cut it."
-        parts = [([f"Top blasted ${symbol}{' in testing' if mode == 'paper' else ''}. Entry was poor."], None),
-                 (story + [""], 1), ([f"{cut_}\nLesson: {les}.", cut_] if les else [cut_], 2), ([pnl], None)]
-    return Draft("trade_exit", _post(parts), token, f"exit:{mode}:{position_id}", reply_to=f"entry:{mode}:{position_id}")
+        what = "the rest of" if last_bit else "all of" if sold_pct >= 99 else f"{sold_pct:.0f}% of"
+        head = f"✅ Jeeted {what} ${symbol}{test} · {pnl_pct:+.0f}%"
+        facts = [_block([f"Sold at: {at}", f"Why: {_phrase(why, 90)}" if why else "", pnl]),
+                 _block([f"Sold at: {at}", pnl])]
+        return Draft("trade_exit", _post([([head], None), (facts, 1), (["Fully out."], None)]), token,
+                     f"exit:{mode}:{position_id}", reply_to=f"entry:{mode}:{position_id}")
+    head = f"🔴 Top blasted ${symbol}{test} · {pnl_pct:+.0f}%"
+    facts = [_block([f"Sold at: {at}", f"Why: {_phrase(why, 60)}" if why else "", pnl]), _block([f"Sold at: {at}", pnl])]
+    b, u, les = _phrase(bought, 70), _phrase(underestimated, 70), _phrase(lesson, 80)
+    story = [x for x in (_block([f"I bought for: {b}." if b else "", f"What I missed: {u}." if u else "",
+                                 f"Lesson: {les}." if les else ""]),
+                         _block([f"What I missed: {u}." if u else "", f"Lesson: {les}." if les else ""]),
+                         _block([f"Lesson: {les}." if les else ""])) if x] + [""]
+    return Draft("trade_exit", _post([([head], None), (facts, 2), (story, 1)]), token,
+                 f"exit:{mode}:{position_id}", reply_to=f"entry:{mode}:{position_id}")
 
 
 def pass_note(*, symbol: str, token: str, decision_id: int, narrative: str = "", concern: str = "",
               reconsider_if: str = "", line: str = "") -> Draft:
     """Faded: saw the story, didn't like the trade."""
-    n, c, r = _phrase(narrative, 45), _phrase(concern, 50), _phrase(reconsider_if, 50)
-    why = (f"I see the {n} thesis. Couldn't justify the entry with {c}." if n and c
-           else f"Couldn't justify the entry with {c}." if c else _s(line) if line else "")
-    again = ([f"Would reconsider if {r}. A good story still needs a good trade.", f"Would reconsider if {r}.", ""] if r
-             else ["A good story still needs a good trade.", ""])
-    body = _post([([f"Faded ${symbol}."], None), ([why, ""] if why else [""], 2), (again, 1)])
+    n, c, r = _phrase(narrative, 60), _phrase(concern, 70), _phrase(reconsider_if, 60)
+    if not (n or c):
+        facts = [_s(line), ""] if line else [""]
+    else:
+        facts = [_block([f"The story: {n}" if n else "", f"The problem: {c}" if c else "",
+                         f"Would buy if: {r}" if r else ""]),
+                 _block([f"The story: {n}" if n else "", f"The problem: {c}" if c else ""])]
+    body = _post([([f"⛔ Passing on ${symbol}"], None), (facts, 1), (["No position."], None)])
     return Draft("pass", body, token, f"pass:{decision_id}")
 
 
 def watch_note(*, symbol: str, token: str, decision_id: int, narrative: str = "", confirmation: str = "",
                watching: str = "", trigger: str = "", line: str = "") -> Draft:
     """On the radar, no position: what caught the eye, what it needs to see, and the buy condition."""
-    n, c = _phrase(narrative, 45), _phrase(confirmation, 45)
-    w, t = _phrase(watching, 40), _phrase(trigger, 50)
-    why = (f"{_cap(n)} caught my attention, but I want {c} before buying." if n and c
-           else _s(line) if line else "")
-    plan = ([f"Watching {w}. If {t}, I take a starter. Until then, happy to wait.",
-             f"Watching {w}. If {t}, I take a starter.", f"If {t}, I take a starter.", ""] if w and t
-            else [f"Watching {w}. Until then, happy to wait.", ""] if w else [""])
-    body = _post([([f"${symbol} is on my radar. No position."], None), ([why, ""] if why else [""], 2),
-                  (plan, 1)])
+    n, c = _phrase(narrative, 60), _phrase(confirmation, 60)
+    w, t = _phrase(watching, 50), _phrase(trigger, 60)
+    if not (n or c or w or t):
+        facts = [_s(line), ""] if line else [""]
+    else:
+        facts = [_block([f"The story: {n}" if n else "", f"Need to see: {c}" if c else "",
+                         f"Watching: {w}" if w else "", f"Buy if: {t}" if t else ""]),
+                 _block([f"The story: {n}" if n else "", f"Need to see: {c}" if c else "", f"Buy if: {t}" if t else ""]),
+                 _block([f"The story: {n}" if n else "", f"Need to see: {c}" if c else ""])]
+    body = _post([([f"👀 ${symbol} is on my radar"], None), (facts, 1), (["No position yet."], None)])
     return Draft("watch", body, token, f"watch:{decision_id}")
 
 
@@ -237,8 +255,10 @@ def correction(*, original_post_id: str, text: str, key: str) -> Draft:
 
 def weekly_scorecard(*, week: str, mode: str, trades: int, wins: int, losses: int, pnl_quote: float,
                      quote_symbol: str, best: str, worst: str, own_token_line: str = "") -> Draft:
-    label = "Testing Phase scorecard" if mode == "paper" else "Scorecard"
-    required = [f"{label} {week}: {trades} closed, {wins}W/{losses}L, net {pnl_quote:+.4f} {quote_symbol}."]
-    optional = [f"Best: {best}." if best else "", f"Worst: {worst}." if worst else "", own_token_line,
-                "Every fill is in the public journal."]
-    return Draft("scorecard", _fit(required, optional), "", f"scorecard:{mode}:{week}")
+    label = "Testing phase scorecard" if mode == "paper" else "Weekly scorecard"
+    facts = _block([f"Trades closed: {trades}", f"Wins / losses: {wins} / {losses}",
+                    f"Net P&L: {pnl_quote:+.4f} {quote_symbol}", f"Best: {best}" if best else "",
+                    f"Worst: {worst}" if worst else ""])
+    body = _post([([f"📊 {label} · {week}"], None), ([facts], None), ([own_token_line, ""], 0),
+                  (["Every fill is in the public journal."], None)])
+    return Draft("scorecard", body, "", f"scorecard:{mode}:{week}")

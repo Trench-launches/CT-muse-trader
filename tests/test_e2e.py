@@ -123,10 +123,10 @@ def test_full_paper_cycle(tmp_path):
     assert fill["onchain"] is False and fill["pricing"] == "curve_constant_product"
 
     social_once(ctx)
-    assert len(sent) == 2 and sent[0].startswith("Test buy $HOT") and hot.token not in sent[0]  # ticker only
-    assert sent[1].startswith("Why I bought $HOT:") and "• The team's own blog confirms the launch" in sent[1] \
+    assert len(sent) == 2 and sent[0].startswith("🟢 Test buy $HOT") and hot.token not in sent[0]  # ticker only
+    assert sent[1].startswith("🧠 Why I bought $HOT") and "• The team's own blog confirms the launch" in sent[1] \
         and "Risk: a one-hour spike can fade fast after it graduates." in sent[1], sent[1]
-    assert "Exits: -70% stop" in sent[0] and len(sent[0]) <= 280
+    assert "\nPlan: -70% stop" in sent[0] and len(sent[0]) <= 280
     assert "\nEntry: $" in sent[0] and " MC\n" in sent[0], sent[0]
 
     # second cycle: position held, no duplicate entry or post
@@ -142,8 +142,8 @@ def test_full_paper_cycle(tmp_path):
     assert len(muse.calls) == calls and journal_recent(ctx.conn, kind="post_job")  # the sell didn't wait on Muse
     social_once(ctx)
     assert len(muse.calls) > calls  # the post-mortem is written in the posting loop
-    assert sent[-1].startswith("Top blasted $HOT in testing. Entry was poor.") and "Realised P&L: -" in sent[-1], sent[-1]
-    assert "Underestimated how fast the buyers could leave." in sent[-1] and "Lesson: wait for buys from more wallets." in sent[-1]
+    assert sent[-1].startswith("🔴 Top blasted $HOT (testing) · -") and "\nRealised P&L: -" in sent[-1], sent[-1]
+    assert "What I missed: how fast the buyers could leave." in sent[-1] and "Lesson: wait for buys from more wallets." in sent[-1]
     assert journal_recent(ctx.conn, kind="lesson")[0]["payload"]["lesson"] == "wait for buys from more wallets"
     assert journal_verify(ctx.conn) == (True, None)
 
@@ -173,7 +173,7 @@ def test_full_paper_cycle(tmp_path):
     assert sc["avg_hold_h"] is not None and sc["recent"][0]["reason"]
     assert "logo" in sc["recent"][0]
     assert d["decisions"] and d["decisions"][0]["symbol"] == "HOT" and d["decisions"][0]["evidence"]
-    assert d["posts"][0]["body"].startswith("Top blasted $HOT") and d["kill_switch"]["on"] is True
+    assert d["posts"][0]["body"].startswith("🔴 Top blasted $HOT") and d["kill_switch"]["on"] is True
     assert d["funnel"]["traded_24h"] == 1 and d["sources"] and d["chain"]["journal_intact"] is True
     assert "access-control-allow-origin" not in api.get("/site", headers={"origin": "https://evil.example"}).headers
 
@@ -285,17 +285,16 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     research_once(ctx)
     trader_once(ctx)
     social_once(ctx)
-    assert sent[0]["text"].startswith("Test buy $HOT") and "reply" not in sent[0]
+    assert sent[0]["text"].startswith("🟢 Test buy $HOT") and "reply" not in sent[0]
 
     hot.real_quote = int(5.2 * ETH)  # price up past +25%
     out = trader_once(ctx)
     assert out["exits"][0]["action"] == "hold" and out["exits"][0]["pnl_pct"] >= 25, out["exits"]
     trader_once(ctx)  # same milestone again: no second update
     social_once(ctx)
-    assert len(sent) == 3 and sent[1]["text"].startswith("Why I bought $HOT:")  # the buy, its reasons, the update
-    assert sent[2]["text"].startswith("$HOT update: +") and "Still holding" in sent[2]["text"]
-    assert "\nMC now: $" in sent[2]["text"], sent[2]["text"]
-    assert "\n\nUpdated thesis: buyers kept spreading out" in sent[2]["text"] and len(sent[2]["text"]) <= 280
+    assert len(sent) == 3 and sent[1]["text"].startswith("🧠 Why I bought $HOT")  # the buy, its reasons, the update
+    assert sent[2]["text"].startswith("📈 $HOT +") and "\n\nMC now: $" in sent[2]["text"], sent[2]["text"]
+    assert "\n\nStill holding: buyers kept spreading out" in sent[2]["text"] and len(sent[2]["text"]) <= 280
     assert journal_recent(ctx.conn, kind="thesis_update")[0]["payload"]["thesis"].startswith("buyers kept")
     assert sent[1]["reply"] == {"in_reply_to_tweet_id": "1001"}  # the reasons stay in the thread under the buy
     assert sent[2]["quote_tweet_id"] == "1001" and "reply" not in sent[2]  # the update quotes it: top of the profile
@@ -303,7 +302,7 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     hot.real_quote = int(0.2 * ETH)  # collapse -> stop loss, exit replies under the entry too
     trader_once(ctx)
     social_once(ctx)
-    assert sent[-1]["text"].startswith("Top blasted $HOT") and sent[-1]["quote_tweet_id"] == "1001"
+    assert sent[-1]["text"].startswith("🔴 Top blasted $HOT") and sent[-1]["quote_tweet_id"] == "1001"
     assert len(sent) == 4
 
 
@@ -397,8 +396,8 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     p = pos()
     assert p["status"] == "open" and p["tp_hits"] == 1 and p["tokens_left"] == pytest.approx(entry_tokens * 0.5)
     social_once(ctx)
-    assert sent[-1].startswith("Jeeted 50% of my $HOT test bag at $") and "stop moved to entry" in sent[-1], sent[-1]
-    assert "50% still riding. Realised P&L: +" in sent[-1]
+    assert sent[-1].startswith("💰 Jeeted 50% of my $HOT test bag\n\nSold at: $") and "stop moved to entry" in sent[-1], sent[-1]
+    assert "\nRealised: +" in sent[-1] and "\nStill riding: 50%" in sent[-1]
     assert "\n\nWhy I'm holding the rest: buyers kept spreading out" in sent[-1] and len(sent[-1]) <= 280, sent[-1]
     n = len(sent)
 
@@ -416,8 +415,8 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     ex = trader_once(ctx)["exits"][0]
     assert ex["action"] == "exit" and "back to entry" in ex["reason"], ex
     social_once(ctx)
-    out = [t for t in sent if t.startswith("Jeeted the last 25% of my $HOT test bag")]
-    assert len(out) == 1 and "Fully out. Realised P&L: +" in out[0], sent
+    out = [t for t in sent if t.startswith("✅ Jeeted the rest of $HOT (testing)")]
+    assert len(out) == 1 and "\nRealised P&L: +" in out[0] and out[0].endswith("\n\nFully out."), sent
     p = pos()
     assert p["status"] == "closed" and p["pnl_quote"] > 0 and p["exit_quote"] > p["realized_quote"]
     assert p["pnl_quote"] == pytest.approx(p["exit_quote"] - p["entry_quote"])
@@ -467,7 +466,7 @@ def test_buys_on_onchain_activity_without_a_source(tmp_path):
     assert d["action"] == "buy" and d.get("entered") and not d["gates"], d
     assert rows(ctx.conn, "SELECT entry_quote FROM positions")[0]["entry_quote"] == pytest.approx(0.05)
     social_once(ctx)
-    assert sent[0].startswith("Test buy $HOT") and "Why: first-party news plus accelerating buys." in sent[0], sent[0]
+    assert sent[0].startswith("🟢 Test buy $HOT") and "Why: first-party news plus accelerating buys." in sent[0], sent[0]
 
 
 def _chat_api(tmp_path, **kw):

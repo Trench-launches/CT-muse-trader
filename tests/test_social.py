@@ -17,23 +17,23 @@ def _entry(mode="paper", pid=1, risk="one wallet is 35% of buys"):
 
 def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
     d = _entry()
-    assert d.body.startswith("Test buy $NEZU\n\nEntry: ") and CA not in d.body and "Simulated fill" in d.body
+    assert d.body.startswith("🟢 Test buy $NEZU\n\nEntry: ") and CA not in d.body and "simulated fill" in d.body
     assert len(d.body) <= 280
     live = compose.trade_entry(mode="live", symbol="N", token=CA, size="0.0148 ETH", entry="e", catalyst="a smart-money call",
                                progress=1.0, momentum="", risk="r", position_id=2, mc="$2.19M",
                                plan="-70% stop · 50% at 1.6x · 25% at 2x · 24h max").body
-    assert live == ("Bought $N\n\nEntry: $2.19M MC\nSize: 0.0148 ETH\nExits: -70% stop · 50% at 1.6x · 25% at 2x · 24h max"
-                    "\n\nSmart-money call on Robinhood Chain.")
+    assert live == ("🟢 Bought $N\n\nEntry: $2.19M MC\nSize: 0.0148 ETH\nPlan: -70% stop · 50% at 1.6x · 25% at 2x · 24h max"
+                    "\n\nWhy: smart-money call on Robinhood Chain.")
 
 
 def test_losses_are_posted():
     d = compose.trade_exit(mode="paper", symbol="N", token=CA, pnl_pct=-25.3, pnl_eth=-0.0127, sold_pct=100,
                            at="$40K MC", why="it hit my -25% stop", position_id=1, bought="first-party launch news",
                            underestimated="how thin the curve was", lesson="wait for 20+ buyer wallets")
-    assert d.body.startswith("Top blasted $N in testing. Entry was poor.")
-    assert "I bought because first-party launch news. Underestimated how thin the curve was." in d.body
-    assert "Cut because it hit my -25% stop.\nLesson: wait for 20+ buyer wallets." in d.body
-    assert d.body.endswith("Realised P&L: -0.0127 ETH (-25%).") and CA not in d.body
+    assert d.body.startswith("🔴 Top blasted $N (testing) · -25%\n\nSold at: $40K MC\nWhy: it hit my -25% stop\n"
+                             "Realised P&L: -0.0127 ETH (-25%)")
+    assert d.body.endswith("I bought for: first-party launch news.\nWhat I missed: how thin the curve was.\n"
+                           "Lesson: wait for 20+ buyer wallets.") and CA not in d.body
 
 
 def test_post_formats_fit_and_use_the_ticker_only():
@@ -54,11 +54,10 @@ def test_post_formats_fit_and_use_the_ticker_only():
     w = compose.watch_note(symbol="HOT", token=CA, decision_id=1, narrative="HATCH v1 launch news",
                            confirmation="more wallets buying", watching="graduation progress",
                            trigger="it clears 90% with steady buys")
-    assert w.body.startswith("$HOT is on my radar. No position.\n\nHATCH v1 launch news caught my attention, "
-                             "but I want more wallets buying before buying.\n\nWatching graduation progress. If it "
-                             "clears 90% with steady buys, I take a starter. Until then, happy to wait.")
-    assert posts[4].body.startswith("Jeeted the last 25% of my $HOT test bag at $1.2M MC.")
-    assert "Fully out. Realised P&L: +0.0400 ETH (+80%)." in posts[4].body
+    assert w.body == ("👀 $HOT is on my radar\n\nThe story: HATCH v1 launch news\nNeed to see: more wallets buying\n"
+                      "Watching: graduation progress\nBuy if: it clears 90% with steady buys\n\nNo position yet.")
+    assert posts[4].body.startswith("✅ Jeeted the rest of $HOT (testing) · +80%\n\nSold at: $1.2M MC")
+    assert "\nRealised P&L: +0.0400 ETH (+80%)\n\nFully out." in posts[4].body
 
 
 def test_own_token_disclosed():
@@ -116,10 +115,10 @@ def test_crash_recovery_marks_unknown(db):
 
 def test_no_double_full_stops():
     d = compose.pass_note(symbol="T", token=CA, line="No real news is driving this.", decision_id=1)
-    assert ".." not in d.body and d.body.startswith("Faded $T.\n\nNo real news is driving this.")
+    assert ".." not in d.body and d.body.startswith("⛔ Passing on $T\n\nNo real news is driving this.")
     d = compose.pass_note(symbol="T", token=CA, decision_id=1, narrative="launch news.", concern="one wallet buying.",
                           reconsider_if="buys spread out.")
-    assert ".." not in d.body and "I see the launch news thesis. Couldn't justify the entry with one wallet buying." in d.body
+    assert ".." not in d.body and "The story: launch news\nThe problem: one wallet buying\nWould buy if: buys spread out" in d.body
 
 
 def test_entry_post_never_says_none_or_unmeasured_momentum():
@@ -142,7 +141,7 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
         got.append(json.loads(r.content))
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60)
-    assert [g["text"][:9] for g in got] == ["Test buy ", "$NEZU upd", "$W is on "]
+    assert [g["text"].split("\n")[0] for g in got] == ["🟢 Test buy $NEZU", "📈 $NEZU +26% since entry", "👀 $W is on my radar"]
     assert got[1]["quote_tweet_id"] == "1" and "reply" not in got[1] and "reply" not in got[0]
 
 
@@ -177,12 +176,11 @@ def test_position_update_fits_the_thesis_in_280():
     d = compose.position_update(mode="live", symbol="NEZU", token=CA, pnl_pct=104, price="2.1e-7 ETH", milestone=100,
                                 plan="Stop -70%, first take-profit at 1.6x.", position_id=4, mc="$212K",
                                 thesis=long)
-    assert len(d.body) <= 280 and "\n\nUpdated thesis: the story spread" in d.body and d.body.count("..") == 0
-    assert d.body.startswith("$NEZU update: +104% since entry\nMC now: $212K\n\nUpdated thesis: ")
-    assert d.body.endswith("\n\nStill holding. Stop -70%, first take-profit at 1.6x.")
+    assert len(d.body) <= 280 and "\n\nStill holding: the story spread" in d.body and d.body.count("..") == 0
+    assert d.body.startswith("📈 $NEZU +104% since entry\n\nMC now: $212K\nPlan: stop -70%, first take-profit at 1.6x\n\n")
     plain = compose.position_update(mode="live", symbol="NEZU", token=CA, pnl_pct=-15, price="1e-9 ETH",
                                     milestone=-15, plan="Stop -70%.", position_id=4)
-    assert "Updated thesis" not in plain.body
+    assert plain.body.startswith("📉 $NEZU -15% since entry") and plain.body.endswith("\n\nStill holding.")
 
 
 def test_buy_read_fits_muses_long_reasons_in_one_post():
@@ -192,11 +190,11 @@ def test_buy_read_fits_muses_long_reasons_in_one_post():
                "44k market cap so underfollowed"]
     d = compose.buy_read(symbol="RAINEGG", token=CA, key="analysis:375", reply_to="entry:live:7", reasons=reasons,
                          risk="37 roundtrip traders flag suggests wash inflated volume and top buyer 29% could dump")
-    assert len(d.body) <= 280 and d.body.startswith("Why I bought $RAINEGG:\n\n• 51 unique buyers")
+    assert len(d.body) <= 280 and d.body.startswith("🧠 Why I bought $RAINEGG\n\n• 51 unique buyers")
     assert d.body.count("\n• ") >= 2 and "\n\nRisk: 37 roundtrip traders" in d.body
     assert (d.kind, d.reply_to) == ("analysis", "entry:live:7")
     thesis = ("RAINEGG is a privacy coin for agent payments on Robinhood Chain, and x402 payments are the story "
               "every AI account is posting about this week.")
     t = compose.buy_read(symbol="RAINEGG", token=CA, key="k", reply_to="r", why=thesis, reasons=reasons, risk="wash volume")
-    assert len(t.body) <= 280 and t.body.startswith(f"Why I bought $RAINEGG:\n\n{thesis}\n\n• ")  # the thesis leads, whole
+    assert len(t.body) <= 280 and t.body.startswith(f"🧠 Why I bought $RAINEGG\n\n{thesis}\n\n• ")  # the thesis leads, whole
     assert t.body.endswith("\n\nRisk: wash volume.")

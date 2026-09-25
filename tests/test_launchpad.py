@@ -115,7 +115,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     lp = _Launcher(pending=100)  # fees so far: not enough yet
     assert launchpad_once(ctx, lp) == {"launched": 0, "handed_over": 0}  # first the announcement, crediting them
     ann = rows(db, "SELECT * FROM posts WHERE kind='launch_announce'")[0]
-    assert "$CAT · Cat Coin\nby @catfan" in ann["body"] and ann["reply_to_key"] is None and lp.calls == []
+    assert ann["body"].startswith("🚀 New on the MOOSE launchpad\n\n$CAT · Cat Coin\nCreator: @catfan") and ann["reply_to_key"] is None and lp.calls == []
     assert launchpad_once(ctx, lp)["launched"] == 0  # not launched until the announcement is out
     _announced(db)
     assert launchpad_once(ctx, lp) == {"launched": 1, "handed_over": 0}
@@ -124,7 +124,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"] and "/tx/0xtx" in receipt["body"]
     assert ("0x" + "c0" * 20) in receipt["body"] and "paid by MOOSE" in receipt["body"]
-    assert "Launched $CAT for you" in _replies(db)[-1] and "x.com/MooseByMuse/status/900" in _replies(db)[-1]
+    assert _replies(db)[-1].startswith("🚀 $CAT is live") and "x.com/MooseByMuse/status/900" in _replies(db)[-1]
     lp.pending, lp.swept = 700_000_000_000_000, 700_000_000_000_000  # now the fees cover the launch
     assert launchpad_once(ctx, lp)["handed_over"] == 1
     assert lp.calls[-2:] == [("sweep", "0x" + "cc" * 20), ("hand_over", WALLET)]
@@ -152,7 +152,7 @@ def test_a_graduated_coin_is_handed_over_and_a_failed_launch_says_sorry(settings
     assert rows(db, "SELECT status FROM launch_requests WHERE x_post_id='14'")[0]["status"] == "failed"
     assert "something went wrong on my side" in _replies(db)[-1]
     sorry = rows(db, "SELECT body FROM posts WHERE kind='launch_receipt' AND body LIKE '%didn''t launch%'")
-    assert sorry and "No coin was made" in sorry[0]["body"]  # the announcement never points at nothing
+    assert sorry and sorry[0]["body"].startswith("❌ $DOG didn't launch") and "no coin was made" in sorry[0]["body"]  # the announcement never points at nothing
 
 
 def test_launch_calldata_carries_the_coin_and_makes_moose_the_fee_recipient(settings, db):

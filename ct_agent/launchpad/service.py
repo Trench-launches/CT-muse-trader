@@ -154,8 +154,9 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     ann = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?", (key,)).fetchone()
     if ann is None:
         desc = f"\n\n{r['description']}" if r["description"] else ""
-        enqueue(conn, Draft("launch_announce", f"New launch on the MOOSE launchpad 🫎\n\n${r['symbol']} · {r['name']}\n"
-                                               f"by {_by(r)}{desc}\n\nLaunching now. CA and receipt below 👇",
+        creator = f"\nCreator: @{r['handle']}" if r["handle"] else ""
+        enqueue(conn, Draft("launch_announce", f"🚀 New on the MOOSE launchpad\n\n${r['symbol']} · {r['name']}{creator}"
+                                               f"{desc}\n\nLaunching now. CA and receipt below 👇",
                             r["token"] or f"launch:{r['id']}", key))
         return 0
     if ann["status"] in ("pending", "sending"):
@@ -173,7 +174,7 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
                               ref=r["x_post_id"])
     except LaunchBlocked as exc:
         conn.execute("UPDATE launch_requests SET status='failed', reason=? WHERE id=?", (str(exc)[:300], r["id"]))
-        sorry = f"${r['symbol']} didn't launch, something went wrong on my side. No coin was made. Sorry fren 🫎"
+        sorry = f"❌ ${r['symbol']} didn't launch\n\nSomething went wrong on my side and no coin was made. Sorry fren."
         if posted:
             enqueue(conn, Draft("launch_receipt", sorry, f"launch:{r['id']}", f"launch_receipt:{r['id']}", reply_to=key))
         _reply(conn, m, "Couldn't launch that one right now, something went wrong on my side. Sorry fren, "
@@ -182,14 +183,14 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     conn.execute("UPDATE launch_requests SET status='launched', token=?, curve=?, tx_hash=?, cost_wei=?, earned_wei='0', "
                  "launched_at=?, socials=? WHERE id=?",
                  (out.token, out.curve, out.tx_hash, str(out.cost_wei), utcnow(), json.dumps(socials), r["id"]))
-    receipt = (f"✅ Launched on Robinhood Chain\n\nCA: {out.token}\nTx: {EXPLORER}/tx/{out.tx_hash}\n\n"
-               f"Launch cost: {out.cost_wei / 10**18:.5f} ETH, paid by MOOSE\n"
-               f"Creator fees go to {_by(r)} once the launch is paid back")
+    receipt = (f"✅ ${r['symbol']} is live on Robinhood Chain\n\nCA: {out.token}\nTx: {EXPLORER}/tx/{out.tx_hash}\n\n"
+               f"Launch cost: {out.cost_wei / 10**18:.5f} ETH (paid by MOOSE)\n"
+               f"Creator fees: {_by(r)}, once the launch is paid back")
     if posted:
         enqueue(conn, Draft("launch_receipt", receipt, out.token, f"launch_receipt:{r['id']}", reply_to=key))
     link = f"https://x.com/MooseByMuse/status/{ann['x_post_id']}" if posted else f"https://gmgn.ai/robinhood/token/{out.token}"
-    _reply(conn, m, f"Launched ${r['symbol']} for you 🫎\n\nCA: {out.token}\n\nCreator fees go to your wallet once the "
-                    f"coin pays back its ~$2 launch.\n\n{link}")
+    _reply(conn, m, f"🚀 ${r['symbol']} is live\n\nCA: {out.token}\n\nCreator fees go to your wallet once the coin pays "
+                    f"back its ~$2 launch.\n\n{link}")
     return 1
 
 
@@ -214,6 +215,6 @@ def _maybe_hand_over(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     journal_append(conn, "launchpad_handed_over", {"token": r["token"], "to": r["recipient"], "tx_hash": tx,
                                                    "earned_wei": str(earned), "cost_wei": str(cost)}, ref=r["token"])
     _reply(conn, {"id": r["x_post_id"], "author_id": r["author_id"]},
-           f"${r['symbol']} has paid back its launch. From now on its creator fees go straight to your wallet 🫎",
+           f"🤝 ${r['symbol']} has paid back its launch\n\nFrom now on its creator fees go straight to your wallet.",
            kind="launch_handed")
     return 1
