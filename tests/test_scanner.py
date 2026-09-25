@@ -119,3 +119,22 @@ def test_site_lists_pons_scan_buys_next_to_the_smart_money_calls(settings, db):
     assert d["watching"][1]["move_pct"] == 0  # the call it bought shows the trade now (no marks yet: flat)
     _CACHE.clear()
     assert site_data(db, s.model_copy(update={"pons_scan_enabled": False}))["watching"][0]["token"] == call_tok
+
+
+def test_site_groups_trade_tweets_into_one_thread_per_coin(settings, db):
+    from ct_agent.api.site import _CACHE, site_data
+    _CACHE.clear()
+    s = settings.model_copy(update={"score_since": "2026-09-25T00:00:00+00:00"})
+    posts = [("entry:live:1", "trade_entry", "Bought $A", "0xA", "2026-09-25T01:00:00+00:00", "11"),
+             ("analysis:1", "analysis", "Why I bought $A:", "0xA", "2026-09-25T01:00:05+00:00", "12"),
+             ("musing:1", "musing", "gm", "", "2026-09-25T01:30:00+00:00", "13"),
+             ("entry:live:2", "trade_entry", "Bought $B", "0xB", "2026-09-25T02:00:00+00:00", "14"),
+             ("update:live:1:+50", "update", "$A update: +50%", "0xA", "2026-09-25T03:00:00+00:00", "15"),
+             ("old", "trade_entry", "Bought $OLD", "0xC", "2026-09-24T01:00:00+00:00", "10"),
+             ("pending", "trade_entry", "Bought $D", "0xD", "2026-09-25T04:00:00+00:00", None)]
+    for key, kind, body, ref, at, xid in posts:
+        db.execute("INSERT INTO posts(idempotency_key,kind,body,ref,status,x_post_id,created_at,sent_at) "
+                   "VALUES(?,?,?,?,?,?,?,?)", (key, kind, body, ref, "sent" if xid else "pending", xid, at, at))
+    th = site_data(db, s)["trade_threads"]
+    assert [t["token"] for t in th] == ["0xB", "0xA"]  # newest buy first; musings, old and unsent posts left out
+    assert [p["x_post_id"] for p in th[1]["posts"]] == ["11", "12", "15"]  # the buy, its reasons, the update

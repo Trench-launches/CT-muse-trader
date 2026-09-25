@@ -275,6 +275,18 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         if p.get("kind") == "intro":
             posts.append({"kind": "intro", "body": p.get("text", ""), "sent_at": j["ts"], "x_post_id": p.get("post_id")})
     posts = sorted(posts, key=lambda p: p["sent_at"] or "", reverse=True)[:6]
+    # The trade tweets, one thread per coin (the buy, Muse's reasons under it, updates, sells), newest trade first:
+    # the public record of every coin it bought, as posted on X.
+    trade_posts = rows(conn, "SELECT p.kind, p.body, p.sent_at, p.x_post_id, p.ref, l.symbol FROM posts p "
+                             "LEFT JOIN launches l ON lower(l.token)=lower(p.ref) WHERE p.status='sent' AND p.kind IN "
+                             "('trade_entry','analysis','update','take_profit','trade_exit') AND p.x_post_id IS NOT NULL "
+                             "AND p.sent_at>=? ORDER BY p.sent_at", (s.score_since,))
+    threads: dict[str, dict[str, Any]] = {}
+    for p in trade_posts:
+        if p["kind"] == "trade_entry" or (p["ref"] or "").lower() in threads:
+            t = threads.setdefault(p["ref"].lower(), {"token": p["ref"], "symbol": p["symbol"], "posts": []})
+            t["posts"].append({k: p[k] for k in ("kind", "body", "sent_at", "x_post_id")})
+    trade_threads = sorted(threads.values(), key=lambda t: t["posts"][0]["sent_at"], reverse=True)[:8]
 
     # --- scorecard ---------------------------------------------------------------
     closed = rows(conn, "SELECT p.token, p.pnl_quote, p.entry_quote, p.opened_at, p.closed_at, p.exit_reason, l.symbol "
@@ -309,6 +321,6 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "size_pct": s.position_size_pct,
         "next_post": pending[0] if pending else None,
         "posts_24h": one("SELECT COUNT(*) FROM posts WHERE status='sent' AND sent_at>=?", (day,)),
-        "posts": posts,
+        "posts": posts, "trade_threads": trade_threads,
         "score": score,
     }
