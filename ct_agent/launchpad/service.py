@@ -198,7 +198,7 @@ def _maybe_hand_over(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     conn = ctx.conn
     cost, earned = int(r["cost_wei"] or 0), int(r["earned_wei"] or 0)
     rec = ctx.pons.launch_record(r["token"])
-    if rec.phase == Phase.NOT_GRADUATED:
+    if rec.phase == Phase.NOT_GRADUATED and earned < cost:  # sweep only until the launch is paid back, never again
         if earned + launcher.pending_creator_wei(r["curve"]) < cost:
             return 0
         earned += launcher.sweep(r["curve"], ref=r["x_post_id"])
@@ -206,6 +206,9 @@ def _maybe_hand_over(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
         if earned < cost:
             return 0
     # graduated: the coin traded past 4.2 ETH on its curve, its fees long since covered the launch
+    if (r["recipient"] or "").lower() == (launcher.wallet or "").lower():  # MOOSE's own coin: the fees stay here
+        conn.execute("UPDATE launch_requests SET status='handed_over', handed_at=? WHERE id=?", (utcnow(), r["id"]))
+        return 0
     tx = launcher.hand_over(r["token"], r["recipient"])
     conn.execute("UPDATE launch_requests SET status='handed_over', handed_at=? WHERE id=?", (utcnow(), r["id"]))
     journal_append(conn, "launchpad_handed_over", {"token": r["token"], "to": r["recipient"], "tx_hash": tx,

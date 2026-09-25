@@ -81,6 +81,8 @@ def test_not_a_request_falls_through_to_a_normal_reply(settings, db):
 
 
 class _Launcher:
+    wallet = "0x" + "99" * 20  # the launcher wallet: not the requester's
+
     def __init__(self, pending=0, swept=0, fail=False):
         self.pending, self.swept, self.fail, self.calls = pending, swept, fail, []
 
@@ -180,3 +182,20 @@ def test_the_site_lists_recent_launches_with_their_proof(settings, db):
     r = lp["recent"][0]
     assert (r["symbol"], r["handle"], r["announce_x_id"], r["tx_hash"]) == ("CAT", "catfan", "950", "0xtx")
     assert r["token"] == "0x" + "c0" * 20 and r["fees_handed_over"] is False
+
+
+def test_fees_pointed_at_the_launcher_stay_there_and_sweeps_stop_once_repaid(settings, db):
+    ctx = _ctx(settings, db, _Brain(twitter=""))
+    lw = "0x" + "77" * 20
+    take_request(ctx, _m("30", text=f"@MooseByMuse launch $CAT Cat Coin fees to {lw}"))
+    ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
+    lp = _Launcher(pending=10**15, swept=10**15)
+    lp.wallet = lw
+    launchpad_once(ctx, lp)
+    _announced(db, "960")
+    launchpad_once(ctx, lp)  # launch
+    launchpad_once(ctx, lp)  # repaid: one sweep, and no hand-over to itself
+    launchpad_once(ctx, lp)
+    assert [c for c in lp.calls if c[0] == "sweep"] == [("sweep", "0x" + "cc" * 20)]
+    assert not [c for c in lp.calls if c[0] == "hand_over"]
+    assert rows(db, "SELECT status FROM launch_requests")[0]["status"] == "handed_over"
