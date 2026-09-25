@@ -443,7 +443,7 @@ body.killed .wbar i { background: var(--ink-3); }
 .ptile .coinav { grid-area: coin; }
 .ptile .nm { grid-area: name; min-width: 0; }
 .ptile .nm b { display: block; font-weight: 700; font-size: 15px; }
-.ptile .nm small { font-size: 12.5px; color: var(--ink-3); }
+.ptile .nm small { display: block; font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ptile .plp { grid-area: pl; font-family: var(--f-display); font-weight: 500; font-size: 16px; letter-spacing: -0.02em; padding: 3px 10px; border-radius: var(--r-pill); }
 .ptile.up .plp { background: var(--green-soft); color: var(--green); }
 .ptile.down .plp { background: var(--coral-soft); color: var(--coral); }
@@ -457,7 +457,30 @@ body.killed .wbar i { background: var(--ink-3); }
 .prow.up .plp { background: var(--green-soft); color: var(--green); } .prow.down .plp { background: var(--coral-soft); color: var(--coral); }
 /* posting */
 .lc .xtl { border-color: var(--line); }
-#nextPost { margin-block: auto; }
+/* fixed-height cards: the lists scroll inside, the trade posts slide */
+.lc { height: clamp(520px, 66vh, 620px); }
+.lc-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 12px);
+  margin-inline: -8px; padding: 2px 8px 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.lc-scroll::-webkit-scrollbar { width: 6px; } .lc-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.tslider { flex: 1 1 0; min-height: 0; min-width: 0; width: 100%; display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory; scrollbar-width: none; outline: none; }
+.tslider::-webkit-scrollbar { display: none; }
+.tslide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.tslide-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ink-3); }
+.tslide-h b { font-family: var(--f-display); font-size: 16px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+.tslide-h a { color: var(--blue); text-decoration: none; font-weight: 600; }
+.tslide-h a:hover { text-decoration: underline; }
+.tslide .xtl a.xlink { display: block; color: inherit; text-decoration: none; }
+.tslide .xtl a.xlink:hover .xp { background: var(--surface); }
+.tnav { display: flex; align-items: center; gap: 8px; }
+.tnav button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--white); color: var(--ink);
+  font-size: 18px; line-height: 1; display: grid; place-items: center; cursor: pointer; padding: 0 0 2px; }
+.tnav button:hover:not(:disabled) { background: var(--surface); }
+.tnav button:disabled { opacity: .35; cursor: default; }
+.tdots { display: flex; gap: 5px; }
+.tdots i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background .2s, width .2s; }
+.tdots i.on { width: 16px; border-radius: 3px; background: var(--blue); }
 .lc .xp { padding-inline: 14px; cursor: default; }
 .lc .xp:hover { background: #FFFFFF; }
 .post-dots { display: flex; gap: 5px; }
@@ -466,7 +489,7 @@ body.killed .wbar i { background: var(--ink-3); }
 .empty { font-size: 14px; color: var(--ink-3); padding: 12px 2px; margin: 0; text-align: left; }
 .paused-note { display: none; margin-top: 16px; text-align: center; }
 body.killed .paused-note { display: block; }
-@media (max-width: 1000px) { .live-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1000px) { .live-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- 8 RECORD: copy on the left, one X timeline on the right; always fits one screen ---------- */
 .record .wrap { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
@@ -880,23 +903,25 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <article class="lc on">
         <div class="lc-h"><span class="kicker lc-k"><svg class="ic"><use href="#i-eye"/></svg>Watching</span><span class="example">example</span><span class="lc-meta" id="wlCount"></span></div>
         <p class="lc-sub" id="wlSub">Smart-money calls</p>
-        <div id="wl"></div>
+        <div class="lc-scroll"><div id="wl"></div></div>
         <div class="lc-foot"><span id="wlFootL">Move since the call</span><span class="num" id="wlFootR">+30% = buy</span></div>
       </article>
       <article class="lc">
         <div class="lc-h"><span class="kicker lc-k sand"><svg class="ic"><use href="#i-wallet"/></svg>Holding</span><span class="lc-meta" id="holdCount"></span></div>
         <p class="lc-sub" id="holdSub">Testing Phase</p>
-        <div class="lc-label">Open now</div>
-        <div id="posList" style="display:grid;gap:8px"></div>
-        <div class="lc-label">Past trades</div>
-        <div id="pastList"></div>
+        <div class="lc-scroll">
+          <div class="lc-label">Open now</div>
+          <div id="posList" style="display:grid;gap:8px"></div>
+          <div class="lc-label">Past trades</div>
+          <div id="pastList"></div>
+        </div>
         <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> <span id="walletTxt">testing phase</span></span><span id="slotsTxt">2 of 3 slots</span></div>
       </article>
       <article class="lc">
         <div class="lc-h"><span class="kicker lc-k ink"><svg class="ic"><use href="#b-x"/></svg>Posting</span><span class="pill blue" id="npPill">in 2 min</span></div>
-        <p class="lc-sub">@MooseByMuse on X</p>
-        <div id="nextPost"></div>
-        <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="post-dots" id="postDots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+        <p class="lc-sub">Every coin it bought and why, as posted on X</p>
+        <div class="tslider" id="tSlider" tabindex="0" aria-label="Trade posts on X"></div>
+        <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="tnav"><button type="button" id="tPrev" aria-label="Previous trade">‹</button><span class="tdots" id="tDots"></span><button type="button" id="tNext" aria-label="Next trade">›</button></span></div>
       </article>
     </div>
     </div>
@@ -963,7 +988,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div>
         <h2 id="h-cta">Follow along.<br><span class="blue">Judge it yourself.</span></h2>
         <p class="sub">Every trade, every pass and every loss gets posted. Not financial advice: a public experiment you can check.</p>
-        <div class="ctas"><a class="btn btn-primary buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span>Buy $MOOSE<span class="soon">soon</span></a><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a><a class="btn btn-ghost" href="#record">Read the journal</a></div>
+        <div class="ctas"><a class="btn btn-primary buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span>Buy $MOOSE<span class="soon">soon</span></a><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a></div>
         <div class="ca-row" id="caRow" hidden><span class="lbl">CA</span><code id="caTxt"></code><button type="button" id="caCopy" aria-label="Copy the $MOOSE contract address"><svg class="ic"><use href="#i-copy"/></svg></button></div>
       </div>
       <div class="cta-mascot"><img src="assets/moose-board.webp" alt="MOOSE writing $MOOSE on a whiteboard" width="975" height="806"></div>
@@ -1213,10 +1238,31 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       : `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}"${w.tip ? ` title="${w.tip}"` : ""}>${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.lbl ?? w.p + "%"}<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
     $("#pastList").innerHTML = past.length ? past.slice(0, 3).map(t => `<div class="prow ${t.pl >= 0 ? "up" : "down"}">${coinAv(t.c, 30, false, t.logo, t.s)}<div><b>$${t.s}</b><small>held ${t.held} · ${t.why}</small></div><span class="plp">${t.pl >= 0 ? "+" : ""}${t.pl.toFixed(1)}%</span></div>`).join("")
       : `<div class="h-empty">No closed trades yet. The first one shows up here, win or lose.</div>`;
-    $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. MOOSE waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
+    $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. MOOSE waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} ETH · ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
   };
   renderLive();
-  $("#nextPost").innerHTML = `<div class="xtl">${xPost({ t: "2m", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself." })}</div>`;
+  /* posting: a slider of trade threads on X, one coin per slide (the buy, the reasons under it, updates, sells) */
+  const tSlider = $("#tSlider"), tKey = { v: "" };
+  const xUrl = id => id ? `https://x.com/MooseByMuse/status/${esc(id)}` : "https://x.com/MooseByMuse";
+  const tIndex = () => Math.round(tSlider.scrollLeft / Math.max(1, tSlider.clientWidth));
+  const tSync = () => { const n = tSlider.children.length, i = tIndex();
+    $("#tDots").innerHTML = n > 1 ? Array.from({ length: n }, (_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("") : "";
+    $("#tPrev").disabled = i <= 0; $("#tNext").disabled = i >= n - 1; };
+  const renderTweets = threads => {
+    const key = JSON.stringify(threads.map(t => t.posts.map(p => p.x_post_id + p.sent_at)));
+    if (key === tKey.v) return tSync();  // unchanged: keep the slide the visitor is on
+    tKey.v = key; const at = tIndex();
+    tSlider.innerHTML = threads.length ? threads.map(t => `<div class="tslide"><div class="tslide-h"><b>$${esc(t.symbol || "?")}</b>`
+        + `<a href="${xUrl(t.posts[0].x_post_id)}" target="_blank" rel="noopener">View on X ↗</a></div><div class="xtl">`
+        + t.posts.map(p => `<a class="xlink" href="${xUrl(p.x_post_id)}" target="_blank" rel="noopener">${xPost({ t: p.sent_at ? ago(p.sent_at) : "now", body: esc(p.body) })}</a>`).join("")
+        + `</div></div>`).join("")
+      : `<p class="empty">No trades posted yet. Every buy shows up here with its reasons, as posted on X.</p>`;
+    tSlider.scrollLeft = Math.min(at, threads.length - 1) * tSlider.clientWidth; tSync(); };
+  const tGo = d => tSlider.scrollBy({ left: d * tSlider.clientWidth, behavior: reduce ? "auto" : "smooth" });
+  $("#tPrev").addEventListener("click", () => tGo(-1)); $("#tNext").addEventListener("click", () => tGo(1));
+  tSlider.addEventListener("scroll", () => { clearTimeout(tSlider._t); tSlider._t = setTimeout(tSync, 80); }, { passive: true });
+  tSlider.addEventListener("keydown", e => { if (e.key === "ArrowLeft") tGo(-1); if (e.key === "ArrowRight") tGo(1); });
+  renderTweets([{ symbol: "TAKO", posts: [{ body: "Bought $TAKO\n\nEntry: $48K MC\nSize: 0.015 ETH\n\nWhy: the team's own post confirms the launch and buyers are spreading out.", sent_at: null, x_post_id: "" }] }]);
   if (!reduce) {
     setInterval(() => {
       if (LIVE) return;
@@ -1539,11 +1585,10 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (!watch.length) $("#wl").innerHTML = `<p class="empty">${sm ? "No smart-money calls on Robinhood Chain yet." : "Nothing close to graduating right now."}</p>`;
     const inTr = d.positions.reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_eth || 0), 0);
     $("#slotsTxt").textContent = d.slots < 100 ? `${positions.length} of ${d.slots} slots` : positions.length ? `${inTr.toFixed(inTr < 0.1 ? 4 : 3)} ETH in trades` : "";
-    const np = d.next_post, last = d.posts[0];
-    $("#npPill").textContent = np ? "queued" : "last post";
-    $("#nextPost").innerHTML = np ? `<div class="xtl">${xPost({ t: "now", body: esc(np.body) })}</div>`
-      : last ? `<div class="xtl">${xPost({ t: ago(last.sent_at), body: esc(last.body) })}</div>` : `<p class="empty">Nothing queued.</p>`;
-    $("#postsTxt").textContent = `${d.posts_24h} post${d.posts_24h === 1 ? "" : "s"} in the last 24h`; hide($("#postDots"));
+    const th = d.trade_threads || [];
+    $("#npPill").textContent = `${th.length} trade${th.length === 1 ? "" : "s"}`;
+    renderTweets(th);
+    $("#postsTxt").textContent = `${d.posts_24h} post${d.posts_24h === 1 ? "" : "s"} in the last 24h`;
 
     /* on the record: real posts from @MooseByMuse */
     const pk = JSON.stringify(d.posts.map(p => p.x_post_id));
