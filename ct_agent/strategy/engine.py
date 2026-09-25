@@ -781,10 +781,17 @@ def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: fl
                             entry=f"{entry_price:.3g} ETH", catalyst=catalyst, progress=a.cand.progress,
                             momentum=momentum, risk=risks[0], position_id=pid,
                             own_token=token.lower() == s.agent_token_address.lower(),
-                            mc=_market_cap(ctx, token, fill.spot_price if mode == "paper" else entry_price))
+                            mc=_market_cap(ctx, token, fill.spot_price if mode == "paper" else entry_price),
+                            plan=_exit_plan(s))
     d.reply_to = _thread(conn, token, "trade_entry")[1]  # under an earlier watch/pass, if any
     enqueue(conn, d)
     return {"entered": True, "position_id": pid}
+
+
+def _exit_plan(s: Any) -> str:
+    """e.g. '-70% stop · 50% at 1.6x · 25% at 2x · 24h max'"""
+    rungs = [f"{f * 100:g}% at {m:g}x" for m, f in sorted(s.take_profit_ladder)]
+    return " · ".join([f"-{s.stop_loss_pct:g}% stop", *rungs, f"{s.max_hold_hours:g}h max"])
 
 
 def _describe_source(src: dict[str, Any]) -> str:

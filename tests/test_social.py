@@ -17,10 +17,13 @@ def _entry(mode="paper", pid=1, risk="one wallet is 35% of buys"):
 
 def test_paper_post_is_labelled_fits_and_keeps_risk_and_ca():
     d = _entry()
-    assert d.body.startswith("TEST BUY $NEZU") and CA not in d.body and "Risk:" in d.body
+    assert d.body.startswith("Test buy $NEZU\n\nEntry: ") and CA not in d.body and "Simulated fill" in d.body
     assert len(d.body) <= 280
-    assert compose.trade_entry(mode="live", symbol="N", token=CA, size="s", entry="e", catalyst="c", progress=0.9,
-                               momentum="", risk="r", position_id=2).body.startswith("BOUGHT")
+    live = compose.trade_entry(mode="live", symbol="N", token=CA, size="0.0148 ETH", entry="e", catalyst="a smart-money call",
+                               progress=1.0, momentum="", risk="r", position_id=2, mc="$2.19M",
+                               plan="-70% stop · 50% at 1.6x · 25% at 2x · 24h max").body
+    assert live == ("Bought $N\n\nEntry: $2.19M MC\nSize: 0.0148 ETH\nExits: -70% stop · 50% at 1.6x · 25% at 2x · 24h max"
+                    "\n\nSmart-money call on Robinhood Chain.")
 
 
 def test_losses_are_posted():
@@ -139,7 +142,7 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
         got.append(json.loads(r.content))
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60)
-    assert [g["text"][:9] for g in got] == ["TEST BUY ", "$NEZU +26", "$W is on "]
+    assert [g["text"][:9] for g in got] == ["Test buy ", "$NEZU +26", "$W is on "]
     assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
 
 

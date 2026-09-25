@@ -110,20 +110,20 @@ def disclosure(*, holds: bool, mode: str, own_token: bool) -> str:
 
 
 def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, catalyst: str, progress: float | None,
-                momentum: str, risk: str, position_id: int, own_token: bool = False, mc: str = "") -> Draft:
-    stage = f"while the curve was {progress * 100:.0f}% complete" if progress is not None and progress < 1 \
-        else "after migration to its Pons V4 pool"
-    at_mc = f" at {mc} MC" if mc else ""
-    required = [f"{_mode_tag(mode)} ${symbol} on Robinhood Chain{at_mc}: {size} @ {entry}."]
-    optional = [
-        f"Risk: {_s(risk)}",
-        f"Saw {catalyst} {stage}" + (f", {momentum}." if momentum else "."),
-        "Not onchain, simulated fill." if mode == "paper" else "",
-        "I'll log the exit too.",
-        disclosure(holds=False, mode=mode, own_token=own_token),
-    ]
-    # Risk goes first among optional parts so it survives trimming.
-    return Draft("trade_entry", _fit(required, optional), token, f"entry:{mode}:{position_id}")
+                momentum: str, risk: str, position_id: int, own_token: bool = False, mc: str = "",
+                plan: str = "") -> Draft:
+    """A clean buy post: what, where it was bought, how much, the exit plan and why. Muse's longer read on the
+    coin follows as a reply, so the buy itself stays short."""
+    head = f"{'Test buy' if mode == 'paper' else 'Bought'} ${symbol}"
+    facts = [f"Entry: {mc} MC" if mc else f"Entry: {entry}", f"Size: {size}"] + ([f"Exits: {plan}"] if plan else [])
+    why = ("Smart-money call on Robinhood Chain." if catalyst.startswith("a smart-money call")
+           else f"Why: {_s(catalyst)}")
+    tail = [why] + (["Simulated fill, not onchain."] if mode == "paper" else []) \
+        + ([disclosure(holds=False, mode=mode, own_token=True)] if own_token else [])
+    body = head + "\n\n" + "\n".join(facts) + "\n\n" + "\n".join(tail)
+    if len(body) > 280:  # a long reason is the only part that can overflow
+        body = body[:277].rstrip() + "..."
+    return Draft("trade_entry", body, token, f"entry:{mode}:{position_id}")
 
 
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, plan: str,

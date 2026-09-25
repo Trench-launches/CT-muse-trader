@@ -119,9 +119,11 @@ def test_full_paper_cycle(tmp_path):
     assert fill["onchain"] is False and fill["pricing"] == "curve_constant_product"
 
     social_once(ctx)
-    assert len(sent) == 1 and sent[0].startswith("TEST BUY $HOT") and hot.token not in sent[0]  # ticker only
-    assert "Risk:" in sent[0] and len(sent[0]) <= 280
-    assert "on Robinhood Chain at $" in sent[0] and " MC: " in sent[0], sent[0]
+    assert len(sent) == 1 and sent[0].startswith("Test buy $HOT") and hot.token not in sent[0]  # ticker only
+    assert "Exits: -70% stop" in sent[0] and len(sent[0]) <= 280
+    assert "
+Entry: $" in sent[0] and " MC
+" in sent[0], sent[0]
 
     # second cycle: position held, no duplicate entry or post
     out2 = trader_once(ctx)
@@ -249,7 +251,7 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     research_once(ctx)
     trader_once(ctx)
     social_once(ctx)
-    assert sent[0]["text"].startswith("TEST BUY $HOT") and "reply" not in sent[0]
+    assert sent[0]["text"].startswith("Test buy $HOT") and "reply" not in sent[0]
 
     hot.real_quote = int(5.2 * ETH)  # price up past +25%
     out = trader_once(ctx)
@@ -424,7 +426,7 @@ def test_buys_on_onchain_activity_without_a_source(tmp_path):
     assert d["action"] == "buy" and d.get("entered") and not d["gates"], d
     assert rows(ctx.conn, "SELECT entry_quote FROM positions")[0]["entry_quote"] == pytest.approx(0.05)
     social_once(ctx)
-    assert sent[0].startswith("TEST BUY $HOT") and "Saw broad onchain buying" in sent[0], sent[0]
+    assert sent[0].startswith("Test buy $HOT") and "Why: broad onchain buying." in sent[0], sent[0]
 
 
 def _chat_api(tmp_path, **kw):
