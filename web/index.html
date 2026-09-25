@@ -322,6 +322,35 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lnote { margin: 0; font-size: 12.5px; color: var(--ink-3); }
 .lnote.warn { color: var(--coral); }
 .lform .btn { justify-content: center; }
+.lform[hidden], .ldone[hidden], .ldlive[hidden] { display: none; }
+.ldone { text-align: center; justify-items: center; gap: 10px; padding-block: clamp(22px, 3vw, 34px); }
+.ld-ic { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue); }
+.ld-ic .ic { width: 26px; height: 26px; }
+.ldone.live .ld-ic { background: var(--green-soft); color: var(--green); }
+.ldone.bad .ld-ic { background: var(--coral-soft); color: var(--coral); }
+.ldone h3 { font-family: var(--f-display); font-weight: 500; font-size: clamp(22px, 2.2vw, 28px); letter-spacing: -0.02em; margin: 4px 0 0; }
+.ldone p { margin: 0; max-width: 440px; font-size: 14.5px; color: var(--ink-2); }
+.ldsteps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; text-align: left; width: min(100%, 360px); }
+.ldsteps li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; font-size: 14.5px; color: var(--ink-3); }
+.ldsteps b { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-size: 12px; color: var(--white); }
+.ldsteps li.on { color: var(--ink); font-weight: 600; }
+.ldsteps li.on b { border-color: var(--blue); box-shadow: 0 0 0 4px var(--blue-soft); animation: pulse 1.8s infinite; }
+.ldsteps li.done { color: var(--ink-2); }
+.ldsteps li.done b { background: var(--green); border-color: var(--green); }
+.ldsteps li.done b::after { content: "\2713"; }
+.ldsteps li.fail { color: var(--coral); font-weight: 600; }
+.ldsteps li.fail b { background: var(--coral); border-color: var(--coral); }
+.ldsteps li.fail b::after { content: "\2715"; }
+.ldlive { display: grid; gap: 8px; width: min(100%, 440px); margin-top: 6px; }
+.ldca { display: flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 14px; padding: 10px 12px; }
+.ldca code { flex: 1; min-width: 0; font-family: var(--f-mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.ldca button { border: 0; background: var(--white); border-radius: 10px; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; color: var(--ink-2); }
+.ldca button:hover { color: var(--blue); }
+.ldlinks { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.ldlinks a { font-family: var(--f-mono); font-size: 12px; font-weight: 500; text-decoration: none; padding: 6px 12px; border-radius: var(--r-pill); background: var(--blue-soft); color: var(--blue-deep); }
+.ldlinks a:hover { background: var(--blue); color: var(--white); }
+.ldbtns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+.ldbtns .btn { padding: 11px 18px; font-size: 15px; }
 .lform .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .lrecent { margin-top: clamp(18px, 3vh, 26px); display: grid; gap: 8px; }
 .lrh { display: flex; align-items: center; gap: 10px; }
@@ -523,15 +552,24 @@ body.killed .wbar i { background: var(--ink-3); }
 .lc-scroll { flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 12px);
   margin-inline: -8px; padding: 2px 8px 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 .lc-scroll::-webkit-scrollbar { width: 6px; } .lc-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.twrap { position: relative; flex: 1 1 0; min-height: 0; display: flex; }
 .tslider { flex: 1 1 0; min-height: 0; min-width: 0; width: 100%; display: flex; gap: 16px; overflow-x: auto; overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory; scrollbar-width: none; outline: none; }
 .tslider::-webkit-scrollbar { display: none; }
 .tslide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
   scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.tslide.more { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 56px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 56px), transparent); }
+.tslide::-webkit-scrollbar { width: 6px; } .tslide::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.tmore { position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); z-index: 3; font-family: var(--f-mono); font-size: 11px;
+  font-weight: 500; padding: 4px 10px; border-radius: var(--r-pill); background: var(--ink); color: var(--white); pointer-events: none;
+  opacity: 0; transition: opacity .25s; white-space: nowrap; }
+.tmore.on { opacity: .85; }
 .tslide-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--ink-3); }
 .tslide-h b { font-family: var(--f-display); font-size: 16px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
 .tslide-h a { color: var(--blue); text-decoration: none; font-weight: 600; }
 .tslide-h a:hover { text-decoration: underline; }
+.tslide .xtl { flex: none; }  /* keep the whole thread; the slide scrolls instead of the box clipping it */
 .tslide .xtl a.xlink { display: block; color: inherit; text-decoration: none; }
 .tslide .xtl a.xlink:hover .xp { background: var(--surface); }
 .tnav { display: flex; align-items: center; gap: 8px; }
@@ -957,6 +995,22 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <p class="lnote" id="lfNote">Attach your coin's image on X before you post.</p>
         <button class="btn btn-dark" type="submit" id="lfGo" disabled><svg class="ic"><use href="#b-x"/></svg> Post on X to launch <span class="arr">→</span></button>
       </form>
+      <div class="lform ldone" id="lDone" hidden aria-live="polite">
+        <span class="ld-ic" id="ldIc"><svg class="ic"><use href="#i-rocket"/></svg></span>
+        <h3 id="ldTitle">Your launch post is ready</h3>
+        <p id="ldSub">Post it on X with your image attached. MOOSE picks it up within a few minutes and launches your coin.</p>
+        <ol class="ldsteps">
+          <li id="ldS1"><b></b><span>Post it on X with your image</span></li>
+          <li id="ldS2"><b></b><span>MOOSE checks your coin</span></li>
+          <li id="ldS3"><b></b><span id="ldS3t">Your coin goes live on Robinhood Chain</span></li>
+        </ol>
+        <div class="ldlive" id="ldLive" hidden>
+          <span class="sc-lbl">Contract address</span>
+          <div class="ldca"><code id="ldCa"></code><button type="button" id="ldCopy" aria-label="Copy the contract address"><svg class="ic"><use href="#i-copy"/></svg></button></div>
+          <div class="ldlinks" id="ldLinks"></div>
+        </div>
+        <div class="ldbtns"><button type="button" class="btn btn-ghost" id="ldEdit">Edit my post</button><a class="btn btn-dark" id="ldOpen" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Open X again</a></div>
+      </div>
     </div>
   </div>
 </section>
@@ -995,7 +1049,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <article class="lc">
         <div class="lc-h"><span class="kicker lc-k ink"><svg class="ic"><use href="#b-x"/></svg>Posting</span><span class="pill blue" id="npPill">in 2 min</span></div>
         <p class="lc-sub">Every coin it bought and why, as posted on X</p>
-        <div class="tslider" id="tSlider" tabindex="0" aria-label="Trade posts on X"></div>
+        <div class="twrap"><div class="tslider" id="tSlider" tabindex="0" aria-label="Trade posts on X"></div><span class="tmore" id="tMore">scroll for more ↓</span></div>
         <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="tnav"><button type="button" id="tPrev" aria-label="Previous trade">‹</button><span class="tdots" id="tDots"></span><button type="button" id="tNext" aria-label="Next trade">›</button></span></div>
       </article>
     </div>
@@ -1212,7 +1266,56 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     e.preventDefault();
     const p = lPost();
     if (!p.valid || !launchOpen) return lRender(true);
-    window.open("https://x.com/intent/post?text=" + encodeURIComponent(p.text), "_blank", "noopener");
+    const url = "https://x.com/intent/post?text=" + encodeURIComponent(p.text);
+    window.open(url, "_blank", "noopener");
+    lTrack(p.v.sym, url);
+  });
+  /* confirmation: once they've gone to post, follow their request (by ticker) until it's live or refused */
+  let lTimer = null;
+  const ldStep = (i, st) => { $("#ldS" + i).className = st; };
+  const ldShow = (kind, title, sub) => { $("#lDone").className = "lform ldone " + kind; $("#ldTitle").textContent = title; $("#ldSub").textContent = sub; };
+  const ldIcon = id => { $("#ldIc").innerHTML = `<svg class="ic"><use href="#${id}"/></svg>`; };
+  const lTrack = (sym, url) => {
+    $("#launchForm").hidden = true; $("#lDone").hidden = false; $("#ldLive").hidden = true; $("#ldOpen").href = url;
+    ldIcon("i-rocket");
+    $("#ldS3t").textContent = `$${sym} goes live on Robinhood Chain`;
+    ldShow("", "Your launch post is ready", `Post it on X with your image attached. MOOSE picks it up within a few minutes and launches $${sym}.`);
+    ldStep(1, "on"); ldStep(2, ""); ldStep(3, "");
+    clearInterval(lTimer);
+    const started = Date.now();
+    const poll = async () => {
+      if (Date.now() - started > 20 * 60e3) return clearInterval(lTimer);  // stop after 20 minutes
+      let st;
+      try { const r = await apiFetch("/launchpad/status?symbol=" + encodeURIComponent(sym), { cache: "no-store" }); st = await r.json(); } catch { return; }
+      if (st.status === "not_seen") return;
+      ldStep(1, "done");
+      if (st.status === "refused") {
+        clearInterval(lTimer); ldStep(2, "fail"); ldIcon("i-x");
+        return ldShow("bad", "MOOSE couldn't launch this one", "Check MOOSE's reply under your post for why, fix it and post again.");
+      }
+      if (st.status === "failed") {
+        clearInterval(lTimer); ldStep(2, "done"); ldStep(3, "fail"); ldIcon("i-x");
+        return ldShow("bad", "The launch didn't go through", "Something went wrong on MOOSE's side and no coin was made. Try again in a little while.");
+      }
+      ldStep(2, "done");
+      if (st.status === "approved" || st.status === "launching") {
+        ldStep(3, "on");
+        return ldShow("", `$${sym} passed the checks`, "MOOSE is announcing it and launching it on Robinhood Chain now. This takes about a minute.");
+      }
+      clearInterval(lTimer); ldStep(3, "done"); ldIcon("i-check");  // launched (or its fees already handed over)
+      ldShow("live", `$${sym} is live!`, "Your coin is launched on Robinhood Chain. Creator fees go to your wallet once it pays back its ~$2 launch.");
+      $("#ldCa").textContent = st.token || "";
+      $("#ldLinks").innerHTML = (st.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(st.announce_x_id)}" target="_blank" rel="noopener">MOOSE's post ↗</a>` : "")
+        + (st.tx_hash ? `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(st.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
+        + `<a href="https://gmgn.ai/robinhood/token/${esc(st.token)}" target="_blank" rel="noopener">Chart ↗</a>`;
+      $("#ldLive").hidden = false;
+    };
+    poll(); lTimer = setInterval(poll, 8000);
+  };
+  $("#ldEdit").addEventListener("click", () => { clearInterval(lTimer); $("#lDone").hidden = true; $("#launchForm").hidden = false; });
+  $("#ldCopy").addEventListener("click", () => {
+    const t = $("#ldCa").textContent;
+    if (t && navigator.clipboard) navigator.clipboard.writeText(t).then(() => { $("#ldCopy").style.color = "var(--green)"; setTimeout(() => { $("#ldCopy").style.color = ""; }, 1200); });
   });
   lRender();
   /* recently launched: an endless strip of cards; example coins until the first real launch */
@@ -1235,7 +1338,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     lKey = key;
     const v = $("#lRecentList"), html = items.map(r => launchCard(r, ex)).join("");
     v.innerHTML = `<div class="rc-track">${html}</div>`;
-    if (reduce) return;
+    if (reduce || (!ex && items.length < 3)) return;  // a strip of one or two real launches stays still, no repeats
     requestAnimationFrame(() => {
       const tr = v.firstChild, w = tr.scrollWidth;
       if (!w) return;
@@ -1365,7 +1468,12 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const tSlider = $("#tSlider"), tKey = { v: "" };
   const xUrl = id => id ? `https://x.com/MooseByMuse/status/${esc(id)}` : "https://x.com/MooseByMuse";
   const tIndex = () => Math.round(tSlider.scrollLeft / Math.max(1, tSlider.clientWidth));
-  const tSync = () => { const n = tSlider.children.length, i = tIndex();
+  const tMoreSync = () => {  // is there more of the current slide below the fold?
+    const sl = tSlider.children[tIndex()];
+    [...tSlider.children].forEach(x => x.classList.toggle("more", x.scrollHeight - x.scrollTop - x.clientHeight > 8));
+    $("#tMore").classList.toggle("on", !!sl && sl.classList.contains("more"));
+  };
+  const tSync = () => { tMoreSync(); const n = tSlider.children.length, i = tIndex();
     $("#tDots").innerHTML = n > 1 ? Array.from({ length: n }, (_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("") : "";
     $("#tPrev").disabled = i <= 0; $("#tNext").disabled = i >= n - 1; };
   const renderTweets = threads => {
@@ -1377,7 +1485,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         + t.posts.map(p => `<a class="xlink" href="${xUrl(p.x_post_id)}" target="_blank" rel="noopener">${xPost({ t: p.sent_at ? ago(p.sent_at) : "now", body: esc(p.body) })}</a>`).join("")
         + `</div></div>`).join("")
       : `<p class="empty">No trades posted yet. Every buy shows up here with its reasons, as posted on X.</p>`;
-    tSlider.scrollLeft = Math.min(at, threads.length - 1) * tSlider.clientWidth; tSync(); };
+    tSlider.scrollLeft = Math.min(at, threads.length - 1) * tSlider.clientWidth;
+    [...tSlider.children].forEach(x => x.addEventListener("scroll", tMoreSync, { passive: true }));
+    requestAnimationFrame(tSync); };
   const tGo = d => tSlider.scrollBy({ left: d * tSlider.clientWidth, behavior: reduce ? "auto" : "smooth" });
   $("#tPrev").addEventListener("click", () => tGo(-1)); $("#tNext").addEventListener("click", () => tGo(1));
   tSlider.addEventListener("scroll", () => { clearTimeout(tSlider._t); tSlider._t = setTimeout(tSync, 80); }, { passive: true });
