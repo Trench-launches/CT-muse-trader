@@ -324,6 +324,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lform .btn { justify-content: center; }
 .lform .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .lrecent { margin-top: clamp(18px, 3vh, 26px); display: grid; gap: 8px; }
+.lrh { display: flex; align-items: center; gap: 10px; }
+.lrh .example { margin-left: auto; }
+.lview { margin-inline: -4px; padding: 4px; }
+.lcard { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; width: 265px; margin-right: 10px;
+  padding: 10px 12px; border-radius: 18px; background: var(--white); box-shadow: 0 1px 0 var(--line), 0 6px 16px -12px rgba(15,20,25,.25); }
+.lcard .lgo, .lcard .coinav { grid-row: span 2; width: 38px !important; height: 38px !important; border-radius: 50%; object-fit: cover; }
+.lcard b { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lcard small { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lcard .lk { grid-column: 1 / -1; display: flex; gap: 6px; margin-top: 4px; }
+.lcard .lk a, .lcard .lk span { font-family: var(--f-mono); font-size: 11px; font-weight: 500; text-decoration: none; padding: 3px 8px; border-radius: var(--r-pill);
+  background: var(--blue-soft); color: var(--blue-deep); white-space: nowrap; }
+.lcard .lk a:hover { background: var(--blue); color: var(--white); }
+.lcard .lk .done { background: var(--green-soft); color: var(--green); }
 .lempty { margin: 0; padding: 12px 14px; border-radius: 16px; background: var(--white); box-shadow: 0 1px 0 var(--line); font-size: 13.5px; color: var(--ink-2); }
 .lcredit { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
 .lcredit .ic { width: 14px; height: 14px; color: var(--blue); flex: none; }
@@ -929,7 +942,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet.</span></div></li>
       </ol>
       <p class="lrules">One launch per X account a day · accounts older than 30 days · no real brands, famous people or scams</p>
-      <div class="lrecent" id="lRecent"><span class="sc-lbl">Recently launched</span><div id="lRecentList"><p class="lempty">No coins launched yet. Yours could be the first.</p></div></div>
+      <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><span class="example" id="lEx">example</span></div><div class="rc-view lview" id="lRecentList"></div></div>
     </div>
     <div class="panel grid-bg launch-panel">
       <form class="lform" id="launchForm" autocomplete="off" novalidate>
@@ -1201,6 +1214,37 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     window.open("https://x.com/intent/post?text=" + encodeURIComponent(p.text), "_blank", "noopener");
   });
   lRender();
+  /* recently launched: an endless strip of cards; example coins until the first real launch */
+  const EX_LAUNCHES = [["PURR", "catfan", 2], ["HOPPY", "bunnydev", 9], ["MOOCOW", "farmfren", 25], ["BRRR", "printer_anon", 47],
+    ["QUACK", "duckszn", 70], ["TACO", "tacotues", 95], ["ROBOCAT", "meowbuilder", 130], ["GLOBBY", "blobartist", 185]]
+    .map(([symbol, handle, mins], i) => ({ symbol, handle, launched_at: new Date(Date.now() - mins * 60e3).toISOString(), fees_handed_over: i % 3 === 0 }));
+  const launchCard = (r, ex) => `<div class="lcard">`
+    + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : coinAv("blue", 38, false, null, r.symbol))
+    + `<b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
+    + (ex ? `<span>Post ↗</span><span>Receipt ↗</span>`
+      : (r.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
+        + `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>`
+        + `<a href="https://gmgn.ai/robinhood/token/${esc(r.token)}" target="_blank" rel="noopener">Chart ↗</a>`)
+    + (r.fees_handed_over ? `<span class="done" title="the creator fees now go to the creator">handed over</span>` : "") + `</span></div>`;
+  let lKey = "";
+  const launchStrip = list => {
+    const ex = !list.length, items = ex ? EX_LAUNCHES : list.slice(0, 12), key = ex ? "ex" : JSON.stringify(items.map(r => r.token + r.fees_handed_over));
+    $("#lEx").style.display = ex ? "" : "none";
+    if (key === lKey) return;  // unchanged: leave the strip running where it is
+    lKey = key;
+    const v = $("#lRecentList"), html = items.map(r => launchCard(r, ex)).join("");
+    v.innerHTML = `<div class="rc-track">${html}</div>`;
+    if (reduce) return;
+    requestAnimationFrame(() => {
+      const tr = v.firstChild, w = tr.scrollWidth;
+      if (!w) return;
+      const copy = html.repeat(Math.max(1, Math.ceil(v.clientWidth / w)));
+      tr.innerHTML = copy + `<span style="display:contents" aria-hidden="true">${copy}</span>`;
+      tr.style.setProperty("--dur", `${tr.scrollWidth / 2 / 35}s`);  // about 35px a second
+      tr.classList.add("run");
+    });
+  };
+  launchStrip([]);
 
   /* ---------- 3 LISTENS ---------- */
   let sources = [
@@ -1579,14 +1623,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 
     /* launchpad: open or not yet */
     launchOpen = !!(d.launchpad && d.launchpad.enabled); lRender();
-    const lrec = (d.launchpad && d.launchpad.recent) || [];
-    $("#lRecentList").innerHTML = !lrec.length ? `<p class="lempty">No coins launched yet. Yours could be the first.</p>` : lrec.slice(0, 5).map(r => `<div class="lrow2">`
-      + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<span class="lgo"></span>`)
-      + `<div><b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago`
-      + `${r.fees_handed_over ? " · fees handed over" : ""}</small></div><span class="lk">`
-      + (r.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
-      + `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>`
-      + `<a href="https://gmgn.ai/robinhood/token/${esc(r.token)}" target="_blank" rel="noopener">Chart ↗</a></span></div>`).join("");
+    launchStrip((d.launchpad && d.launchpad.recent) || []);
 
     /* listening: the newest real source of each kind */
     const sk = JSON.stringify(d.sources.map(x => x.id));
