@@ -85,7 +85,8 @@ def take_request(ctx: Any, m: dict[str, Any]) -> str:
     # the house rules first, the same for everyone
     n = conn.execute("SELECT COUNT(*) c FROM launch_requests WHERE author_id=? AND status!='refused' AND created_at>=?",
                      (m.get("author_id") or "", _since(24))).fetchone()["c"]
-    if n >= s.launch_per_user_day:
+    vip = (author.get("username") or "").lower() in {h.lower().lstrip("@") for h in s.launch_vip_handles}
+    if n >= (s.launch_vip_per_day if vip else s.launch_per_user_day):
         return _refuse(conn, m, "per-user limit", "One launch per account per day, fren. Come back tomorrow 🫎", **fields)
     try:
         age = datetime.now(timezone.utc) - datetime.fromisoformat(str(author.get("created_at")).replace("Z", "+00:00"))

@@ -77,7 +77,8 @@ class _Muser:
 
 def test_musings_every_half_hour_never_eat_the_trade_posts_room(settings, db):
     from ct_agent.social.musings import musings_once
-    s = settings.model_copy(update={"x_musings_enabled": True, "x_posting_enabled": True, "x_daily_post_cap": 40})
+    s = settings.model_copy(update={"x_musings_enabled": True, "x_posting_enabled": True, "x_daily_post_cap": 40,
+                                    "x_cadence_min": 0})  # musings on their own timer
     brain = _Muser("liquidity leaves quietly and returns loudly.")
     ctx = SimpleNamespace(settings=s, conn=db, x=_X([]), brain=brain)
     assert musings_once(ctx) == {"musing": "queued"}

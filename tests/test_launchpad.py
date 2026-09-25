@@ -297,3 +297,14 @@ def test_launch_calldata_for_a_stock_pair_names_the_pair_and_the_creator(setting
                               economics=b"\1" * 32, salt=b"\2" * 32, pair_token=TSLA, recipient=WALLET)
     params, cfg, pair = decode([TOKEN_PARAMS, "uint256", "address"], bytes.fromhex(data[10:]))
     assert params[5].lower() == WALLET and (cfg, pair.lower()) == (0, TSLA.lower())
+
+
+def test_a_vip_handle_gets_more_launches_a_day(settings, db):
+    ctx = _ctx(settings, db, launch_vip_handles=["@WilsTheDev"], launch_vip_per_day=3)
+    vip = {"username": "wilsthedev", "created_at": OLD}
+    for i, sym in enumerate(("CAT", "CATT", "CATTT")):
+        ctx.brain = _Brain(symbol=sym, name="Cat Coin")
+        assert take_request(ctx, _m(f"8{i}", text=f"launch ${sym} Cat Coin {WALLET}", author=vip)) == "approved"
+    ctx.brain = _Brain(symbol="CATS", name="Cat Coin")
+    assert take_request(ctx, _m("89", text=f"launch $CATS Cat Coin {WALLET}", author=vip)) == "refused"  # 4th
+    assert take_request(ctx, {**_m("90", text=f"launch $CATS Cat Coin {WALLET}"), "author_id": "u7"}) == "approved"

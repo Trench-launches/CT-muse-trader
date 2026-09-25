@@ -20,8 +20,9 @@ RESERVED_FOR_TRADES = 30  # posts per day a musing may never take
 
 
 def musings_once(ctx: Any) -> dict[str, Any]:
+    """Musings on their own timer; with the cadence on (x_cadence_min), they come in its rotation instead."""
     s, conn = ctx.settings, ctx.conn
-    if not (s.x_musings_enabled and s.x_posting_enabled and ctx.x.can_post):
+    if not (s.x_musings_enabled and s.x_posting_enabled and ctx.x.can_post) or s.x_cadence_min > 0:
         return {}
     now = datetime.now(timezone.utc)
     last = kv_get(conn, "musing_last_at")
@@ -31,6 +32,12 @@ def musings_once(ctx: Any) -> dict[str, Any]:
         return {}  # the last one hasn't gone out yet
     if sent_last_24h(conn) >= s.x_daily_post_cap - RESERVED_FOR_TRADES:
         return {"musing": "held: leaving room for trade posts"}
+    return {"musing": write_musing(ctx, now)}
+
+
+def write_musing(ctx: Any, now: datetime) -> str:
+    """Ask Muse for one musing and queue it. Returns 'queued', 'duplicate' or 'dropped'."""
+    s, conn = ctx.settings, ctx.conn
     kv_set(conn, "musing_last_at", now.isoformat(timespec="seconds"))
     recent = [r["body"] for r in rows(conn, "SELECT body FROM posts WHERE kind='musing' ORDER BY id DESC LIMIT 80")]
     day = rows(conn, "SELECT kind, body FROM posts WHERE kind IN ('trade_entry','trade_exit','take_profit','watch') "
@@ -44,6 +51,6 @@ def musings_once(ctx: Any) -> dict[str, Any]:
         text = None
     if not text:
         journal_append(conn, "musing_dropped", {"draft": (d.tweet if d else "")[:300], "error": res.error})
-        return {"musing": "dropped"}
+        return "dropped"
     _, new = enqueue(conn, Draft("musing", text, "", f"musing:{now.strftime('%Y%m%d%H%M')}"))
-    return {"musing": "queued" if new else "duplicate"}
+    return "queued" if new else "duplicate"

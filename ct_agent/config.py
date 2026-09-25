@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     # Original crypto musings (social/musings.py), on top of trade posts and replies
     x_musings_enabled: bool = False
     x_musing_every_min: float = 30.0
+    # A timeline post at least this often (social/cadence.py): trades count, and gaps are filled in rotation with a
+    # scan report, the open bags, a musing and the scorecard. 0 turns it off (musings then run on their own timer).
+    x_cadence_min: float = 17.0
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
     x_update_step_pct: float = 50.0  # post an update, with Muse's updated thesis, at every +50% (50, 100, 150, ...)
     x_update_down_pct: list[float] = [-15.0]  # and once when it's down this much
@@ -199,6 +202,8 @@ class Settings(BaseSettings):
     launcher_wallet_private_key: str = ""
     launch_daily_cap_eth: float = 0.1      # total launch spend per 24h; past it, requests wait for tomorrow
     launch_per_user_day: int = 1           # launches per X account per 24h
+    launch_vip_handles: list[str] = []     # X handles with a higher daily limit (the team, for tests)
+    launch_vip_per_day: int = 10
     launch_min_account_days: int = 30      # the requester's X account must be at least this old
     launch_creator_tax_bps: int = 200      # the coin's creator tax (Pons allows up to 1000)
     pons_fee_escrow: str = "0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e"  # where Pons credits creator fees
