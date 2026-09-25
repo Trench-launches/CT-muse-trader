@@ -171,6 +171,9 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
         if move >= s.scanner_trigger_pct:  # still up at least the trigger now, not just once
             c.update(last_price_usd=px, last_move_pct=round(move, 2))
             ready.append(c)
+    if s.scanner_buy_on_call:  # every tradeable call is bought as it lands, priced or not
+        seen = {c["id"] for c in ready}
+        ready += [c for c in live if c["id"] not in seen]
     return ready
 
 

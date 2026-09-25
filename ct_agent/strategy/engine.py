@@ -186,7 +186,8 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
     from ..sources import scanner
     s, conn = ctx.settings, ctx.conn
     try:
-        scanner.fetch_new(ctx)
+        if s.scanner_main_enabled:
+            scanner.fetch_new(ctx)
     except Exception as exc:  # Supabase down: keep working the calls already copied
         log.warning("scanner fetch failed: %s", exc)
     try:
@@ -289,7 +290,7 @@ def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any]
                         gates=[], model=res.model)
         except Exception as exc:  # tracking is for analysis; it must never stop a trade
             log.warning("could not record call outcome for %s: %s", token, exc)
-    if d:
+    if d and not (tradeable and s.scanner_buy_on_call):
         skip, parent = _thread(conn, token, "watch")
         if not skip:
             pb = d.post
@@ -335,17 +336,18 @@ def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
     verdict = ctx.risk.check_entry(token=token, quote_symbol="ETH", mode=s.trading_mode.value,
                                    desired_eth=_trade_size(ctx))
     gates = list(verdict.reasons)
-    if a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd:
-        gates.append("pool price unavailable this cycle")
+    if s.trading_mode.value == "paper" and (a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd):
+        gates.append("pool price unavailable this cycle")  # a paper fill needs it; live buys use the onchain quote
     if gates:
         journal_append(conn, "scanner_buy_held", {"token": token, "symbol": symbol, "move_pct": move, "why": gates},
                        ref=token)
         return {"token": token, "action": "held", "gates": gates}
     prior = conn.execute("SELECT thesis, risks FROM decisions WHERE id=?", (a.call.get("decision_id"),)).fetchone()         if a.call.get("decision_id") else None
     risks = (json.loads(prior["risks"] or "[]") if prior else []) or ["a memecoin can go to zero fast"]
-    thesis = (prior["thesis"] if prior else "") or f"smart money called it and it's up {move:.0f}% since"
-    reasons = [f"up {move:.0f}% since the smart-money call (buy rule: +{s.scanner_trigger_pct:g}%)"]
-    fill = _fill_for(ctx, a, verdict.size_eth)
+    thesis = (prior["thesis"] if prior else "") or "smart money called it"
+    reasons = (["bought on the smart-money call"] if s.scanner_buy_on_call
+               else [f"up {move:.0f}% since the smart-money call (buy rule: +{s.scanner_trigger_pct:g}%)"])
+    fill = _fill_for(ctx, a, verdict.size_eth) if a.pool and a.pool.price_native and a.pool.liquidity_usd else None
     with tx(conn):
         cur = conn.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,"
                            "model,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -356,7 +358,7 @@ def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
                                           "action": "buy", "rule": f"+{s.scanner_trigger_pct:g}% from call",
                                           "move_pct": move, "gates": [], "reasons": reasons}, ref=token, in_tx=True)
     res = _enter(ctx, a, did, fill, verdict.size_eth, [], risks, {"evidence": []},
-                 catalyst=f"a smart-money call, up {move:.0f}% since")
+                 catalyst="a smart-money call" if s.scanner_buy_on_call else f"a smart-money call, up {move:.0f}% since")
     return {"token": token, "decision_id": did, "action": "buy", **res}
 
 

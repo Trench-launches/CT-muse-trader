@@ -149,6 +149,8 @@ class Settings(BaseSettings):
     fibbot_supabase_key: str = ""
     scanner_trigger_pct: float = 30.0   # a call is only a candidate once the coin is up this much from the call
     scanner_window_hours: float = 6.0   # ...and only within this long of the call
+    scanner_main_enabled: bool = True   # the main scanner's calls; off = Fibbot's smart-money calls only
+    scanner_buy_on_call: bool = False   # buy every tradeable call the moment it lands (no +trigger wait)
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
     candidates_per_cycle: int = 5
     # Paper-trading history from MOOSE v1 (before this journal), merged into the site's scorecard and labelled
