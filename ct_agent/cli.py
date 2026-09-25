@@ -33,7 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("init-db")
     sub.add_parser("check")
     r = sub.add_parser("run")
-    r.add_argument("worker", choices=["indexer", "research", "trader", "social", "caller"])
+    from .workers.runner import WORKERS
+    r.add_argument("worker", choices=list(WORKERS))  # every worker run-all starts, so the two lists never drift
     r.add_argument("--once", action="store_true")
     sub.add_parser("run-all")
     a = sub.add_parser("api")
