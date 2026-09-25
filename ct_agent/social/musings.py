@@ -32,7 +32,7 @@ def musings_once(ctx: Any) -> dict[str, Any]:
     if sent_last_24h(conn) >= s.x_daily_post_cap - RESERVED_FOR_TRADES:
         return {"musing": "held: leaving room for trade posts"}
     kv_set(conn, "musing_last_at", now.isoformat(timespec="seconds"))
-    recent = [r["body"] for r in rows(conn, "SELECT body FROM posts WHERE kind='musing' ORDER BY id DESC LIMIT 25")]
+    recent = [r["body"] for r in rows(conn, "SELECT body FROM posts WHERE kind='musing' ORDER BY id DESC LIMIT 80")]
     day = rows(conn, "SELECT kind, body FROM posts WHERE kind IN ('trade_entry','trade_exit','take_profit','watch') "
                      "AND created_at>=? ORDER BY id DESC LIMIT 5", ((now - timedelta(hours=24)).isoformat(timespec="seconds"),))
     res = ctx.brain.musing({"now_utc": now.strftime("%A %d %B %Y, %H:%M UTC"), "mode": s.trading_mode.value,
