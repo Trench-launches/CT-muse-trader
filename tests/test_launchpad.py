@@ -18,7 +18,7 @@ OLD = "2020-01-01T00:00:00.000Z"
 class _Brain:
     def __init__(self, **kw):
         self.d = MuseLaunch(**{"is_request": True, "approve": True, "name": "Cat Coin", "symbol": "CAT",
-                               "description": "a cat that trades stocks", "twitter": "https://x.com/catcoin", **kw})
+                               "description": "a cat that trades stocks.", "twitter": "https://x.com/catcoin", **kw})
 
     def review_launch(self, text):
         return MuseResult(self.d, "", "m", "h")
@@ -120,7 +120,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     _announced(db)
     assert launchpad_once(ctx, lp) == {"launched": 1, "handed_over": 0}
     assert lp.last["socials"]["twitter"] == "https://x.com/catcoin"  # they gave their own link: it stays
-    assert lp.last["description"].endswith("Created by @catfan, launched via @MooseByMuse")
+    assert lp.last["description"] == "a cat that trades stocks. Created by @catfan, launched via @MooseByMuse"  # one full stop
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"] and "/tx/0xtx" in receipt["body"]
     assert ("0x" + "c0" * 20) in receipt["body"] and "paid by MOOSE" in receipt["body"]

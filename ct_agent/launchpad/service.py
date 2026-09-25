@@ -167,7 +167,8 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     if not socials.get("twitter") and posted:
         socials["twitter"] = f"https://x.com/MooseByMuse/status/{ann['x_post_id']}"
     credit = f"Created by @{r['handle']}, launched via @MooseByMuse" if r["handle"] else "Launched via @MooseByMuse"
-    desc = f"{r['description']}. {credit}" if r["description"] else credit
+    own = (r["description"] or "").strip().rstrip(".").strip()
+    desc = f"{own}. {credit}" if own else credit  # one full stop, whatever they typed
     m = {"id": r["x_post_id"], "author_id": r["author_id"]}
     try:
         out = launcher.launch(name=r["name"], symbol=r["symbol"], logo=r["logo"], description=desc, socials=socials,
