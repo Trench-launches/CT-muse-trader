@@ -947,10 +947,10 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
 .hub p { text-transform: uppercase; letter-spacing: .06em; font-size: 11.5px; color: var(--ink-3); }
 
 /* the pixel moose, wherever it stands */
-.holder { right: -10%; bottom: -2%; height: 46%; }
+.holder { right: -3%; bottom: -2%; height: 45%; }
 .holder img, .rec-desk, .cta-mascot img { image-rendering: pixelated; filter: drop-shadow(0 0 40px rgba(230,211,179,.08)) drop-shadow(0 20px 20px rgba(0,0,0,.6)); }
 .holder img { animation: bob 2.4s steps(2) infinite; }
-.rec-desk { left: -8%; bottom: 4%; height: 46%; }
+.rec-desk { left: -17%; bottom: 3%; height: 49%; }
 .cta-mascot { height: clamp(220px, 38vh, 380px); }
 .cta-panel:hover .cta-mascot img { transform: translateY(-6px); }
 
@@ -1001,6 +1001,7 @@ main, footer { position: relative; z-index: 1; }
           mask-image: radial-gradient(120px circle at var(--mx) var(--my), #000 0%, transparent 80%); }
 .bg-glow { background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.055), transparent 70%); }
 @media (hover: none), (prefers-reduced-motion: reduce) { .bg-fx { display: none; } }
+.lcard .lemo { display: grid; place-items: center; font-size: 21px; line-height: 1; background: linear-gradient(160deg, #26262B, #18181B); box-shadow: inset 0 0 0 1px var(--line); }
 </style>
 <!-- Icons: brand marks from Simple Icons (CC0), UI icons from Lucide (ISC) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1171,7 +1172,7 @@ main, footer { position: relative; z-index: 1; }
         <div class="chat-foot"><span>Hard rules run after this.</span><span class="num" id="chatTime">14:06 UTC</span></div>
         <div class="home-ind" aria-hidden="true"></div>
       </div>
-      <div class="holder" aria-hidden="true"><img src="assets/moose-pixel.webp" alt="" width="844" height="805"></div>
+      <div class="holder" aria-hidden="true"><img src="assets/moose-phone-pixel.webp" alt="" width="829" height="788"></div>
       <div class="fl fl-1" aria-hidden="true"><span class="tile" style="background:var(--blue-soft);color:var(--blue-deep)"><svg class="ic"><use href="#i-sparkles"/></svg></span>Muse Spark <small>thinking…</small></div>
       <div class="fl fl-2" aria-hidden="true"><span class="tile" style="background:var(--green-soft);color:var(--green)"><svg class="ic"><use href="#i-shield-check"/></svg></span>4/4 checks passed</div>
       <div class="fl fl-3" aria-hidden="true"><span class="rh"><svg class="ic"><use href="#b-robinhood"/></svg></span>Robinhood Chain</div>
@@ -1286,7 +1287,7 @@ main, footer { position: relative; z-index: 1; }
       <div class="ctas"><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a></div>
     </div>
     <div class="panel grid-bg rec-panel" style="background:var(--panel-warm)">
-      <img class="rec-desk" src="assets/moose-pixel.webp" alt="" aria-hidden="true" width="844" height="805" loading="lazy">
+      <img class="rec-desk" src="assets/moose-desk-pixel.webp" alt="" aria-hidden="true" width="822" height="829" loading="lazy">
       <div class="rec-card rec-card-0"><div class="xtl"></div></div>
       <div class="rec-card rec-card-1"><div class="xtl"></div></div>
     </div>
@@ -1548,11 +1549,12 @@ main, footer { position: relative; z-index: 1; }
   });
   lRender();
   /* recently launched: an endless strip of cards; example coins until the first real launch */
-  const EX_LAUNCHES = [["PURR", "catfan", 2], ["HOPPY", "bunnydev", 9], ["MOOCOW", "farmfren", 25], ["BRRR", "printer_anon", 47],
-    ["QUACK", "duckszn", 70], ["TACO", "tacotues", 95], ["ROBOCAT", "meowbuilder", 130], ["GLOBBY", "blobartist", 185]]
-    .map(([symbol, handle, mins], i) => ({ symbol, handle, launched_at: new Date(Date.now() - mins * 60e3).toISOString(), fees_handed_over: i % 3 === 0 }));
+  const EX_LAUNCHES = [["PURR", "catfan", 2, "🐱"], ["HOPPY", "bunnydev", 9, "🐰"], ["MOOCOW", "farmfren", 25, "🐮"], ["BRRR", "printer_anon", 47, "🖨️"],
+    ["QUACK", "duckszn", 70, "🦆"], ["TACO", "tacotues", 95, "🌮"], ["ROBOCAT", "meowbuilder", 130, "🤖"], ["GLOBBY", "blobartist", 185, "🫧"]]
+    .map(([symbol, handle, mins, emo], i) => ({ symbol, handle, emo, launched_at: new Date(Date.now() - mins * 60e3).toISOString(), fees_handed_over: i % 3 === 0 }));
   const launchCard = (r, ex) => `<div class="lcard">`
-    + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : coinAv("blue", 38, false, null, r.symbol))
+    + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+      : r.emo ? `<span class="lgo lemo" aria-hidden="true">${r.emo}</span>` : coinAv("blue", 38, false, null, r.symbol))
     + `<b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
     + (ex ? `<span>Post ↗</span><span>Receipt ↗</span>`
       : (r.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
