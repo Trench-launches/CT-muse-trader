@@ -143,6 +143,8 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
     cutoff = (_now() - timedelta(hours=s.scanner_window_hours)).isoformat(timespec="seconds")
     with tx(conn):
         conn.execute("UPDATE scanner_calls SET status='expired' WHERE status='watching' AND called_at<?", (cutoff,))
+        conn.execute("UPDATE scanner_calls SET status='bought' WHERE status='watching' AND lower(token) IN "
+                     "(SELECT lower(token) FROM positions WHERE status='open')")
     open_calls = rows(conn, "SELECT * FROM scanner_calls WHERE status='watching' ORDER BY id")
     for c in open_calls:
         if c.get("pool_id") is None:
