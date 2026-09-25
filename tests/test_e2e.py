@@ -56,6 +56,8 @@ def _muse(action="buy", ids=None):
             return json.dumps({"action": "hold", "confidence": 0.3, "reasons": ["thesis intact"]})
         if name == "site_chat":
             return json.dumps({"reply": "HOT is on the curve and buyers are spreading out. Not advice."})
+        if name == "thesis_update":
+            return json.dumps({"thesis": "buyers kept spreading out after the news, no big wallet selling yet"})
         if name == "loss_review":
             return json.dumps({"bought_because": "first-party news and fast buys",
                                "underestimated": "how fast the buyers could leave",
@@ -267,7 +269,8 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
             return httpx.Response(201, json={"data": {"id": str(1000 + len(sent))}})
         return httpx.Response(404)
 
-    ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
+    # a +25% step so the milestone lands below the first take-profit rung (1.6x) in this scenario
+    ctx = build(_settings(tmp_path, x_update_step_pct=25), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=httpx.MockTransport(h), completer=_muse())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
@@ -285,6 +288,8 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     assert len(sent) == 2
     assert sent[1]["text"].startswith("$HOT +") and "Still holding" in sent[1]["text"]
     assert "MC (" in sent[1]["text"], sent[1]["text"]
+    assert "\n\nUpdated thesis: buyers kept spreading out" in sent[1]["text"] and len(sent[1]["text"]) <= 280
+    assert journal_recent(ctx.conn, kind="thesis_update")[0]["payload"]["thesis"].startswith("buyers kept")
     assert sent[1]["reply"] == {"in_reply_to_tweet_id": "1001"}
 
     hot.real_quote = int(0.2 * ETH)  # collapse -> stop loss, exit replies under the entry too

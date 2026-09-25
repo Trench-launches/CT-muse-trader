@@ -170,3 +170,16 @@ def test_no_replies_under_a_previous_x_account(db):
 def test_usd_compact():
     assert compose.usd_compact(42_130) == "$42.1K" and compose.usd_compact(1_234_000) == "$1.23M"
     assert compose.usd_compact(None) == "" and compose.usd_compact(950) == "$950"
+
+
+def test_position_update_fits_the_thesis_in_280():
+    long = "the story spread from one account to dozens of posts and new wallets keep buying the dips " * 3
+    d = compose.position_update(mode="live", symbol="NEZU", token=CA, pnl_pct=104, price="2.1e-7 ETH", milestone=100,
+                                plan="Stop -70%, first take-profit at 1.6x.", position_id=4, mc="$212K",
+                                thesis=long)
+    assert len(d.body) <= 280 and "\n\nUpdated thesis: the story spread" in d.body and d.body.count("..") == 0
+    assert d.body.startswith("$NEZU +104% since the call, now $212K MC (2.1e-7 ETH). Still holding.")
+    assert d.body.endswith("Stop -70%, first take-profit at 1.6x.")
+    plain = compose.position_update(mode="live", symbol="NEZU", token=CA, pnl_pct=-15, price="1e-9 ETH",
+                                    milestone=-15, plan="Stop -70%.", position_id=4)
+    assert "Updated thesis" not in plain.body

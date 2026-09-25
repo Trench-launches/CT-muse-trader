@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     x_musings_enabled: bool = False
     x_musing_every_min: float = 30.0
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
-    x_update_step_pct: float = 30.0  # post an update under the entry at every +30% (30, 60, 90, ...)
+    x_update_step_pct: float = 50.0  # post an update, with Muse's updated thesis, at every +50% (50, 100, 150, ...)
     x_update_down_pct: list[float] = [-15.0]  # and once when it's down this much
     x_max_reads_per_search: int = 20
     x_monthly_read_budget: int = 6_000

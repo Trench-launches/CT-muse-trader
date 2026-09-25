@@ -127,12 +127,21 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
 
 
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, plan: str,
-                    position_id: int, mc: str = "") -> Draft:
-    """A milestone update, posted as a reply under the entry post. `plan` says where the exits are now."""
+                    position_id: int, mc: str = "", thesis: str = "") -> Draft:
+    """A milestone update, posted as a reply under the entry post. `plan` says where the exits are now;
+    `thesis` is Muse's updated read on the coin (dropped first if the post runs long)."""
     now = f"now {mc} MC ({price})" if mc else f"now {price}"
     body = f"${symbol} {pnl_pct:+.0f}% since the call, {now}. Still holding. {plan}"
     if mode == "paper":
         body += " Testing phase."
+    thesis = " ".join((thesis or "").split())
+    if thesis:
+        head, rest = body.split(" Still holding. ", 1)
+        room = LIMIT - len(f"{head} Still holding.\n\nUpdated thesis: \n\n{rest}")
+        if room >= 40:
+            if len(thesis) > room:
+                thesis = thesis[:room - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+            body = f"{head} Still holding.\n\nUpdated thesis: {thesis}\n\n{rest}"
     return Draft("update", body, token, f"update:{mode}:{position_id}:{milestone:+g}",
                  reply_to=f"entry:{mode}:{position_id}")
 

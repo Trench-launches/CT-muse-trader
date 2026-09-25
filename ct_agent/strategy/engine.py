@@ -999,10 +999,36 @@ def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: F
     kv_set(conn, key, sorted(hit | set(crossed)))
     m = max(crossed, key=abs)
     symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
+    mc = _market_cap(ctx, pos["token"], fill.spot_price)
+    thesis = _updated_thesis(ctx, pos, symbol or "?", pnl_pct, mc) if m > 0 else ""
     enqueue(conn, compose.position_update(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
                                           price=f"{fill.avg_price:.3g} ETH", milestone=m, plan=_plan(s, hits),
-                                          position_id=pos["id"],
-                                          mc=_market_cap(ctx, pos["token"], fill.spot_price)))
+                                          position_id=pos["id"], mc=mc, thesis=thesis))
+
+
+def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: float, mc: str) -> str:
+    """Muse's fresh read on a coin that's running, for the milestone post. Journalled; '' if Muse can't answer,
+    and the update still goes out without it."""
+    conn = ctx.conn
+    try:
+        d = conn.execute("SELECT thesis, reasons, risks FROM decisions WHERE id=?", (pos["decision_id"],)).fetchone() \
+            if pos.get("decision_id") else None
+        held_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
+        r = ctx.brain.update_thesis({
+            "symbol": symbol, "token": pos["token"], "pnl_pct": round(pnl_pct, 1), "held_hours": round(held_h, 1),
+            "market_cap_now": mc or None, "entry_eth": pos["entry_quote"],
+            "original_decision": {"thesis": d["thesis"], "reasons": json.loads(d["reasons"] or "[]"),
+                                  "risks": json.loads(d["risks"] or "[]")} if d else {},
+            "x_attention_24h": kv_get(conn, f"x_attention:{pos['token'].lower()}"),
+            "evidence": evidence_for_token(conn, pos["token"], 10), "lore": _lore(ctx, pos["token"])})
+    except Exception as exc:  # the update post never waits on this
+        log.warning("updated thesis unavailable for %s: %s", pos["token"], exc)
+        return ""
+    thesis = (r.decision.thesis if r.decision else "").strip()
+    journal_append(conn, "thesis_update", {"position_id": pos["id"], "token": pos["token"], "symbol": symbol,
+                                           "pnl_pct": round(pnl_pct, 1), "thesis": thesis, "muse_error": r.error},
+                   ref=pos["token"])
+    return thesis
 
 
 def weekly_scorecard(ctx: Context, now: datetime | None = None) -> bool:
