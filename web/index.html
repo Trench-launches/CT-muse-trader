@@ -410,24 +410,28 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lc { background: rgba(255,255,255,.94); border-radius: 26px; box-shadow: var(--shadow); padding: clamp(14px, 2.2vh, 20px) 20px; display: flex; flex-direction: column; gap: clamp(8px, 1.4vh, 12px); }
 .lc { transition: transform .5s var(--spring); }
 .lc:hover { transform: translateY(-4px); }
-.lc-h { display: flex; align-items: center; gap: 12px; }
-.lc-h .ic-b { width: 38px; height: 38px; border-radius: 13px; display: grid; place-items: center; flex: none; color: var(--white);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 8px 16px -8px rgba(0,60,140,.45); }
-.lc-h .ic-b .ic { width: 20px; height: 20px; vertical-align: 0; }
-.lc-h .ic-b.blue { background: linear-gradient(160deg, #4DA8FF, var(--blue-deep)); }
-.lc-h .ic-b.sand { background: linear-gradient(160deg, #F4E6D1, #D9BF98); color: #7A5C36; box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 8px 16px -8px rgba(138,111,78,.5); }
-.lc-h .ic-b.ink { background: linear-gradient(160deg, #2A3A44, #0F1419); box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 8px 16px -8px rgba(15,20,25,.5); }
-.lc-h h4 { font-family: var(--f-display); font-weight: 500; font-size: var(--t-xl); letter-spacing: -0.02em; line-height: 1.1; }
-.lc-h small { display: block; font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
-.lc-h .pill, .lc-h .example { margin-left: auto; }
+/* card heading: the site's own pill kicker, a live count on the right, one line of context under it */
+.lc-h { display: flex; align-items: center; gap: 10px; }
+.lc-k { font-size: 14px; padding: 7px 14px 7px 12px; }
+.lc-k .ic { width: 16px; height: 16px; }
+.lc-k.sand { color: var(--sand-ink); background: var(--sand); }
+.lc-k.ink { color: var(--white); background: var(--ink); }
+.lc-h .pill, .lc-h .example, .lc-meta { margin-left: auto; }
+.lc-meta { font-family: var(--f-mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.lc-sub { margin: -2px 0 0; font-size: 13px; color: var(--ink-3); }
 .lc-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-2); }
 .lc-foot .onchain .ic { color: var(--ink-3); }
 .lc-label { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); margin-bottom: -4px; }
 /* watching */
-.wrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: clamp(3px, .6vh, 6px) 8px; margin-inline: -8px; border-radius: 14px; transition: background .5s; }
+.wrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: clamp(6px, 1vh, 9px) 8px; margin-inline: -8px; border-radius: 14px; transition: background .5s; }
+.wrow + .wrow { box-shadow: 0 -1px 0 var(--line); }
 .wrow.bump { background: var(--blue-soft); }
-.wrow b { display: block; font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wrow b { display: block; font-weight: 700; font-size: 15px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wrow small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wrow .pill { font-size: 10.5px; padding: 2px 8px; margin-top: 3px; }
+.wchip { font-family: var(--f-display); font-size: 15px; font-weight: 500; letter-spacing: -0.02em; padding: 3px 10px; border-radius: var(--r-pill); background: var(--surface); color: var(--ink-2); white-space: nowrap; }
+.wchip.up { background: var(--green-soft); color: var(--green); } .wchip.down { background: var(--coral-soft); color: var(--coral); }
+.wchip.watch { background: var(--sand); color: var(--sand-ink); }
 .wprog { display: grid; justify-items: end; gap: 5px; font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-2); }
 .wbar { width: 68px; height: 6px; border-radius: 3px; background: var(--surface); box-shadow: inset 0 0 0 1px rgba(28,43,51,.05); overflow: hidden; }
 .wbar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #4DA8FF, var(--blue-deep)); transition: width .9s var(--ease); }
@@ -874,12 +878,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     </div>
     <div class="live-grid">
       <article class="lc on">
-        <div class="lc-h"><span class="ic-b blue"><svg class="ic"><use href="#i-eye"/></svg></span><div><h4>Watching</h4><small id="wlSub">Smart-money calls</small></div><span class="example">example</span></div>
+        <div class="lc-h"><span class="kicker lc-k"><svg class="ic"><use href="#i-eye"/></svg>Watching</span><span class="example">example</span><span class="lc-meta" id="wlCount"></span></div>
+        <p class="lc-sub" id="wlSub">Smart-money calls</p>
         <div id="wl"></div>
         <div class="lc-foot"><span id="wlFootL">Move since the call</span><span class="num" id="wlFootR">+30% = buy</span></div>
       </article>
       <article class="lc">
-        <div class="lc-h"><span class="ic-b sand"><svg class="ic"><use href="#i-wallet"/></svg></span><div><h4>Holding</h4><small id="holdSub">Testing Phase</small></div></div>
+        <div class="lc-h"><span class="kicker lc-k sand"><svg class="ic"><use href="#i-wallet"/></svg>Holding</span><span class="lc-meta" id="holdCount"></span></div>
+        <p class="lc-sub" id="holdSub">Testing Phase</p>
         <div class="lc-label">Open now</div>
         <div id="posList" style="display:grid;gap:8px"></div>
         <div class="lc-label">Past trades</div>
@@ -887,7 +893,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div class="lc-foot"><span class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> <span id="walletTxt">testing phase</span></span><span id="slotsTxt">2 of 3 slots</span></div>
       </article>
       <article class="lc">
-        <div class="lc-h"><span class="ic-b ink"><svg class="ic"><use href="#b-x"/></svg></span><div><h4>Posting next</h4><small>@MooseByMuse</small></div><span class="pill blue" id="npPill">in 2 min</span></div>
+        <div class="lc-h"><span class="kicker lc-k ink"><svg class="ic"><use href="#b-x"/></svg>Posting</span><span class="pill blue" id="npPill">in 2 min</span></div>
+        <p class="lc-sub">@MooseByMuse on X</p>
         <div id="nextPost"></div>
         <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="post-dots" id="postDots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
       </article>
@@ -1198,7 +1205,12 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
     return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
-    $("#wl").innerHTML = watch.map((w, i) => `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}"${w.tip ? ` title="${w.tip}"` : ""}>${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.lbl ?? w.p + "%"}<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
+    // smart-money mode: where each coin came from on the left, the trade's P&L (or why it was skipped) on the right
+    const chip = w => w.st === "bought" && w.move != null ? `<span class="wchip ${w.move > 0 ? "up" : w.move < 0 ? "down" : ""}">${w.move > 0 ? "+" : w.move < 0 ? "−" : ""}${Math.abs(w.move).toFixed(1)}%</span>`
+      : w.st === "watching" ? `<span class="wchip watch">${w.lbl || "watching"}</span>` : `<span class="wchip">${w.st}</span>`;
+    $("#wl").innerHTML = watch.map((w, i) => w.sm
+      ? `<div class="wrow ${i === bumpI ? "bump" : ""}"${w.tip ? ` title="${w.tip}"` : ""}>${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><small>${w.meta}</small></div>${chip(w)}</div>`
+      : `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}"${w.tip ? ` title="${w.tip}"` : ""}>${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.lbl ?? w.p + "%"}<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
     $("#pastList").innerHTML = past.length ? past.slice(0, 3).map(t => `<div class="prow ${t.pl >= 0 ? "up" : "down"}">${coinAv(t.c, 30, false, t.logo, t.s)}<div><b>$${t.s}</b><small>held ${t.held} · ${t.why}</small></div><span class="plp">${t.pl >= 0 ? "+" : ""}${t.pl.toFixed(1)}%</span></div>`).join("")
       : `<div class="h-empty">No closed trades yet. The first one shows up here, win or lose.</div>`;
     $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. MOOSE waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} ETH · held ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
@@ -1496,14 +1508,23 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 
     /* live */
     const sm = d.watch_mode === "scanner", sgnPct = v => v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v))}%`;
+    // why a call was skipped, in a few words
+    const skipWhy = n => /stock token/.test(n || "") ? "stock-token pair" : /not a Pons/.test(n || "") ? "not a Pons coin" : (n || "").slice(0, 32);
     watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), logo: w.logo, p: Math.round((w.progress || 0) * 100),
       st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6],
-      lbl: sm ? sgnPct(w.move_pct) : null,
-      tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)}`)) : "" }));
-    $("#wlSub").textContent = sm ? (d.pons_scan ? "Smart-money calls + Pons scan" : "Smart-money calls") : "Close to graduating";
-    $("#wlFootL").textContent = sm ? "P&L on buys, move on calls" : "Curve progress to graduation";
-    $("#wlFootR").textContent = sm ? (d.buy_on_call ? "calls bought as they land" : `+${d.trigger_pct}% = buy · ${d.window_h}h window`) : "85% = almost bonded";
-    $("#holdSub").textContent = d.mode === "live" ? "Live trades" : "Testing Phase";
+      lbl: sm ? sgnPct(w.move_pct) : null, sm, move: w.move_pct,
+      meta: esc(w.status === "skipped" || w.status === "expired"
+        ? `${w.status === "skipped" ? "Skipped" : "Expired"}${w.note ? " · " + skipWhy(w.note) : ""}`
+        : `${w.source === "pons" ? "Pons scan" : "Smart money"} · ${ago(w.called_at)} ago`),
+      tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)} ago`)) : "" }));
+    $("#wlSub").textContent = sm ? (d.pons_scan ? "Smart-money calls and Pons scan picks" : "Smart-money calls") : "Close to graduating";
+    const nb = watch.filter(w => w.st === "bought").length;
+    const ns = watch.filter(w => w.st === "skipped" || w.st === "expired").length;
+    $("#wlCount").textContent = sm ? `${nb} bought` + (ns ? ` · ${ns} skipped` : "") : `${watch.length} coins`;
+    $("#wlFootL").textContent = sm ? (d.buy_on_call ? "Bought the moment a call lands" : `+${d.trigger_pct}% = buy`) : "Curve progress to graduation";
+    $("#wlFootR").textContent = sm ? (d.buy_on_call ? "P&L since the buy" : `${d.window_h}h window`) : "85% = almost bonded";
+    $("#holdSub").textContent = d.mode === "live" ? "Live trades, onchain" : "Testing Phase";
+    $("#holdCount").textContent = `${d.positions.length} open`;
     const wal = d.wallet;
     $("#walletTxt").innerHTML = d.mode !== "live" ? "testing phase" : !wal ? "live wallet"
       : `<a href="https://explorer.mainnet.chain.robinhood.com/address/${esc(wal.address)}" target="_blank" rel="noopener">${esc(wal.address.slice(0, 6) + "…" + wal.address.slice(-4))}</a> · ${Number(wal.eth).toFixed(3)} ETH`;
@@ -1516,7 +1537,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     askSuggest(d.watching.filter(w => w.symbol && /^[A-Za-z][A-Za-z0-9]{0,19}$/.test(w.symbol) && /^0x[0-9a-fA-F]{40}$/.test(w.token || ""))
       .map(w => ({ s: w.symbol, t: w.token })));
     if (!watch.length) $("#wl").innerHTML = `<p class="empty">${sm ? "No smart-money calls on Robinhood Chain yet." : "Nothing close to graduating right now."}</p>`;
-    $("#slotsTxt").textContent = `${positions.length} of ${d.slots} slots`;
+    const inTr = d.positions.reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_eth || 0), 0);
+    $("#slotsTxt").textContent = d.slots < 100 ? `${positions.length} of ${d.slots} slots` : positions.length ? `${inTr.toFixed(inTr < 0.1 ? 4 : 3)} ETH in trades` : "";
     const np = d.next_post, last = d.posts[0];
     $("#npPill").textContent = np ? "queued" : "last post";
     $("#nextPost").innerHTML = np ? `<div class="xtl">${xPost({ t: "now", body: esc(np.body) })}</div>`
