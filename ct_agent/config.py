@@ -183,6 +183,14 @@ class Settings(BaseSettings):
     uniswap_v4_quoter: str = "0x8dc178efb8111bb0973dd9d722ebeff267c98f94"
     permit2: str = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
     live_execution_reviewed: bool = False  # flipped only after a human review
+    # Where graduated coins are swapped: "router" (MOOSE signs Uniswap router calls itself) or "gmgn" (GMGN's
+    # trading API, from the wallet bound to the API key). Curve (not yet graduated) trades stay on the router.
+    live_venue: str = "router"
+    gmgn_api_key: str = ""
+    gmgn_private_key: str = ""  # the Ed25519 key GMGN checks request signatures against (not a wallet key)
+    gmgn_host: str = "https://openapi.gmgn.ai"
+    gmgn_chain: str = "robinhood"
+    gmgn_slippage_pct: float = 0.0  # 0 = GMGN's auto slippage
 
     # --- API ------------------------------------------------------------
     api_admin_token: str = ""  # required for mutating endpoints

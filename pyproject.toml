@@ -15,6 +15,7 @@ dependencies = [
   "openai>=1.50",
   "feedparser>=6",
   "pillow>=10",
+  "pycryptodome>=3.15",
 ]
 
 [project.optional-dependencies]

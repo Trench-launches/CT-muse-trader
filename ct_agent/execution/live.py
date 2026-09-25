@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
 from eth_account import Account
 
 from ..chain.abi import checksum, decode_output, encode_call, topic
@@ -59,6 +60,7 @@ class LiveExecutor:
         self.s, self.rpc, self.pons, self.conn, self.risk = settings, rpc, pons, conn, risk
         self._acct = Account.from_key(settings.trading_wallet_private_key) \
             if settings.trading_wallet_private_key else None
+        self._gmgn: Any = None  # GMGN's trading API client, made on first use (live_venue=gmgn)
 
     @property
     def wallet(self) -> str | None:
@@ -138,6 +140,8 @@ class LiveExecutor:
         """Buy with `amount_in_wei` ETH, or sell `amount_in_wei` of the coin, in its ETH pool."""
         self._assert_ready()
         pool = self.eth_pool(token)
+        if self.s.live_venue == "gmgn":
+            return self._gmgn_swap(token, side, amount_in_wei)
         router = checksum(self.s.uniswap_universal_router)
         quoted = self._quote(pool, side == "buy", amount_in_wei)
         min_out = int(quoted * (1 - self.s.max_slippage_bps / 10_000))
@@ -155,6 +159,56 @@ class LiveExecutor:
         before = (self.rpc.get_balance(self.wallet), self.pons.erc20_balance(token, self.wallet))
         rc = self._execute(token, router, side, data, value, checklist, parse=False)
         return self._pool_fill(token, side, rc, before, amount_in_wei)
+
+    def _gmgn_swap(self, token: str, side: str, amount_in: int) -> LiveFill:
+        """The same swap through GMGN's trading API: GMGN routes and signs it from the wallet bound to the
+        API key (it must be this trading wallet), and the order is polled until it confirms onchain."""
+        from .gmgn import DONE, NATIVE, GmgnClient, GmgnError
+        s = self.s
+        if not (s.gmgn_api_key and s.gmgn_private_key):
+            raise LiveTradingBlocked("GMGN venue chosen but its API key or signing key is missing")
+        before = (self.rpc.get_balance(self.wallet), self.pons.erc20_balance(token, self.wallet))
+        if side == "buy" and before[0] < amount_in * 12 // 10:
+            raise LiveTradingBlocked("wallet ETH balance too low for size plus gas")
+        if side == "sell" and before[1] < amount_in:
+            raise LiveTradingBlocked(f"token balance {before[1]} < {amount_in}")
+        if self._gmgn is None:
+            self._gmgn = GmgnClient(s.gmgn_api_key, s.gmgn_private_key, s.gmgn_host)
+        meta = {"venue": "gmgn", "side": side, "amount_in": amount_in, "token": token}
+        inp, out = (NATIVE, token) if side == "buy" else (token, NATIVE)
+        try:
+            sub = self._gmgn.swap(chain=s.gmgn_chain, wallet=self.wallet, input_token=inp, output_token=out,
+                                  amount=amount_in, slippage_pct=s.gmgn_slippage_pct or None)
+        except (GmgnError, httpx.HTTPError) as exc:
+            journal_append(self.conn, "live_failed", {"stage": "submit", "error": str(exc), **meta}, ref=token, mode="live")
+            raise LiveTradingBlocked(f"GMGN swap refused: {exc}") from exc
+        oid = sub.get("order_id")
+        journal_append(self.conn, "live_submitted", {"label": side, "order_id": oid, "tx_hash": sub.get("hash"), **meta},
+                       ref=token, mode="live")
+        try:
+            o = sub if sub.get("status") in DONE else self._gmgn.wait(s.gmgn_chain, oid)
+        except (GmgnError, httpx.HTTPError) as exc:
+            journal_append(self.conn, "live_failed", {"stage": "confirm", "order_id": oid, "error": str(exc), **meta},
+                           ref=token, mode="live")
+            raise LiveTradingBlocked(f"GMGN order {oid} state unknown ({exc}); check GMGN before retrying") from exc
+        if o.get("status") != "confirmed":
+            journal_append(self.conn, "live_failed", {"stage": "mined", "order_id": oid, "status": o.get("status"),
+                                                      "error": o.get("error_status") or o.get("error_code"), **meta},
+                           ref=token, mode="live")
+            raise LiveTradingBlocked(f"GMGN order {oid} {o.get('status')}: {o.get('error_status') or o.get('error_code')}")
+        rep = o.get("report") or {}
+        if rep.get("input_amount") and rep.get("output_amount"):
+            a, b = int(rep["input_amount"]), int(rep["output_amount"])
+            quote, tokens = (a, b) if side == "buy" else (b, a)
+        else:  # no execution report: read what changed hands from the wallet (sell proceeds net of gas)
+            tokens_now = self.pons.erc20_balance(token, self.wallet)
+            quote, tokens = (amount_in, tokens_now - before[1]) if side == "buy" else \
+                (self.rpc.get_balance(self.wallet) - before[0], before[1] - tokens_now)
+        fill = LiveFill(o.get("hash") or sub.get("hash") or "", side, int(quote), int(tokens), 0, "filled")
+        journal_append(self.conn, "live_fill", {
+            "onchain": True, "paper": False, "venue": "gmgn", "order_id": oid, "tx_hash": fill.tx_hash, "side": side,
+            "quote_amount": fill.quote_amount, "token_amount": fill.token_amount, "token": token}, ref=token, mode="live")
+        return fill
 
     def _permit2_allow(self, token: str, router: str, amount: int) -> None:
         """The router pulls the coin through Permit2: the coin approves Permit2 once, then Permit2
