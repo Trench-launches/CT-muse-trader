@@ -144,6 +144,9 @@ class Settings(BaseSettings):
     candidate_source: str = "scanner"
     supabase_url: str = ""
     supabase_key: str = ""
+    # Fibbot: a second source of calls, in its own Supabase project
+    fibbot_supabase_url: str = ""
+    fibbot_supabase_key: str = ""
     scanner_trigger_pct: float = 30.0   # a call is only a candidate once the coin is up this much from the call
     scanner_window_hours: float = 6.0   # ...and only within this long of the call
     decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often

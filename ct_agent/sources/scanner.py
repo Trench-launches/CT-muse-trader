@@ -61,6 +61,44 @@ def fetch_new(ctx: Context) -> int:
     return len(calls)
 
 
+def fetch_fibbot(ctx: Context) -> int:
+    """Fibbot's Robinhood smart-money calls (its table `smart_money_calls`, source 'smart_money' only; its
+    Nansen alerts and fib alerts are ignored). Most are the same calls as the main scanner's; what Fibbot adds
+    is re-calls: a coin called again later, which starts a fresh call with its own price and window. A Fibbot
+    call within 15 minutes of a call MOOSE already has for that coin is the same call and is skipped."""
+    s, conn = ctx.settings, ctx.conn
+    if not (s.fibbot_supabase_url and s.fibbot_supabase_key):
+        return 0
+    last = kv_get(conn, "fibbot_cursor") or (_now() - timedelta(hours=s.scanner_window_hours)).isoformat()
+    r = ctx.web.get(f"{s.fibbot_supabase_url.rstrip('/')}/rest/v1/smart_money_calls", timeout=20,
+                    params={"chain": "eq.robinhood", "source": "eq.smart_money", "called_at": f"gt.{last}",
+                            "order": "called_at.asc", "limit": "200",
+                            "select": "id,token_address,symbol,called_at,call_price,call_mc,source"},
+                    headers={"apikey": s.fibbot_supabase_key, "Authorization": f"Bearer {s.fibbot_supabase_key}"})
+    r.raise_for_status()
+    calls, added = r.json(), 0
+    with tx(conn):
+        for c in calls:
+            at = datetime.fromisoformat(c["called_at"].replace("Z", "+00:00")).astimezone(timezone.utc)
+            near = conn.execute("SELECT 1 FROM scanner_calls WHERE lower(token)=lower(?) AND called_at BETWEEN ? AND ?",
+                                (c["token_address"], (at - timedelta(minutes=15)).isoformat(timespec="seconds"),
+                                 (at + timedelta(minutes=15)).isoformat(timespec="seconds"))).fetchone()
+            if near:
+                continue
+            cid = 1_000_000_000 + int(c["id"].replace("-", "")[:7], 16)  # Fibbot ids are uuids; keep them apart
+            data = {"id": cid, "token_address": c["token_address"], "token_symbol": c["symbol"],
+                    "alert_price": c["call_price"], "alert_mcap": c["call_mc"], "source": "fibbot_smart_money",
+                    "fibbot_id": c["id"]}
+            cur = conn.execute("INSERT OR IGNORE INTO scanner_calls(id,token,symbol,called_at,call_price_usd,call_mcap_usd,"
+                               "data,status,first_seen) VALUES(?,?,?,?,?,?,?,?,?)",
+                               (cid, c["token_address"], c["symbol"], at.isoformat(timespec="seconds"), c["call_price"],
+                                c["call_mc"], json.dumps(data), "watching", utcnow()))
+            added += cur.rowcount
+        if calls:
+            kv_set(conn, "fibbot_cursor", calls[-1]["called_at"])
+    return added
+
+
 def _pool_for(ctx: Context, call: dict[str, Any]) -> tuple[str | None, str | None]:
     """(genuine ETH pool id, None) for a tradeable coin, else (None, why it's skipped)."""
     s = ctx.settings

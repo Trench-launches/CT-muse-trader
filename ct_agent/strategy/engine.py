@@ -189,6 +189,10 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
         scanner.fetch_new(ctx)
     except Exception as exc:  # Supabase down: keep working the calls already copied
         log.warning("scanner fetch failed: %s", exc)
+    try:
+        scanner.fetch_fibbot(ctx)
+    except Exception as exc:  # Fibbot's Supabase down: the main scanner's calls still come through
+        log.warning("fibbot fetch failed: %s", exc)
     ready = scanner.refresh(ctx)
     eth_usd = ctx.market.eth_usd()
     out: list[dict[str, Any]] = []
