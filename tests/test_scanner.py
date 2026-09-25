@@ -96,3 +96,24 @@ def test_v4_buy_and_sell_use_the_routers_exact_shape():
     assert swap[0] == TOK.lower() and swap[1][0][0] == ETH_ADDR and swap[3:] == (5 * 10**18, 7)
     assert decode(["address", "uint256", "bool"], params[1]) == (TOK.lower(), 0, True)
     assert decode(["address", "address", "uint256"], params[2]) == (ETH_ADDR, me, 0)
+
+
+def test_site_lists_pons_scan_buys_next_to_the_smart_money_calls(settings, db):
+    from ct_agent.api.site import _CACHE, site_data
+    from ct_agent.db import kv_set
+    _CACHE.clear()  # site_data is cached for a few seconds
+    s = settings.model_copy(update={"candidate_source": "scanner", "pons_scan_enabled": True, "scanner_buy_on_call": True})
+    pons_tok, call_tok = "0xeA25747f0F4aB4f749948C73d6DCd40E86DB700d", TOK
+    for tok in (call_tok, pons_tok):
+        db.execute("INSERT INTO positions(token,mode,status,decision_id,quote_symbol,opened_at,entry_quote,entry_tokens,"
+                   "entry_price) VALUES(?,?,?,?,?,?,?,?,?)", (tok, "paper", "open", None, "ETH", "2026-09-25T08:13:42+00:00",
+                                                              0.01, 1000.0, 1e-5))
+    db.execute("INSERT INTO scanner_calls(id,token,symbol,called_at,call_price_usd,data,status,first_seen) "
+               "VALUES(1,?,'CALL','2026-09-25T01:00:00+00:00',1.0,'{}','bought','2026-09-25T01:00:00+00:00')", (call_tok,))
+    kv_set(db, "marks:2", [0.012])
+    d = site_data(db, s)
+    assert [w["token"] for w in d["watching"]] == [pons_tok, call_tok]  # the Pons pick first, the call not twice
+    assert d["watching"][0]["status"] == "bought" and d["watching"][0]["note"] == "Pons scan pick"
+    assert d["watching"][0]["move_pct"] == 20.0 and d["pons_scan"] and d["buy_on_call"]
+    _CACHE.clear()
+    assert site_data(db, s.model_copy(update={"pons_scan_enabled": False}))["watching"][0]["token"] == call_tok

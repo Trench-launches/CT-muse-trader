@@ -247,8 +247,6 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
             {"watch": "watching", "pass": "passed", "buy": "bought"}.get(last["action"] if last else "", "screening")
         watching.append({"symbol": c.get("symbol"), "token": c["token"], "stage": c.get("stage"),
                          "progress": 1.0 if c.get("stage") == "migrated" else c.get("progress"), "status": status})
-    if s.candidate_source == "scanner":
-        watching = _scanner_watch(conn, s)
     positions = []
     for p in open_pos:
         marks = kv_get(conn, f"marks:{p['id']}") or []
@@ -256,6 +254,16 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         positions.append({"id": p["id"], "symbol": p["symbol"], "token": p["token"], "entry_eth": p["entry_quote"],
                           "opened_at": p["opened_at"], "marks": [p["entry_quote"]] + marks,
                           "pnl_pct": round((last / p["entry_quote"] - 1) * 100, 2) if p["entry_quote"] else 0})
+    if s.candidate_source == "scanner":
+        watching = _scanner_watch(conn, s)
+        if s.pons_scan_enabled:  # coins the Pons scan bought aren't smart-money calls: list them first
+            called = {w["token"].lower() for w in watching} | {r["token"].lower() for r in rows(
+                conn, "SELECT token FROM scanner_calls WHERE status='bought'")}
+            pons = [{"symbol": p["symbol"] or "?", "token": p["token"], "status": "bought", "source": "pons",
+                     "note": "Pons scan pick", "move_pct": p["pnl_pct"], "called_at": p["opened_at"], "left_h": None,
+                     "progress": max(0.0, min(1.0, p["pnl_pct"] / s.scanner_trigger_pct)) if s.scanner_trigger_pct else 0}
+                    for p in reversed(positions) if p["token"].lower() not in called]
+            watching = (pons + watching)[:6]
     pending = rows(conn, "SELECT kind, body, created_at FROM posts WHERE status='pending' AND kind!='reply' ORDER BY id LIMIT 1")
     posts = rows(conn, "SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND kind!='reply' ORDER BY id DESC LIMIT 6")
     for j in rows(conn, "SELECT ts, payload FROM journal WHERE kind='post_sent' AND payload LIKE '%\"intro\"%'"):
@@ -292,6 +300,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "sources": sources, "leads": leads, "decisions": decisions,
         "watching": watching, "positions": positions, "slots": s.max_open_positions,
         "watch_mode": s.candidate_source, "trigger_pct": s.scanner_trigger_pct, "window_h": s.scanner_window_hours,
+        "pons_scan": s.pons_scan_enabled, "buy_on_call": s.scanner_buy_on_call,
         "wallet": kv_get(conn, "live_wallet") if s.trading_mode.value == "live" else None,
         "size_pct": s.position_size_pct,
         "next_post": pending[0] if pending else None,

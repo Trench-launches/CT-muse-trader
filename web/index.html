@@ -507,7 +507,6 @@ body.killed .paused-note { display: block; }
 .sc-acct { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--surface); font-size: var(--t-sm); color: var(--ink-2); }
 .sc-acct[hidden] { display: none; }
 .sc-acct b { font-family: var(--f-display); font-weight: 500; font-size: clamp(20px, 2vw, 26px); letter-spacing: -0.02em; color: var(--ink); }
-.sc-acct a { color: inherit; }
 .sc-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 1.6vw, 20px); }
 .sc-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
 .sc-tile .v { font-family: var(--f-display); font-size: clamp(28px, min(2.8vw, 5vh), 44px); letter-spacing: -0.04em; line-height: 1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -931,7 +930,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div style="display:flex;justify-content:space-between;gap:12px"><span class="sc-lbl">Net P&amp;L · closed trades</span><span class="example">example data</span></div>
         <div class="sc-net"><span class="big" id="scNet" data-count="0.184" data-dec="3" data-prefix="+">+0.184</span><span class="unit">ETH</span><span class="sc-chip up" id="scRet">+8.0%</span></div>
         <p class="sc-meta" id="scMeta">on <b>2.300 ETH</b> traded · <b>+0.004 ETH</b> unrealised on 1 open trade</p>
-        <div class="sc-acct" id="scAcct" hidden><span class="sc-lbl">Account balance</span><b id="scAcctV"></b><span id="scAcctS"></span></div>
+        <div class="sc-acct" id="scAcct" hidden><span class="sc-lbl">Account balance</span><b id="scAcctV"></b></div>
         <svg class="spark" id="spark" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Cumulative profit and loss"></svg>
         <div class="spark-tip" id="sparkTip"></div>
         <p class="sc-meta" id="spLbl" style="font-family:var(--f-mono);font-size:12px">Cumulative P&amp;L, trade by trade · hover the line</p>
@@ -1500,9 +1499,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6],
       lbl: sm ? sgnPct(w.move_pct) : null,
       tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)}`)) : "" }));
-    $("#wlSub").textContent = sm ? "Smart-money calls" : "Close to graduating";
-    $("#wlFootL").textContent = sm ? "Move since the call" : "Curve progress to graduation";
-    $("#wlFootR").textContent = sm ? `+${d.trigger_pct}% = buy · ${d.window_h}h window` : "85% = almost bonded";
+    $("#wlSub").textContent = sm ? (d.pons_scan ? "Smart-money calls + Pons scan" : "Smart-money calls") : "Close to graduating";
+    $("#wlFootL").textContent = sm ? (d.pons_scan ? "Move since the call or buy" : "Move since the call") : "Curve progress to graduation";
+    $("#wlFootR").textContent = sm ? (d.buy_on_call ? "calls bought as they land" : `+${d.trigger_pct}% = buy · ${d.window_h}h window`) : "85% = almost bonded";
     $("#holdSub").textContent = d.mode === "live" ? "Live trades" : "Testing Phase";
     const wal = d.wallet;
     $("#walletTxt").innerHTML = d.mode !== "live" ? "testing phase" : !wal ? "live wallet"
@@ -1553,10 +1552,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const acct = $("#scAcct");
     if (live && d.wallet && d.wallet.eth != null) {
       const inTrades = (d.positions || []).reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_eth || 0), 0);
-      const n = (d.positions || []).length;
       $("#scAcctV").textContent = `${(Number(d.wallet.eth) + inTrades).toFixed(3)} ETH`;
-      $("#scAcctS").innerHTML = `${Number(d.wallet.eth).toFixed(3)} ETH in the <a href="https://explorer.mainnet.chain.robinhood.com/address/${esc(d.wallet.address)}" target="_blank" rel="noopener">trading wallet</a>`
-        + (n ? ` · ${inTrades.toFixed(inTrades < 0.1 ? 4 : 3)} ETH in ${n} open trade${n === 1 ? "" : "s"}` : "");
       acct.hidden = false;
     } else acct.hidden = true;
     setCount($("#scTaken"), sc.taken ?? sc.closed); const v1 = sc.history?.v1_trades || 0;
