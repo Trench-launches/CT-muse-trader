@@ -99,10 +99,9 @@ def take_request(ctx: Any, m: dict[str, Any]) -> str:
     if not name or not SYMBOL.match(sym) or sym.lower() not in text.lower() or name.lower() not in text.lower():
         return _refuse(conn, m, "unclear name or ticker", "Give me a name and a ticker (letters and numbers, up to 10) "
                                                           "and I'll launch it 🫎", **fields)
-    if conn.execute("SELECT 1 FROM launch_requests WHERE upper(symbol)=? AND status IN ('approved','launching','launched',"
-                    "'handed_over')", (sym,)).fetchone() or \
-            conn.execute("SELECT 1 FROM launches WHERE upper(symbol)=? AND first_seen>=?", (sym, _since(24 * 30))).fetchone():
-        return _refuse(conn, m, "ticker taken", f"${sym} already exists on Robinhood Chain. Pick another ticker 🫎", **fields)
+    if sym == "MOOSE":  # any name goes, except a copy of MOOSE's own coin
+        return _refuse(conn, m, "reserved ticker", "$MOOSE is my own coin, so I can't launch another one. Pick another "
+                                                   "ticker 🫎", **fields)
     if _spent_24h(conn) + EST_COST_WEI > int(s.launch_daily_cap_eth * 10**18):
         return _refuse(conn, m, "daily budget used", "Launches are full for today. Ask again tomorrow 🫎", **fields)
     socials = {k: getattr(d, k) for k in ("twitter", "telegram", "discord", "website", "farcaster") if getattr(d, k)}

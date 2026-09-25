@@ -229,3 +229,20 @@ def test_the_website_can_follow_a_launch_request(settings, db, tmp_path):
     launchpad_once(ctx, _Launcher())
     st = api.get("/launchpad/status", params={"symbol": "CAT"}).json()
     assert (st["status"], st["token"], st["announce_x_id"], st["handle"]) == ("launched", "0x" + "c0" * 20, "980", "catfan")
+
+
+def test_any_name_goes_even_a_ticker_that_exists_but_not_moose(settings, db):
+    from fastapi.testclient import TestClient
+    from ct_agent.api.app import create_app
+    ctx = _ctx(settings, db)
+    other = "0x" + "cd" * 20
+    assert take_request(ctx, _m("60")) == "approved"
+    assert take_request(ctx, {**_m("61", text=f"@MooseByMuse launch $CAT Cat Coin fees to {other}"), "author_id": "u9"}) \
+        == "approved"  # a second $CAT from someone else is fine
+    api = TestClient(create_app(ctx.settings))
+    assert api.get("/launchpad/status", params={"symbol": "CAT", "wallet": WALLET}).json()["status"] == "approved"
+    mine = api.get("/launchpad/status", params={"symbol": "CAT", "wallet": other.upper()}).json()
+    assert mine["status"] == "approved" and mine["handle"] == "catfan"
+    moose = _ctx(settings, db, _Brain(symbol="MOOSE", name="Moose Two"))
+    assert take_request(moose, {**_m("62", text=f"launch $MOOSE Moose Two {WALLET}"), "author_id": "u8"}) == "refused"
+    assert "$MOOSE is my own coin" in _replies(db)[-1]

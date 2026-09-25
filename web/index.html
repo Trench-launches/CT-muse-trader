@@ -979,7 +979,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <li><b>2</b><div><strong>Post it on X with your image</strong><span>MOOSE checks every request before it launches anything.</span></div></li>
         <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet.</span></div></li>
       </ol>
-      <p class="lrules">One launch per X account a day · accounts older than 30 days · no real brands, famous people or scams</p>
+      <p class="lrules">Call it whatever you like · one launch per X account a day · accounts older than 30 days · no hate, scams or fake "official" coins</p>
       <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><span class="example" id="lEx">example</span></div><div class="rc-view lview" id="lRecentList"></div></div>
     </div>
     <div class="panel grid-bg launch-panel">
@@ -1268,14 +1268,14 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (!p.valid || !launchOpen) return lRender(true);
     const url = "https://x.com/intent/post?text=" + encodeURIComponent(p.text);
     window.open(url, "_blank", "noopener");
-    lTrack(p.v.sym, url);
+    lTrack(p.v.sym, url, p.v.wallet);
   });
   /* confirmation: once they've gone to post, follow their request (by ticker) until it's live or refused */
   let lTimer = null;
   const ldStep = (i, st) => { $("#ldS" + i).className = st; };
   const ldShow = (kind, title, sub) => { $("#lDone").className = "lform ldone " + kind; $("#ldTitle").textContent = title; $("#ldSub").textContent = sub; };
   const ldIcon = id => { $("#ldIc").innerHTML = `<svg class="ic"><use href="#${id}"/></svg>`; };
-  const lTrack = (sym, url) => {
+  const lTrack = (sym, url, wallet = "") => {
     $("#launchForm").hidden = true; $("#lDone").hidden = false; $("#ldLive").hidden = true; $("#ldOpen").href = url;
     ldIcon("i-rocket");
     $("#ldS3t").textContent = `$${sym} goes live on Robinhood Chain`;
@@ -1286,7 +1286,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const poll = async () => {
       if (Date.now() - started > 20 * 60e3) return clearInterval(lTimer);  // stop after 20 minutes
       let st;
-      try { const r = await apiFetch("/launchpad/status?symbol=" + encodeURIComponent(sym), { cache: "no-store" }); st = await r.json(); } catch { return; }
+      try { const r = await apiFetch("/launchpad/status?symbol=" + encodeURIComponent(sym) + "&wallet=" + encodeURIComponent(wallet), { cache: "no-store" }); st = await r.json(); } catch { return; }
       if (st.status === "not_seen") return;
       ldStep(1, "done");
       if (st.status === "refused") {

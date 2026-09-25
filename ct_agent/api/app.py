@@ -190,16 +190,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "trigger_pct": s.scanner_trigger_pct, "window_hours": s.scanner_window_hours, "calls": calls}
 
     @app.get("/launchpad/status")
-    def launch_status(symbol: str, conn=Depends(db)) -> dict[str, Any]:
+    def launch_status(symbol: str, wallet: str = "", conn=Depends(db)) -> dict[str, Any]:
         """Where a launch request for this ticker is, for the website's confirmation screen: the newest request in
-        the last 2 hours (not seen yet, refused and why, approved, launched with its CA). All of it is public on X."""
+        the last 2 hours (not seen yet, refused and why, approved, launched with its CA). Tickers can repeat, so the
+        fee wallet from the form picks out the visitor's own request. All of it is public on X."""
         from datetime import datetime, timedelta, timezone
         since = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(timespec="seconds")
-        r = conn.execute("SELECT r.id, r.status, r.reason, r.symbol, r.name, r.handle, r.token, r.tx_hash, "
-                         "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
-                         "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
-                         "WHERE upper(r.symbol)=? AND r.created_at>=? ORDER BY r.id DESC LIMIT 1",
-                         (symbol.strip().lstrip("$").upper()[:10], since)).fetchone()
+        q = ("SELECT r.id, r.status, r.reason, r.symbol, r.name, r.handle, r.token, r.tx_hash, "
+             "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
+             "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
+             "WHERE upper(r.symbol)=? AND r.created_at>=?")
+        args: list[Any] = [symbol.strip().lstrip("$").upper()[:10], since]
+        if wallet:  # refused requests have no wallet on record: they still match on the ticker
+            q += " AND (lower(r.recipient)=? OR r.recipient IS NULL)"
+            args.append(wallet.strip().lower())
+        r = conn.execute(q + " ORDER BY r.id DESC LIMIT 1", args).fetchone()
         if not r:
             return {"status": "not_seen"}
         out = dict(r)
