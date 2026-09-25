@@ -292,6 +292,40 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tiles-foot i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
 @media (max-width: 900px) { .scale .wrap { grid-template-columns: 1fr; } .tiles-panel { height: 320px; } }
 
+/* ---------- 2 LAUNCH: build the launch post, then post it on X ---------- */
+.launch .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 88px); align-items: center; }
+.launch .h2 { margin-top: 14px; }
+.launch .kicker .ic { width: 15px; height: 15px; }
+.lsteps { list-style: none; margin: clamp(18px, 3vh, 28px) 0 0; padding: 0; display: grid; gap: 14px; }
+.lsteps li { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.lsteps b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--blue); color: var(--white);
+  font-family: var(--f-display); font-size: 15px; font-weight: 600; }
+.lsteps strong { display: block; font-weight: 700; font-size: 15.5px; }
+.lsteps span { display: block; font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+.lrules { margin-top: 18px; font-size: 12.5px; color: var(--ink-3); }
+.launch-panel { padding: clamp(18px, 2.4vw, 30px); background: var(--panel); }
+.lform { position: relative; z-index: 1; display: grid; gap: 12px; background: rgba(255,255,255,.94); border-radius: 26px; box-shadow: var(--shadow);
+  padding: clamp(16px, 2vw, 24px); }
+.lform label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); position: relative; }
+.lform label em { font-style: normal; font-weight: 500; color: var(--ink-3); }
+.lform input { font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); background: var(--surface); border: 1.5px solid transparent;
+  border-radius: 14px; padding: 11px 14px; outline: none; transition: border-color .2s, background .2s; min-width: 0; }
+.lform input:focus { border-color: var(--blue); background: var(--white); }
+.lform input.bad { border-color: var(--coral); }
+#lfWallet { font-family: var(--f-mono); font-size: 13px; }
+.lrow { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; }
+.lsym input { padding-left: 26px; text-transform: uppercase; }
+.lsym .lpre { position: absolute; left: 13px; bottom: 12px; color: var(--ink-3); font-weight: 600; font-size: 15px; }
+.lprev { display: grid; gap: 6px; }
+.lprev .xtl { border-color: var(--line); }
+.lprev .xp { cursor: default; }
+.lnote { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+.lnote.warn { color: var(--coral); }
+.lform .btn { justify-content: center; }
+.lform .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+@media (max-width: 900px) { .launch .wrap { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .lrow { grid-template-columns: 1fr; } }
+
 /* ---------- 3 LISTENS ---------- */
 .listen-panel { margin-top: clamp(18px, 3.5vh, 44px); padding: clamp(16px, 2.6vh, 36px) clamp(20px, 3vw, 44px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1fr); align-items: center; gap: clamp(16px, 3vw, 40px); min-height: 0; }
 .srcs { display: grid; gap: 10px; position: relative; z-index: 2; }
@@ -734,6 +768,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7" /> <path d="M12 19V5" /></symbol>
 <symbol id="i-arrow-up-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10" /> <path d="M7 17 17 7" /></symbol>
 <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></symbol>
+<symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
 </svg>
 
@@ -746,6 +781,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <a href="#ask">AskMoose</a>
       <a href="#listens">Sources</a>
       <a href="#think">How it thinks</a>
+      <a href="#launch">Launch a coin</a>
       <a href="#live">Live</a>
       <a href="#record">Journal</a>
     </nav>
@@ -866,22 +902,33 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </section>
 
-<!-- 2 SCALE: no human can keep up -->
-<section class="sec scale" id="scale" aria-labelledby="h-scale" style="background:var(--surface)">
+<!-- 2 LAUNCH: launch your own coin by tagging MOOSE on X -->
+<section class="sec launch" id="launch" aria-labelledby="h-launch" style="background:var(--surface)">
   <div class="wrap">
     <div>
-      <span class="kicker">Always on</span>
-      <p class="giant" id="h-scale"><span id="bigCount" style="font-variant-numeric:tabular-nums">3,544</span><small>new tokens launched on Pons, on Robinhood Chain, today. No human can read them all. MOOSE does.</small></p>
-      <div class="funnel" id="funnel">
-        <div><span>Launched today</span><b id="fn0">3,544</b><i class="fb" style="transform:scaleX(1)"></i></div>
-        <div><span>Close to graduating</span><b id="fn1">212</b><i class="fb" data-s=".42" style="opacity:.75"></i></div>
-        <div><span id="fl2">Real buying, real news</span><b id="fn2">9</b><i class="fb" data-s=".12" style="opacity:.55"></i></div>
-        <div><span id="fl3">Worth a trade</span><b id="fn3">1</b><i class="fb" data-s=".03" style="opacity:.4"></i></div>
-      </div>
+      <span class="kicker"><svg class="ic"><use href="#i-rocket"/></svg>Launchpad</span>
+      <h2 class="h2" id="h-launch">Launch your own coin. <span class="blue">Just tag MOOSE.</span></h2>
+      <p class="sub">Post your coin on X and MOOSE launches it on Pons, on Robinhood Chain, then replies with your contract address. Free to launch: your coin's first ~$2 of fees pay the launch back, then every creator fee is yours.</p>
+      <ol class="lsteps">
+        <li><b>1</b><div><strong>Fill in your coin</strong><span>Name, ticker, a line about it and the wallet for your fees.</span></div></li>
+        <li><b>2</b><div><strong>Post it on X with your image</strong><span>MOOSE checks every request before it launches anything.</span></div></li>
+        <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet.</span></div></li>
+      </ol>
+      <p class="lrules">One launch per X account a day · accounts older than 30 days · no real brands, famous people or scams</p>
     </div>
-    <div class="panel grid-bg tiles-panel">
-      <div class="tiles" id="tiles" aria-hidden="true"></div>
-      <div class="tiles-foot"><span><i style="background:var(--blue)"></i>just launched</span><span><i style="background:rgba(28,43,51,.1)"></i>faded out</span><span><i style="background:var(--blue);box-shadow:0 0 0 3px rgba(0,130,251,.25)"></i><span id="tilesStar">worth a look: $HATCH</span></span><span class="example" style="margin-left:auto">example data</span></div>
+    <div class="panel grid-bg launch-panel">
+      <form class="lform" id="launchForm" autocomplete="off" novalidate>
+        <div class="lrow">
+          <label>Coin name<input id="lfName" maxlength="32" placeholder="Purr Capital" required></label>
+          <label class="lsym">Ticker<span class="lpre">$</span><input id="lfSym" maxlength="10" placeholder="PURR" required></label>
+        </div>
+        <label><span>What is it? <em>optional</em></span><input id="lfDesc" maxlength="100" placeholder="a cat that runs a hedge fund"></label>
+        <label><span>X or website link <em>optional</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
+        <label>Wallet for your creator fees<input id="lfWallet" maxlength="42" placeholder="0x…" spellcheck="false" required></label>
+        <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div></div>
+        <p class="lnote" id="lfNote">Attach your coin's image on X before you post.</p>
+        <button class="btn btn-dark" type="submit" id="lfGo" disabled><svg class="ic"><use href="#b-x"/></svg> Post on X to launch <span class="arr">→</span></button>
+      </form>
     </div>
   </div>
 </section>
@@ -1092,7 +1139,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   addCoin(stage, "muse", 56, "30%", "10%", -10, 1.4);
   addCoin(stage, "x", 42, "3%", "48%", 8, .8);
   addCoin(stage, "rh", 48, "91%", "44%", 10, 1.2);
-  addCoin($(".tiles-panel"), "eth", 52, "88%", "-4%", 12, 1);
   addCoin($(".cta-panel"), "x", 60, "56%", "12%", -8, 1.3);
   addCoin($(".chat-panel"), "shield", 48, "80%", "30%", 8, 1.2);
   addCoin($(".chat-panel"), "eye", 40, "14%", "28%", -10, .9);
@@ -1111,21 +1157,35 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     let hp = 91; setInterval(() => { if (LIVE) return; hp = hp >= 95 ? 88 : hp + 1; $("#heroBar").style.width = hp + "%"; $("#heroBarTxt").textContent = `curve ${hp}% · buys speeding up`; }, 2600);
   }
 
-  /* ---------- 2 SCALE ---------- */
-  const tiles = $("#tiles"), N = 180;
-  tiles.innerHTML = Array.from({ length: N }, (_, i) => `<i class="tile ${Math.random() < .55 ? "dead" : ""}"></i>`).join("");
-  const tileEls = $$(".tile", tiles); tileEls[Math.floor(N * .37)].className = "tile star";
-  let launches = 3544;
-  const pulseTile = () => {
-    const t = pick(tileEls.filter(x => !x.classList.contains("star")));
-    t.className = "tile new"; setTimeout(() => { t.className = "tile"; }, 700); setTimeout(() => { t.className = "tile dead"; }, 4200 + rnd(0, 3000));
-    if (!LIVE) { launches++; $("#bigCount").textContent = fmt(launches); $("#fn0").textContent = fmt(launches); }
+  /* ---------- 2 LAUNCH: the form builds the launch post; X opens with it ready (the image is added on X) ---------- */
+  const lf = { name: $("#lfName"), sym: $("#lfSym"), desc: $("#lfDesc"), link: $("#lfLink"), wallet: $("#lfWallet") };
+  let launchOpen = true;  // the API says whether launches are on; until then the button says "soon"
+  const lPost = () => {
+    const v = Object.fromEntries(Object.entries(lf).map(([k, el]) => [k, el.value.trim()]));
+    v.sym = v.sym.replace(/^\$/, "").toUpperCase();
+    const ok = { name: v.name.length > 0, sym: /^[A-Z0-9]{1,10}$/.test(v.sym), wallet: /^0x[0-9a-fA-F]{40}$/.test(v.wallet) };
+    const text = `@MooseByMuse launch $${v.sym || "TICKER"} ${v.name || "Coin name"}` + (v.desc ? ` - ${v.desc}` : "")
+      + (v.link ? `\n${v.link}` : "") + `\n\nfees to ${v.wallet || "0x…"}`;
+    return { v, ok, text, valid: ok.name && ok.sym && ok.wallet };
   };
-  onView($("#scale"), () => {
-    $$(".funnel .fb[data-s]").forEach(b => b.style.transform = `scaleX(${b.dataset.s})`);
-    if (!reduce) setInterval(pulseTile, 900);
-  }, .3);
-  $$(".funnel .fb[data-s]").forEach(b => b.style.transform = `scaleX(${reduce ? b.dataset.s : 0})`);
+  const lRender = (touched = false) => {
+    const p = lPost();
+    $("#lfPreview").innerHTML = xPost({ t: "now", body: esc(p.text) }).replace("MOOSE", "You").replace("@MooseByMuse · now", "your account · now");
+    [["name", lf.name], ["sym", lf.sym], ["wallet", lf.wallet]].forEach(([k, el]) => el.classList.toggle("bad", touched && el.value.trim() !== "" && !p.ok[k]));
+    $("#lfGo").disabled = !p.valid || !launchOpen;
+    const note = $("#lfNote");
+    note.classList.toggle("warn", touched && lf.wallet.value.trim() !== "" && !p.ok.wallet);
+    note.textContent = !launchOpen ? "Launches open soon. Get your coin ready." : note.classList.contains("warn")
+      ? "That wallet doesn't look right: it should be 0x and 40 letters or numbers." : "Attach your coin's image on X before you post.";
+  };
+  Object.values(lf).forEach(el => el.addEventListener("input", () => lRender(true)));
+  $("#launchForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const p = lPost();
+    if (!p.valid || !launchOpen) return lRender(true);
+    window.open("https://x.com/intent/post?text=" + encodeURIComponent(p.text), "_blank", "noopener");
+  });
+  lRender();
 
   /* ---------- 3 LISTENS ---------- */
   let sources = [
@@ -1502,16 +1562,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     if (pass) { $("#hfPassSym").textContent = "$" + (pass.symbol || "?"); $("#hfPassTxt").textContent = cut(pass.reasons[0] || pass.thesis, 46); }
     else hideFloat("#hfPassSym");
 
-    /* scale: the day's funnel, bars on a log scale so 1 in 10,000 still shows */
-    $("#bigCount").textContent = fmt(f.launched_24h);
-    [f.launched_24h, f.near_graduation, f.screened_24h, f.traded_24h].forEach((n, i) => { $("#fn" + i).textContent = fmt(n); });
-    $("#fl2").textContent = "Passed the screen"; $("#fl3").textContent = "Traded";
-    const L0 = Math.log10(f.launched_24h + 1) || 1;
-    $$(".funnel .fb[data-s]").forEach((b, i) => {
-      const n = [f.near_graduation, f.screened_24h, f.traded_24h][i];
-      b.dataset.s = Math.max(.02, Math.log10(n + 1) / L0).toFixed(3); b.style.transform = `scaleX(${b.dataset.s})`;
-    });
-    $("#tilesStar").textContent = top ? `worth a look: $${top.symbol || "?"}` : "worth a look";
+    /* launchpad: open or not yet */
+    launchOpen = !!(d.launchpad && d.launchpad.enabled); lRender();
 
     /* listening: the newest real source of each kind */
     const sk = JSON.stringify(d.sources.map(x => x.id));

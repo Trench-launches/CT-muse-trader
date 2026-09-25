@@ -319,6 +319,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "pons_scan": s.pons_scan_enabled, "buy_on_call": s.scanner_buy_on_call,
         "wallet": kv_get(conn, "live_wallet") if s.trading_mode.value == "live" else None,
         "size_pct": s.position_size_pct,
+        "launchpad": {"enabled": s.launchpad_enabled and bool(s.launcher_wallet_private_key)},
         "next_post": pending[0] if pending else None,
         "posts_24h": one("SELECT COUNT(*) FROM posts WHERE status='sent' AND sent_at>=?", (day,)),
         "posts": posts, "trade_threads": trade_threads,
