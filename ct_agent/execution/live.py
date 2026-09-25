@@ -104,11 +104,20 @@ class LiveExecutor:
 
     # --- sell ---------------------------------------------------------------
 
+    def _sellable(self, token: str, want: int) -> int:
+        """How much of `want` can be sold. Token amounts are kept as floats, so "sell it all" can come back a
+        hair over the exact balance: within a millionth, sell exactly what the wallet holds. More missing than
+        that is refused."""
+        bal = self.pons.erc20_balance(token, self.wallet)
+        if bal >= want:
+            return want
+        if bal >= want - want // 1_000_000:
+            return bal
+        raise LiveTradingBlocked(f"token balance {bal} < {want}")
+
     def sell_on_curve(self, *, token: str, curve: str, tokens_in_wei: int, fee_bps: int, tax_bps: int) -> LiveFill:
         self._assert_ready()
-        bal = self.pons.erc20_balance(token, self.wallet)
-        if bal < tokens_in_wei:
-            raise LiveTradingBlocked(f"token balance {bal} < {tokens_in_wei}")
+        tokens_in_wei = self._sellable(token, tokens_in_wei)
         if self.pons.erc20_allowance(token, self.wallet, curve) < tokens_in_wei:
             approve = encode_call("approve(address,uint256)", checksum(curve), tokens_in_wei)
             self._send(token, approve, 0, "approve", {"spender": curve, "amount": tokens_in_wei})
@@ -151,6 +160,8 @@ class LiveExecutor:
         """Buy with `amount_in_wei` ETH, or sell `amount_in_wei` of the coin, in its ETH pool."""
         self._assert_ready()
         pool = self.eth_pool(token)
+        if side == "sell":
+            amount_in_wei = self._sellable(token, amount_in_wei)
         if self.s.live_venue == "gmgn":
             return self._gmgn_swap(token, side, amount_in_wei)
         router = checksum(self.s.uniswap_universal_router)
@@ -160,9 +171,6 @@ class LiveExecutor:
         if side == "buy":
             data, value = v4.buy_calldata(pool, amount_in_wei, min_out, self.wallet, deadline), amount_in_wei
         else:
-            bal = self.pons.erc20_balance(token, self.wallet)
-            if bal < amount_in_wei:
-                raise LiveTradingBlocked(f"token balance {bal} < {amount_in_wei}")
             self._permit2_allow(token, router, amount_in_wei)
             data, value = v4.sell_calldata(pool, amount_in_wei, min_out, self.wallet, deadline), 0
         checklist = {"venue": "v4_pool", "quote_out": quoted, "min_out": min_out, "amount_in": amount_in_wei,

@@ -185,3 +185,17 @@ def test_graduated_positions_are_priced_by_the_pools_own_quoter():
     fill, venue = engine._mark(ctx, {"token": addr(0x77)}, 10.0)
     assert venue == "pool" and fill.method == "v4_quote_onchain" and fill.quote_in == pytest.approx(5.0)
     assert calls == [10 * ETH] and addr(0x77).lower() in engine._GRADUATED  # next time: straight to the quote
+
+
+def test_selling_everything_survives_float_rounding(db, settings):
+    """FRAI's stop: 622314.8347010531 tokens as a float comes back a hair over the exact balance in wei."""
+    from types import SimpleNamespace
+    held = 622314834701053077515436
+    s = Settings(_env_file=None, trading_mode="live", live_execution_reviewed=True,
+                 trading_wallet_private_key="0x" + "11" * 32, kill_switch_file=settings.kill_switch_file)
+    ex = LiveExecutor(s, SimpleNamespace(), SimpleNamespace(erc20_balance=lambda t, w: held), db, RiskManager(s, db))
+    want = int(622314.8347010531 * ETH)
+    assert want > held and ex._sellable(addr(1), want) == held  # rounding: sell exactly what's there
+    assert ex._sellable(addr(1), held // 2) == held // 2        # a partial sell is untouched
+    with pytest.raises(LiveTradingBlocked, match="token balance"):
+        ex._sellable(addr(1), held * 2)                          # really missing tokens: refused
