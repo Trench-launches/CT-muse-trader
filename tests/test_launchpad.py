@@ -212,3 +212,20 @@ def test_a_retry_after_a_refusal_also_answers_under_the_first_post(settings, db)
     under_first = rows(db, "SELECT body FROM posts WHERE reply_to_key='x:40' AND kind='launch_followup'")
     assert under_first and under_first[0]["body"].startswith("🚀 $CAT is live now")
     assert "x.com/MooseByMuse/status/970" in under_first[0]["body"] and ("0x" + "c0" * 20) in under_first[0]["body"]
+
+
+def test_the_website_can_follow_a_launch_request(settings, db, tmp_path):
+    from fastapi.testclient import TestClient
+    from ct_agent.api.app import create_app
+    s = settings.model_copy(update={"launchpad_enabled": True})
+    ctx = _ctx(settings, db)
+    api = TestClient(create_app(s))
+    assert api.get("/launchpad/status", params={"symbol": "CAT"}).json() == {"status": "not_seen"}
+    take_request(ctx, _m("50"))
+    assert api.get("/launchpad/status", params={"symbol": "$cat"}).json()["status"] == "approved"
+    ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
+    launchpad_once(ctx, _Launcher())
+    _announced(db, "980")
+    launchpad_once(ctx, _Launcher())
+    st = api.get("/launchpad/status", params={"symbol": "CAT"}).json()
+    assert (st["status"], st["token"], st["announce_x_id"], st["handle"]) == ("launched", "0x" + "c0" * 20, "980", "catfan")
