@@ -395,9 +395,13 @@ def test_take_profit_ladder_then_breakeven_stop(tmp_path):
     social_once(ctx)
     assert sent[-1].startswith("Jeeted 50% of my $HOT test bag at $") and "stop moved to entry" in sent[-1], sent[-1]
     assert "50% still riding. Realised P&L: +" in sent[-1]
+    assert "\n\nWhy I'm holding the rest: buyers kept spreading out" in sent[-1] and len(sent[-1]) <= 280, sent[-1]
+    n = len(sent)
 
     hot.real_quote = at(1.3)  # below the next rung, above entry: hold
     assert trader_once(ctx)["exits"][0]["action"] == "hold"
+    social_once(ctx)
+    assert len(sent) == n  # the take-profit post already covered the gain: no separate update after it
 
     hot.real_quote = at(2.3)
     ex = trader_once(ctx)["exits"][0]

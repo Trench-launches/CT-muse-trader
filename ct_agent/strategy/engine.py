@@ -981,11 +981,21 @@ def _take_profit(ctx: Context, pos: dict[str, Any], venue: str, tokens: float, r
     left_pct = max(0.0, (_left(pos) - fill.tokens_out) / pos["entry_tokens"] * 100) if pos["entry_tokens"] else 0
     nth = {1: "first", 2: "second", 3: "third"}.get(rung, f"#{rung}")
     nxt = f", next one at {ladder[rung][0]:g}x" if rung < len(ladder) else ""
+    pnl_pct = (mult - 1) * 100
+    # this post is the update for the gain so far: Muse says why the rest is still held, and the milestone
+    # updates it already covers don't go out again separately
+    thesis = _updated_thesis(ctx, pos, symbol, pnl_pct, _market_cap(ctx, pos["token"], fill.spot_price or fill.avg_price),
+                             note=f"just sold {share * 100:.0f}% at {mult:.1f}x; say why the other {left_pct:.0f}% "
+                                  "is still worth holding, under 120 characters") if left_pct > 0 else ""
+    s, key = ctx.settings, f"milestones:{pos['id']}"
+    if s.x_update_step_pct > 0:
+        done = {s.x_update_step_pct * k for k in range(1, int(pnl_pct // s.x_update_step_pct) + 1)}
+        kv_set(conn, key, sorted(set(kv_get(conn, key, []) or []) | done))
     enqueue(conn, compose.take_profit(mode=pos["mode"], symbol=symbol, token=pos["token"], sold_pct=share * 100,
                                       at=_at(ctx, pos["token"], fill),
                                       why=f"{nth} target hit at {mult:.1f}x, stop moved to entry{nxt}",
                                       left_pct=left_pct, realized_eth=fill.quote_in - pos["entry_quote"] * share,
-                                      position_id=pos["id"], rung=rung))
+                                      position_id=pos["id"], rung=rung, thesis=thesis))
     return {"position_id": pos["id"], "action": "take_profit", "rung": rung, "multiple": round(mult, 2),
             "sold_eth": round(fill.quote_in, 6)}
 
@@ -1011,7 +1021,7 @@ def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: F
                                           position_id=pos["id"], mc=mc, thesis=thesis))
 
 
-def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: float, mc: str) -> str:
+def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: float, mc: str, note: str = "") -> str:
     """Muse's fresh read on a coin that's running, for the milestone post. Journalled; '' if Muse can't answer,
     and the update still goes out without it."""
     conn = ctx.conn
@@ -1021,7 +1031,7 @@ def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: flo
         held_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
         r = ctx.brain.update_thesis({
             "symbol": symbol, "token": pos["token"], "pnl_pct": round(pnl_pct, 1), "held_hours": round(held_h, 1),
-            "market_cap_now": mc or None, "entry_eth": pos["entry_quote"],
+            "market_cap_now": mc or None, "entry_eth": pos["entry_quote"], "just_now": note or None,
             "original_decision": {"thesis": d["thesis"], "reasons": json.loads(d["reasons"] or "[]"),
                                   "risks": json.loads(d["risks"] or "[]")} if d else {},
             "x_attention_24h": kv_get(conn, f"x_attention:{pos['token'].lower()}"),

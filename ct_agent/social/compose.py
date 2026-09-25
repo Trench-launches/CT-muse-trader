@@ -168,11 +168,16 @@ def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price
 
 
 def take_profit(*, mode: str, symbol: str, token: str, sold_pct: float, at: str, why: str, left_pct: float,
-                realized_eth: float, position_id: int, rung: int) -> Draft:
-    """A take-profit rung: part of the bag sold, the rest still open. Reply under the entry post."""
+                realized_eth: float, position_id: int, rung: int, thesis: str = "") -> Draft:
+    """A take-profit rung: part of the bag sold, the rest still open. Reply under the entry post. `thesis` is
+    Muse's read on why the rest is still worth holding (shortened, then dropped, if the post runs long)."""
+    thesis = " ".join((thesis or "").split())
+    hold = [f"Why I'm holding the rest: {_s(thesis)}", f"Holding the rest: {_s(thesis)}",
+            f"Holding the rest: {_s(_phrase(thesis, 90))}", ""] if thesis else [""]
     body = _post([([f"Jeeted {sold_pct:.0f}% of my ${symbol} {_bag(mode)} at {at}."], None),
-                  ([_cap(_s(why)), ""] if why else [""], 1),
-                  ([f"{left_pct:.0f}% still riding. Realised P&L: {_eth(realized_eth)}."], None)])
+                  ([_cap(_s(why)), "Stop moved to entry.", ""] if why else [""], 0),
+                  ([f"{left_pct:.0f}% still riding. Realised P&L: {_eth(realized_eth)}."], None),
+                  (hold, 1)])
     return Draft("take_profit", body, token, f"tp:{mode}:{position_id}:{rung}", reply_to=f"entry:{mode}:{position_id}")
 
 
