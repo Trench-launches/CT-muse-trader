@@ -156,9 +156,41 @@ class XClient:
         r.raise_for_status()
         return str(r.json()["data"]["id"])
 
-    def create_post(self, text: str, reply_to: str | None = None) -> PostResult:
+    def upload_video(self, path: str, media_type: str = "video/mp4") -> str:
+        """Chunked video upload (initialize, append 4 MB segments, finalize, wait for processing). Returns the
+        media id to attach to a post. Needs the media.write scope on the posting login."""
+        import os
+        import time
+        auth = {"authorization": f"Bearer {self._user_token()}"}
+        size = os.path.getsize(path)
+        r = self._http.post(f"{API}/media/upload/initialize", headers=auth,
+                            json={"media_type": media_type, "total_bytes": size, "media_category": "tweet_video"})
+        r.raise_for_status()
+        media_id = str(r.json()["data"]["id"])
+        with open(path, "rb") as f:
+            for i, chunk in enumerate(iter(lambda: f.read(4 * 1024 * 1024), b"")):
+                r = self._http.post(f"{API}/media/upload/{media_id}/append", headers=auth,
+                                    data={"segment_index": str(i)}, files={"media": ("chunk", chunk)}, timeout=120)
+                r.raise_for_status()
+        r = self._http.post(f"{API}/media/upload/{media_id}/finalize", headers=auth)
+        r.raise_for_status()
+        info = (r.json().get("data") or {}).get("processing_info")
+        for _ in range(60):  # X transcodes video before it can be attached
+            if not info or info.get("state") == "succeeded":
+                return media_id
+            if info.get("state") == "failed":
+                raise RuntimeError(f"X could not process the video: {info.get('error')}")
+            time.sleep(max(1, int(info.get("check_after_secs", 2))))
+            r = self._http.get(f"{API}/media/upload", headers=auth, params={"command": "STATUS", "media_id": media_id})
+            r.raise_for_status()
+            info = (r.json().get("data") or {}).get("processing_info")
+        raise RuntimeError("X video processing timed out")
+
+    def create_post(self, text: str, reply_to: str | None = None, media_ids: list[str] | None = None) -> PostResult:
         token = self._user_token()
         body: dict[str, Any] = {"text": text}
+        if media_ids:
+            body["media"] = {"media_ids": media_ids}
         if reply_to:  # threads under MOOSE's own posts, or an auto-reply to someone who engaged first
             body["reply"] = {"in_reply_to_tweet_id": reply_to}
         r = self._http.post(f"{API}/tweets", json=body,

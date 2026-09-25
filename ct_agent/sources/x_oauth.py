@@ -28,7 +28,7 @@ from .x_api import XNotConfigured
 AUTH_URL = "https://x.com/i/oauth2/authorize"
 TOKEN_URL = "https://api.x.com/2/oauth2/token"
 ME_URL = "https://api.x.com/2/users/me"
-SCOPES = "tweet.read tweet.write users.read offline.access"
+SCOPES = "tweet.read tweet.write users.read media.write offline.access"
 KV_KEY = "x_oauth2"
 REDIRECT_URI = "http://127.0.0.1:8765/callback"
 
