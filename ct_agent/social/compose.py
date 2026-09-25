@@ -128,26 +128,28 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
 
 def buy_read(*, symbol: str, token: str, key: str, reply_to: str, why: str = "", reasons: list[str] | None = None,
              risk: str = "") -> Draft:
-    """Muse's reasoning for a buy, as a reply under the BOUGHT post: a one-line take, the main reasons as
-    bullets and the biggest risk. Bullets are dropped, then shortened, until it fits in one post."""
+    """Muse's reasoning for a buy, as a reply under the BOUGHT post. `why` is the thesis (the story and why it
+    can catch on) and leads; `reasons` are bullets of onchain proof; then the biggest risk. To fit one post the
+    bullets shrink and drop first, and the thesis is only shortened as a last resort."""
     why = " ".join((why or "").split())
     reasons = [" ".join(str(r).split()) for r in (reasons or []) if str(r).strip()][:3]
     risk = " ".join((risk or "").split())
 
-    def build(n: int, cut: int) -> str:
-        parts = [f"Why I bought ${symbol}:" + (f"\n{_s(_phrase(why, 140))}" if why else "")]
+    def build(n: int, cut: int, why_cut: int) -> str:
+        parts = [f"Why I bought ${symbol}:"] + ([_cap(_s(_phrase(why, why_cut)))] if why else [])
         if n:
             parts.append("\n".join(f"• {_cap(_phrase(r, cut))}" for r in reasons[:n]))
         if risk:
-            parts.append(f"Risk: {_s(_phrase(risk, min(cut, 110)))}")
+            parts.append(f"Risk: {_s(_phrase(risk, min(cut, 100)))}")
         return "\n\n".join(parts)
 
-    for n in range(len(reasons), -1, -1):
-        for cut in (120, 95, 75, 55):
-            body = build(n, cut)
-            if len(body) <= LIMIT:
-                return Draft("analysis", body, token, key, reply_to=reply_to)
-    return Draft("analysis", build(0, 55)[:LIMIT], token, key, reply_to=reply_to)
+    for why_cut in (200, 150, 110):
+        for n in range(len(reasons), -1, -1):
+            for cut in (95, 75, 55):
+                body = build(n, cut, why_cut)
+                if len(body) <= LIMIT:
+                    return Draft("analysis", body, token, key, reply_to=reply_to)
+    return Draft("analysis", build(0, 55, 110)[:LIMIT], token, key, reply_to=reply_to)
 
 
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, plan: str,

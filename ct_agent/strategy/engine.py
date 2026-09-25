@@ -315,7 +315,8 @@ def _post_read_under_buy(ctx: Context, token: str, symbol: str, did: int, d: Any
     if not pos:
         return
     enqueue(conn, compose.buy_read(symbol=symbol, token=token, key=f"analysis:{did}",
-                                   reply_to=f"entry:{pos['mode']}:{pos['id']}", why=d.public_line or d.thesis,
+                                   reply_to=f"entry:{pos['mode']}:{pos['id']}",
+                                   why=d.public_thesis or d.public_line or d.thesis,
                                    reasons=d.public_reasons or d.reasons[:2],
                                    risk=d.public_risk or (d.risks or [""])[0]))
 
@@ -417,8 +418,9 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
     attention = kv_get(conn, f"x_attention:{a.cand.token.lower()}")
     past = [{"ts": j["ts"], "kind": j["kind"], "payload": j["payload"]}
             for j in journal_recent(conn, ref=a.cand.token, limit=10)]
+    # losses since the scorecard reset only: the testing-phase trades before it aren't lessons for live trading
     mistakes = rows(conn, "SELECT token, exit_reason, pnl_quote, closed_at FROM positions WHERE status='closed' "
-                          "AND pnl_quote<0 ORDER BY id DESC LIMIT 5")
+                          "AND pnl_quote<0 AND opened_at>=? ORDER BY id DESC LIMIT 5", (s.score_since,))
     quote = a.launch.get("quote_symbol") or "ERC20"
     pack: dict[str, Any] = {
         "token": a.cand.token, "symbol": a.launch.get("symbol"), "name": a.launch.get("name"),
@@ -717,7 +719,8 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
         if out.get("entered"):
             enqueue(conn, compose.buy_read(symbol=symbol, token=token, key=f"analysis:{did}",
                                            reply_to=f"entry:{s.trading_mode.value}:{out['position_id']}",
-                                           reasons=d.public_reasons or d.reasons,
+                                           why=d.public_thesis or d.narrative.take,
+                                           reasons=d.public_reasons or d.reasons[:2],
                                            risk=d.public_risk or (risks or [""])[0]))
     elif action == "watch" and conf >= 0.6 and res.decision:
         skip, parent = _thread(conn, token, "watch")

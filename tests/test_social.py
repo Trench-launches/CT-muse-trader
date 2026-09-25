@@ -195,3 +195,8 @@ def test_buy_read_fits_muses_long_reasons_in_one_post():
     assert len(d.body) <= 280 and d.body.startswith("Why I bought $RAINEGG:\n\n• 51 unique buyers")
     assert d.body.count("\n• ") >= 2 and "\n\nRisk: 37 roundtrip traders" in d.body
     assert (d.kind, d.reply_to) == ("analysis", "entry:live:7")
+    thesis = ("RAINEGG is a privacy coin for agent payments on Robinhood Chain, and x402 payments are the story "
+              "every AI account is posting about this week.")
+    t = compose.buy_read(symbol="RAINEGG", token=CA, key="k", reply_to="r", why=thesis, reasons=reasons, risk="wash volume")
+    assert len(t.body) <= 280 and t.body.startswith(f"Why I bought $RAINEGG:\n\n{thesis}\n\n• ")  # the thesis leads, whole
+    assert t.body.endswith("\n\nRisk: wash volume.")
