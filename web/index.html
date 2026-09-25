@@ -1002,6 +1002,56 @@ main, footer { position: relative; z-index: 1; }
 .bg-glow { background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.055), transparent 70%); }
 @media (hover: none), (prefers-reduced-motion: reduce) { .bg-fx { display: none; } }
 .lcard .lemo { display: grid; place-items: center; font-size: 21px; line-height: 1; background: linear-gradient(160deg, #26262B, #18181B); box-shadow: inset 0 0 0 1px var(--line); }
+.lform select { font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); background: var(--white); border: 1px solid var(--line);
+  border-radius: 12px; padding: 12px 40px 12px 14px; width: 100%; cursor: pointer; appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 52%, calc(100% - 14px) 52%; background-size: 6px 6px; background-repeat: no-repeat; }
+.lform select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+.lform select option, .lform select optgroup { background: #111113; color: var(--ink); }
+.lpair small { font-size: 12.5px; font-weight: 500; color: var(--green); }
+.lpair small[hidden] { display: none; }
+.lcard b .lpr { font-style: normal; font-weight: 500; color: var(--ink-3); }
+.lrow-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 760px) { .lrow-2 { grid-template-columns: minmax(0, 1fr); } }
+.lpair { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.lpair em { font-style: normal; font-weight: 500; color: var(--ink-3); }
+.pk-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.pk { position: relative; }
+.pk-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; cursor: pointer; text-align: left;
+  font: inherit; color: var(--ink); background: var(--white); border: 1px solid var(--line); transition: border-color .2s, box-shadow .2s; }
+.pk-btn:hover { border-color: var(--ink-3); }
+.pk-btn:focus-visible, .pk.open .pk-btn { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+.pk-cur { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.pk-cur b { font-family: var(--f-mono); font-size: 14.5px; font-weight: 600; letter-spacing: .01em; }
+.pk-cur span { font-size: 13.5px; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-btn.set .pk-cur span { color: var(--ink-2); }
+.pk-chev { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+.pk.open .pk-chev { transform: rotate(180deg); stroke: var(--ink); }
+.pk-pop { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 24px 48px -16px rgba(0,0,0,.9); overflow: hidden; animation: pkIn .14s ease-out; }
+.pk-pop[hidden] { display: none; }
+@keyframes pkIn { from { opacity: 0; transform: translateY(-4px); } }
+.pk-q { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.pk-q .ic { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
+.pk-q input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; padding: 12px 0; font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); }
+.pk-q input::placeholder { color: #6E6E77; }
+.lform .pk-q input, .lform .pk-q input:focus { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 13px 0; }
+.pk-list { max-height: 292px; overflow-y: auto; padding: 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.pk-g { padding: 10px 10px 6px; font-family: var(--f-mono); font-size: 10.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.pk-o { display: grid; grid-template-columns: 26px 64px minmax(0, 1fr) 16px; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.pk-ic { width: 26px; height: 26px; flex: none; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
+  background: var(--card-2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.pk-ic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pk-ic.eth { background: #627EEA; color: #FFFFFF; } .pk-ic.eth .ic { width: 15px; height: 15px; vertical-align: 0; }
+.pk-ic.mono { font-family: var(--f-mono); font-size: 10px; font-weight: 600; color: var(--ink-2); }
+.pk-cur .pk-ic { width: 24px; height: 24px; }
+.pk-o.hi { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line); }
+.pk-t { font-family: var(--f-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.pk-n { font-size: 13.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-ok { width: 15px; height: 15px; color: var(--accent); visibility: hidden; }
+.pk-o.on .pk-ok { visibility: visible; }
+.pk-o.on .pk-t { color: var(--accent); }
+.pk-none { padding: 18px 12px; font-size: 13.5px; color: var(--ink-3); text-align: center; }
 </style>
 <!-- Icons: brand marks from Simple Icons (CC0), UI icons from Lucide (ISC) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1187,11 +1237,11 @@ main, footer { position: relative; z-index: 1; }
     <div>
       <span class="kicker"><svg class="ic"><use href="#i-rocket"/></svg>Launchpad</span>
       <h2 class="h2" id="h-launch">Launch your own coin. <span class="blue">Just tag MOOSE.</span></h2>
-      <p class="sub">Post your coin on X and MOOSE launches it on Pons, on Robinhood Chain, then replies with your contract address. Free to launch: your coin's first ~$2 of fees pay the launch back, then every creator fee is yours.</p>
+      <p class="sub">Post your coin on X and MOOSE launches it on Pons, on Robinhood Chain, then replies with your contract address. Free to launch: your coin's first ~$2 of fees pay the launch back, then every creator fee is yours. Or pair it with a stock like $TSLA or $NVDA, and its creator fees are yours from the very first trade.</p>
       <ol class="lsteps">
         <li><b>1</b><div><strong>Fill in your coin</strong><span>Name, ticker, a line about it and the wallet for your fees.</span></div></li>
         <li><b>2</b><div><strong>Post it on X with your image</strong><span>MOOSE checks every request before it launches anything.</span></div></li>
-        <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet.</span></div></li>
+        <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet (straight away if it's paired with a stock).</span></div></li>
       </ol>
       <p class="lrules">Call it whatever you like · one launch per X account a day · accounts older than 30 days · no hate, scams or fake "official" coins</p>
       <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><span class="example" id="lEx">example</span></div><div class="rc-view lview" id="lRecentList"></div></div>
@@ -1202,9 +1252,21 @@ main, footer { position: relative; z-index: 1; }
           <label>Coin name<input id="lfName" maxlength="32" placeholder="Purr Capital" required></label>
           <label class="lsym">Ticker<span class="lpre">$</span><input id="lfSym" maxlength="10" placeholder="PURR" required></label>
         </div>
+        <div class="lpair"><span class="lpair-l" id="pkLbl">Pair with <em>optional · trade your coin against a Robinhood stock instead of ETH</em></span>
+          <select id="lfPair" class="pk-native" tabindex="-1" aria-hidden="true"><option value="">ETH (default)</option><optgroup label="Popular"><option value="TSLA">$TSLA · Tesla</option><option value="NVDA">$NVDA · NVIDIA</option><option value="AAPL">$AAPL · Apple</option><option value="SPY">$SPY · S&P 500 ETF</option><option value="GME">$GME · GameStop</option><option value="SPCX">$SPCX · SpaceX</option><option value="MSTR">$MSTR · Strategy</option><option value="COIN">$COIN · Coinbase</option><option value="META">$META · Meta</option><option value="AMZN">$AMZN · Amazon</option><option value="PLTR">$PLTR · Palantir</option></optgroup><optgroup label="All stocks and ETFs"><option value="AAPL">$AAPL · Apple</option><option value="AMC">$AMC · AMC</option><option value="AMD">$AMD · AMD</option><option value="AMZN">$AMZN · Amazon</option><option value="BA">$BA · Boeing</option><option value="BABA">$BABA · Alibaba</option><option value="BB">$BB · BlackBerry</option><option value="BE">$BE · Bloom Energy</option><option value="BULL">$BULL · Webull</option><option value="CEG">$CEG · Constellation Energy</option><option value="COIN">$COIN · Coinbase</option><option value="COST">$COST · Costco</option><option value="CRCL">$CRCL · Circle</option><option value="DELL">$DELL · Dell</option><option value="DJT">$DJT · Trump Media</option><option value="EWY">$EWY · South Korea ETF</option><option value="F">$F · Ford</option><option value="FIG">$FIG · Figma</option><option value="GLD">$GLD · Gold ETF</option><option value="GME">$GME · GameStop</option><option value="GOOGL">$GOOGL · Alphabet</option><option value="HIMS">$HIMS · Hims & Hers</option><option value="IBM">$IBM · IBM</option><option value="INDA">$INDA · India ETF</option><option value="INTC">$INTC · Intel</option><option value="JNJ">$JNJ · Johnson & Johnson</option><option value="LLY">$LLY · Eli Lilly</option><option value="LMT">$LMT · Lockheed Martin</option><option value="LULU">$LULU · Lululemon</option><option value="META">$META · Meta</option><option value="MRNA">$MRNA · Moderna</option><option value="MRVL">$MRVL · Marvell</option><option value="MSFT">$MSFT · Microsoft</option><option value="MSTR">$MSTR · Strategy</option><option value="MU">$MU · Micron</option><option value="NET">$NET · Cloudflare</option><option value="NFLX">$NFLX · Netflix</option><option value="NU">$NU · Nu Holdings</option><option value="NVDA">$NVDA · NVIDIA</option><option value="PFE">$PFE · Pfizer</option><option value="PLTR">$PLTR · Palantir</option><option value="QQQ">$QQQ · Nasdaq-100 ETF</option><option value="QUBT">$QUBT · Quantum Computing</option><option value="RBLX">$RBLX · Roblox</option><option value="RCAT">$RCAT · Red Cat</option><option value="RDDT">$RDDT · Reddit</option><option value="RIVN">$RIVN · Rivian</option><option value="RKLB">$RKLB · Rocket Lab</option><option value="SGOV">$SGOV · Treasury bond ETF</option><option value="SHOP">$SHOP · Shopify</option><option value="SKHY">$SKHY · SK hynix</option><option value="SLV">$SLV · Silver ETF</option><option value="SNAP">$SNAP · Snap</option><option value="SNDK">$SNDK · Sandisk</option><option value="SNOW">$SNOW · Snowflake</option><option value="SPCX">$SPCX · SpaceX</option><option value="SPY">$SPY · S&P 500 ETF</option><option value="TSLA">$TSLA · Tesla</option><option value="TSM">$TSM · TSMC</option><option value="TTWO">$TTWO · Take-Two</option><option value="UPS">$UPS · UPS</option><option value="USO">$USO · Oil ETF</option><option value="WYFI">$WYFI · WhiteFiber</option></optgroup></select>
+          <div class="pk" id="pk">
+            <button type="button" class="pk-btn" id="pkBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="pkLbl pkCur"><span class="pk-cur" id="pkCur"></span><svg class="pk-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <div class="pk-pop" id="pkPop" hidden>
+              <div class="pk-q"><svg class="ic"><use href="#i-search"/></svg><input id="pkQ" placeholder="Search stocks: TSLA, Nvidia, S&amp;P…" spellcheck="false" aria-label="Search stocks"></div>
+              <div class="pk-list" id="pkList" role="listbox" aria-labelledby="pkLbl"></div>
+            </div>
+          </div>
+          <small id="lfPairNote" hidden></small></div>
         <label><span>What is it? <em>optional</em></span><input id="lfDesc" maxlength="100" placeholder="a cat that runs a hedge fund"></label>
-        <label><span>Coin's own X or website <em>optional · if empty, your coin links to MOOSE's launch post</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
+        <div class="lrow lrow-2">
+        <label title="If empty, your coin links to MOOSE's launch post"><span>Coin's X or website <em>optional</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
         <label>Wallet for your creator fees<input id="lfWallet" maxlength="42" placeholder="0x…" spellcheck="false" required></label>
+        </div>
         <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div><p class="lcredit"><svg class="ic"><use href="#i-badge-check"/></svg>You're credited as the creator: MOOSE tags the X account that posts this.</p></div>
         <p class="lnote" id="lfNote">Attach your coin's image on X before you post.</p>
         <button class="btn btn-dark" type="submit" id="lfGo" disabled><svg class="ic"><use href="#b-x"/></svg> Post on X to launch <span class="arr">→</span></button>
@@ -1457,7 +1519,7 @@ main, footer { position: relative; z-index: 1; }
   }
 
   /* ---------- 2 LAUNCH: the form builds the launch post; X opens with it ready (the image is added on X) ---------- */
-  const lf = { name: $("#lfName"), sym: $("#lfSym"), desc: $("#lfDesc"), link: $("#lfLink"), wallet: $("#lfWallet") };
+  const lf = { name: $("#lfName"), sym: $("#lfSym"), pair: $("#lfPair"), desc: $("#lfDesc"), link: $("#lfLink"), wallet: $("#lfWallet") };
   let launchOpen = true;  // the API says whether launches are on; until then the button says "soon"
   const lPost = () => {
     const v = Object.fromEntries(Object.entries(lf).map(([k, el]) => [k, el.value.trim()]));
@@ -1465,7 +1527,7 @@ main, footer { position: relative; z-index: 1; }
     const ok = { name: v.name.length > 0, sym: /^[A-Z0-9]{1,10}$/.test(v.sym), wallet: /^0x[0-9a-fA-F]{40}$/.test(v.wallet) };
     // the launch request as it's posted on X: a clean card MOOSE reads (ticker, name and wallet must be in it)
     const text = `@MooseByMuse launch $${v.sym || "TICKER"} ${v.name || "Coin name"}` + (v.desc ? `\n\n${v.desc}` : "")
-      + (v.link ? `\n\n${v.link}` : "") + `\n\nfees to: ${v.wallet || "0x…"}`;
+      + (v.link ? `\n\n${v.link}` : "") + (v.pair ? `\n\npair: ${v.pair}` : "") + `\n\nfees to: ${v.wallet || "0x…"}`;
     return { v, ok, text, valid: ok.name && ok.sym && ok.wallet };
   };
   const lRender = (touched = false) => {
@@ -1473,12 +1535,81 @@ main, footer { position: relative; z-index: 1; }
     $("#lfPreview").innerHTML = xPost({ t: "now", body: esc(p.text) }).replace("MOOSE", "You").replace("@MooseByMuse · now", "your account · now");
     [["name", lf.name], ["sym", lf.sym], ["wallet", lf.wallet]].forEach(([k, el]) => el.classList.toggle("bad", touched && el.value.trim() !== "" && !p.ok[k]));
     $("#lfGo").disabled = !p.valid || !launchOpen;
+    $("#lfPairNote").hidden = !p.v.pair;
+    $("#lfPairNote").textContent = p.v.pair ? `Your coin trades against $${p.v.pair}. Its creator fees go straight to your wallet from the first trade, paid in $${p.v.pair}.` : "";
     const note = $("#lfNote");
     note.classList.toggle("warn", touched && lf.wallet.value.trim() !== "" && !p.ok.wallet);
     note.textContent = !launchOpen ? "Launches open soon. Get your coin ready." : note.classList.contains("warn")
       ? "That wallet doesn't look right: it should be 0x and 40 letters or numbers." : "Attach your coin's image on X before you post.";
   };
   Object.values(lf).forEach(el => el.addEventListener("input", () => lRender(true)));
+  lf.pair.addEventListener("change", () => lRender(true));
+  /* the pair picker: ETH or a stock, searchable, arrow keys + enter, escape or a click outside closes it */
+  (() => {
+    const sel = lf.pair, btn = $("#pkBtn"), pop = $("#pkPop"), q = $("#pkQ"), list = $("#pkList");
+    const groups = [{ label: "", opts: [{ v: "", sym: "ETH", nm: "Ether · the default pair" }]}]
+      .concat([...sel.querySelectorAll("optgroup")].map(g => ({ label: g.label,
+        opts: [...g.querySelectorAll("option")].map(o => ({ v: o.value, sym: o.value, nm: o.textContent.split(" · ").slice(1).join(" · ") })) })));
+    let hi = 0, shown = [];
+    // the stock's logo (web/assets/stocks); ETH its own mark; a monogram where there's no clean logo
+    const NOLOGO = new Set(["DJT", "GLD"]);
+    const icon = o => !o.v ? `<span class="pk-ic eth"><svg class="ic"><use href="#b-eth"/></svg></span>`
+      : NOLOGO.has(o.sym) ? `<span class="pk-ic mono">${o.sym.slice(0, 2)}</span>`
+      : `<span class="pk-ic"><img src="assets/stocks/${o.sym}.webp" alt="" width="64" height="64" loading="lazy" onerror="this.parentNode.classList.add('mono');this.parentNode.textContent='${o.sym.slice(0, 2)}'"></span>`;
+    const row = o => `<div class="pk-o${o.v === sel.value ? " on" : ""}" role="option" id="pk-${o.sym}" data-v="${o.v}" aria-selected="${o.v === sel.value}">`
+      + `${icon(o)}<span class="pk-t">${o.v ? "$" : ""}${o.sym}</span><span class="pk-n">${esc(o.nm)}</span><svg class="ic pk-ok"><use href="#i-check"/></svg></div>`;
+    const draw = () => {
+      const t = q.value.trim().toLowerCase().replace(/^\$/, "");
+      const seen = new Set();
+      let html = "";
+      shown = [];
+      groups.forEach(g => {
+        const hits = g.opts.filter(o => !seen.has(o.sym) && (!t || o.sym.toLowerCase().includes(t) || o.nm.toLowerCase().includes(t)));
+        if (!hits.length) return;
+        if (t) hits.forEach(o => seen.add(o.sym));  // searching: each stock once
+        html += (g.label && !t ? `<div class="pk-g">${g.label}</div>` : "") + hits.map(row).join("");
+        shown = shown.concat(hits);
+      });
+      list.innerHTML = html || `<div class="pk-none">No stock called "${esc(q.value.trim())}". Pons pairs ${groups[2].opts.length} stocks and ETFs.</div>`;
+      hi = Math.max(0, Math.min(hi, shown.length - 1));
+      mark();
+    };
+    const mark = () => {
+      $$(".pk-o", list).forEach((el, i) => el.classList.toggle("hi", i === hi));
+      const el = $$(".pk-o", list)[hi];
+      if (el) { el.scrollIntoView({ block: "nearest" }); q.setAttribute("aria-activedescendant", el.id); }
+    };
+    const cur = () => {
+      const o = groups.flatMap(g => g.opts).find(o => o.v === sel.value) || groups[0].opts[0];
+      $("#pkCur").innerHTML = `${icon(o)}<b>${o.v ? "$" : ""}${o.sym}</b><span>${esc(o.v ? o.nm : "default")}</span>`;
+      btn.classList.toggle("set", !!o.v);
+    };
+    const open = () => {
+      pop.hidden = false; btn.setAttribute("aria-expanded", "true"); $("#pk").classList.add("open");
+      q.value = ""; hi = Math.max(0, groups.flatMap(g => g.opts).findIndex(o => o.v === sel.value)); draw(); q.focus();
+    };
+    const close = (refocus = true) => {
+      if (pop.hidden) return;
+      pop.hidden = true; btn.setAttribute("aria-expanded", "false"); $("#pk").classList.remove("open");
+      if (refocus) btn.focus();
+    };
+    const pick = v => { sel.value = v; sel.dispatchEvent(new Event("change")); cur(); close(); };
+    btn.addEventListener("click", () => pop.hidden ? open() : close());
+    btn.addEventListener("keydown", e => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } });
+    q.addEventListener("input", () => { hi = 0; draw(); });
+    q.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); hi = Math.min(hi + 1, shown.length - 1); mark(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); hi = Math.max(hi - 1, 0); mark(); }
+      else if (e.key === "Enter") { e.preventDefault(); if (shown[hi]) pick(shown[hi].v); }
+      else if (e.key === "Escape") { e.preventDefault(); close(); }
+      else if (e.key === "Tab") close(false);
+    });
+    list.addEventListener("mousemove", e => { const el = e.target.closest(".pk-o"); if (el) { hi = $$(".pk-o", list).indexOf(el); mark(); } });
+    list.addEventListener("click", e => { const el = e.target.closest(".pk-o"); if (el) pick(el.dataset.v); });
+    document.addEventListener("pointerdown", e => { if (!$("#pk").contains(e.target)) close(false); });
+    sel.addEventListener("change", cur);
+    cur();
+  })();
   $("#launchForm").addEventListener("submit", e => {
     e.preventDefault();
     const p = lPost();
@@ -1502,6 +1633,7 @@ main, footer { position: relative; z-index: 1; }
     "unclear name or ticker": ["MOOSE couldn't read the name or ticker", "Write it as: launch $TICKER Coin name. The ticker is letters and numbers, up to 10."],
     "reserved ticker": ["$MOOSE is taken", "That's MOOSE's own coin. Pick another ticker and post again."],
     "daily budget used": ["Launches are full for today", "MOOSE's launch budget for today is used up. Try again tomorrow."],
+    "unknown pair": ["MOOSE can't pair with that", "Coins pair with ETH or a Robinhood stock token like TSLA, NVDA, AAPL or SPY. Pick one from the list and post again."],
   };
   const lTrack = (sym, url, wallet = "") => {
     $("#launchForm").hidden = true; $("#lDone").hidden = false; $("#ldLive").hidden = true; $("#ldOpen").href = url;
@@ -1533,7 +1665,9 @@ main, footer { position: relative; z-index: 1; }
         return ldShow("", `$${sym} passed the checks`, "MOOSE is announcing it and launching it on Robinhood Chain now. This takes about a minute.");
       }
       clearInterval(lTimer); ldStep(3, "done"); ldIcon("i-check"); ldPill("green", "Live");  // launched (or fees handed over)
-      ldShow("live", `$${sym} is live!`, "Your coin is launched on Robinhood Chain. Creator fees go to your wallet once it pays back its ~$2 launch.");
+      ldShow("live", `$${sym} is live!`, st.pair_symbol
+        ? `Your coin is launched on Robinhood Chain, paired with $${st.pair_symbol}. Its creator fees go straight to your wallet, paid in $${st.pair_symbol}.`
+        : "Your coin is launched on Robinhood Chain. Creator fees go to your wallet once it pays back its ~$2 launch.");
       $("#ldCa").textContent = st.token || "";
       $("#ldLinks").innerHTML = (st.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(st.announce_x_id)}" target="_blank" rel="noopener">MOOSE's post ↗</a>` : "")
         + (st.tx_hash ? `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(st.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
@@ -1551,16 +1685,16 @@ main, footer { position: relative; z-index: 1; }
   /* recently launched: an endless strip of cards; example coins until the first real launch */
   const EX_LAUNCHES = [["PURR", "catfan", 2, "🐱"], ["HOPPY", "bunnydev", 9, "🐰"], ["MOOCOW", "farmfren", 25, "🐮"], ["BRRR", "printer_anon", 47, "🖨️"],
     ["QUACK", "duckszn", 70, "🦆"], ["TACO", "tacotues", 95, "🌮"], ["ROBOCAT", "meowbuilder", 130, "🤖"], ["GLOBBY", "blobartist", 185, "🫧"]]
-    .map(([symbol, handle, mins, emo], i) => ({ symbol, handle, emo, launched_at: new Date(Date.now() - mins * 60e3).toISOString(), fees_handed_over: i % 3 === 0 }));
+    .map(([symbol, handle, mins, emo], i) => ({ symbol, handle, emo, pair_symbol: { ROBOCAT: "TSLA", BRRR: "SPY", MOOCOW: "NVDA" }[symbol], launched_at: new Date(Date.now() - mins * 60e3).toISOString(), fees_handed_over: i % 3 === 0 }));
   const launchCard = (r, ex) => `<div class="lcard">`
     + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
       : r.emo ? `<span class="lgo lemo" aria-hidden="true">${r.emo}</span>` : coinAv("blue", 38, false, null, r.symbol))
-    + `<b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
+    + `<b>$${esc(r.symbol)}${r.pair_symbol ? ` <i class="lpr">/ $${esc(r.pair_symbol)}</i>` : ""}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
     + (ex ? `<span>Post ↗</span><span>Receipt ↗</span>`
       : (r.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
         + `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>`
         + `<a href="https://gmgn.ai/robinhood/token/${esc(r.token)}" target="_blank" rel="noopener">Chart ↗</a>`)
-    + (r.fees_handed_over ? `<span class="done" title="the creator fees now go to the creator">handed over</span>` : "") + `</span></div>`;
+    + (r.fees_handed_over ? `<span class="done" title="the creator fees now go to the creator">${r.pair_symbol ? "fees to creator" : "handed over"}</span>` : "") + `</span></div>`;
   let lKey = "";
   const launchStrip = list => {
     const ex = !list.length, items = ex ? EX_LAUNCHES : list.slice(0, 12), key = ex ? "ex" : JSON.stringify(items.map(r => r.token + r.fees_handed_over));

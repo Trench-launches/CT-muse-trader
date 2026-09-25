@@ -7,6 +7,10 @@
    the coin's creator-fee recipient, and MOOSE replies with the contract address. Then, for every coin it still
    holds the fees for: once the coin's creator fees cover the launch cost, sweep them and hand the fees to the
    requester for good. A coin that graduates has traded far more than that, so it's handed over too.
+
+A request can pair the coin with a Robinhood stock token instead of ETH ("pair: TSLA"). Its fees are paid in that
+stock, which MOOSE has no use for, so a stock-paired coin names the requester as its fee recipient from the start
+and MOOSE simply absorbs the (ETH) launch cost.
 """
 from __future__ import annotations
 
@@ -16,11 +20,13 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from ..chain.abi import ZERO_ADDRESS
 from ..chain.pons import Phase
 from ..db import journal_append, rows, utcnow
 from ..social.compose import Draft
 from ..social.outbox import enqueue
 from .chain import LaunchBlocked, Launcher
+from .pairs import asked_pair, pair_token
 
 log = logging.getLogger(__name__)
 ASK = re.compile(r"\b(launch|deploy)\b", re.I)
@@ -94,6 +100,13 @@ def take_request(ctx: Any, m: dict[str, Any]) -> str:
                                               "and ask again 🫎", **fields)
     if not m.get("images"):
         return _refuse(conn, m, "no image", "Attach an image for the coin and ask again 🫎", **fields)
+    pair_sym = asked_pair(text)
+    if pair_sym == "ETH":
+        pair_sym = None
+    pair_addr = pair_token(pair_sym) if pair_sym else None
+    if pair_sym and not pair_addr:
+        return _refuse(conn, m, "unknown pair", f"I can pair coins with ETH or a Robinhood stock like TSLA, NVDA, AAPL "
+                                                f"or SPY, but not ${pair_sym}. Pick another and ask again 🫎", **fields)
     if not d.approve:
         return _refuse(conn, m, "muse declined: " + d.reason, (d.reason or "I can't launch that one.")[:200], **fields)
     if not name or not SYMBOL.match(sym) or sym.lower() not in text.lower() or name.lower() not in text.lower():
@@ -106,10 +119,11 @@ def take_request(ctx: Any, m: dict[str, Any]) -> str:
         return _refuse(conn, m, "daily budget used", "Launches are full for today. Ask again tomorrow 🫎", **fields)
     socials = {k: getattr(d, k) for k in ("twitter", "telegram", "discord", "website", "farcaster") if getattr(d, k)}
     conn.execute("INSERT INTO launch_requests(x_post_id,author_id,handle,created_at,status,name,symbol,description,logo,"
-                 "socials,recipient) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                 "socials,recipient,pair_symbol,pair_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                  (m["id"], m.get("author_id") or "", author.get("username"), utcnow(), "approved", name, sym,
-                  d.description[:280], m["images"][0], json.dumps(socials), wallets.pop()))
-    journal_append(conn, "launchpad_approved", {"x_post_id": m["id"], "handle": author.get("username"), **fields})
+                  d.description[:280], m["images"][0], json.dumps(socials), wallets.pop(), pair_sym, pair_addr))
+    journal_append(conn, "launchpad_approved", {"x_post_id": m["id"], "handle": author.get("username"),
+                                                "pair": pair_sym, **fields})
     return "approved"
 
 
@@ -151,11 +165,13 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     conn = ctx.conn
     key = announce_key(r)
     ann = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?", (key,)).fetchone()
+    pair = r.get("pair_symbol")
     if ann is None:
         desc = f"\n\n{r['description']}" if r["description"] else ""
         creator = f"\nCreator: @{r['handle']}" if r["handle"] else ""
+        paired = f"\nPaired with {pair}" if pair else ""
         enqueue(conn, Draft("launch_announce", f"🚀 New on the MOOSE launchpad\n\n${r['symbol']} · {r['name']}{creator}"
-                                               f"{desc}\n\nLaunching now. CA and receipt below 👇",
+                                               f"{paired}{desc}\n\nLaunching now. CA and receipt below 👇",
                             r["token"] or f"launch:{r['id']}", key))
         return 0
     if ann["status"] in ("pending", "sending"):
@@ -171,7 +187,8 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
     m = {"id": r["x_post_id"], "author_id": r["author_id"]}
     try:
         out = launcher.launch(name=r["name"], symbol=r["symbol"], logo=r["logo"], description=desc, socials=socials,
-                              ref=r["x_post_id"])
+                              ref=r["x_post_id"], pair_token=r.get("pair_token") or ZERO_ADDRESS,
+                              recipient=r["recipient"] if pair else None)  # stock pair: fees are theirs from the start
     except LaunchBlocked as exc:
         conn.execute("UPDATE launch_requests SET status='failed', reason=? WHERE id=?", (str(exc)[:300], r["id"]))
         sorry = f"❌ ${r['symbol']} didn't launch\n\nSomething went wrong on my side and no coin was made. Sorry fren."
@@ -180,17 +197,22 @@ def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
         _reply(conn, m, "Couldn't launch that one right now, something went wrong on my side. Sorry fren, "
                         "try again later 🫎", kind="launch_failed")
         return 0
-    conn.execute("UPDATE launch_requests SET status='launched', token=?, curve=?, tx_hash=?, cost_wei=?, earned_wei='0', "
-                 "launched_at=?, socials=? WHERE id=?",
-                 (out.token, out.curve, out.tx_hash, str(out.cost_wei), utcnow(), json.dumps(socials), r["id"]))
-    receipt = (f"✅ ${r['symbol']} is live on Robinhood Chain\n\nCA: {out.token}\nTx: {EXPLORER}/tx/{out.tx_hash}\n\n"
+    now = utcnow()
+    conn.execute("UPDATE launch_requests SET status=?, token=?, curve=?, tx_hash=?, cost_wei=?, earned_wei='0', "
+                 "launched_at=?, handed_at=?, socials=? WHERE id=?",
+                 ("handed_over" if pair else "launched", out.token, out.curve, out.tx_hash, str(out.cost_wei), now,
+                  now if pair else None, json.dumps(socials), r["id"]))
+    fees = f"straight to {_by(r)}, paid in {pair}" if pair else f"{_by(r)}, once the launch is paid back"
+    receipt = (f"✅ ${r['symbol']} is live on Robinhood Chain\n\nCA: {out.token}\nTx: {EXPLORER}/tx/{out.tx_hash}\n"
+               + (f"Pair: {pair}\n" if pair else "") + "\n"
                f"Launch cost: {out.cost_wei / 10**18:.5f} ETH (paid by MOOSE)\n"
-               f"Creator fees: {_by(r)}, once the launch is paid back")
+               f"Creator fees: {fees}")
     if posted:
         enqueue(conn, Draft("launch_receipt", receipt, out.token, f"launch_receipt:{r['id']}", reply_to=key))
     link = f"https://x.com/MooseByMuse/status/{ann['x_post_id']}" if posted else f"https://gmgn.ai/robinhood/token/{out.token}"
-    _reply(conn, m, f"🚀 ${r['symbol']} is live\n\nCA: {out.token}\n\nCreator fees go to your wallet once the coin pays "
-                    f"back its ~$2 launch.\n\n{link}")
+    yours = (f"Paired with {pair}. Its creator fees go straight to your wallet, paid in {pair}." if pair else
+             "Creator fees go to your wallet once the coin pays back its ~$2 launch.")
+    _reply(conn, m, f"🚀 ${r['symbol']} is live\n\nCA: {out.token}\n\n{yours}\n\n{link}")
     # they asked before and it was refused (no image, say): the answer goes under that first post too
     for old in rows(conn, "SELECT x_post_id FROM launch_requests WHERE author_id=? AND upper(symbol)=? AND "
                           "status='refused' AND id<?", (r["author_id"], r["symbol"].upper(), r["id"])):

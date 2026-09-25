@@ -15,12 +15,15 @@ and trading continues with every fill already journalled.
 """
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
+
+from pathlib import Path
 
 from ..db import journal_append, rows, tx, utcnow
 from ..sources.x_api import XClient, XNotConfigured
@@ -34,14 +37,24 @@ TRADE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "correction
 # the profile (a reply to its own post only shows inside the thread). The reasons under a buy and a launch
 # receipt come seconds after their post and stay replies, like replies to other people.
 QUOTE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "watch", "pass"}
+MEDIA_DIR = Path(__file__).parent / "media"  # images a post can attach, shipped with the code
+
+
+def media_path(name: str) -> Path | None:
+    """The file for an attachable image name, or None if there's no such file (names only: no paths)."""
+    if not name or "/" in name or "\\" in name or name.startswith("."):
+        return None
+    p = MEDIA_DIR / name
+    return p if p.is_file() else None
 
 
 def enqueue(conn: sqlite3.Connection, d: Draft) -> tuple[int, bool]:
     existing = conn.execute("SELECT id FROM posts WHERE idempotency_key=?", (d.idempotency_key,)).fetchone()
     if existing:
         return int(existing["id"]), False
-    cur = conn.execute("INSERT INTO posts(idempotency_key,kind,body,ref,created_at,reply_to_key) VALUES(?,?,?,?,?,?)",
-                       (d.idempotency_key, d.kind, d.body, d.ref, utcnow(), d.reply_to))
+    cur = conn.execute("INSERT INTO posts(idempotency_key,kind,body,ref,created_at,reply_to_key,media) VALUES(?,?,?,?,?,?,?)",
+                       (d.idempotency_key, d.kind, d.body, d.ref, utcnow(), d.reply_to,
+                        json.dumps(list(d.media)) if d.media else None))
     journal_append(conn, "post_queued", {"post_id": cur.lastrowid, "kind": d.kind, "body": d.body,
                                          "key": d.idempotency_key}, ref=d.ref or None)
     return int(cur.lastrowid), True
@@ -109,7 +122,13 @@ def _send_one(conn: sqlite3.Connection, x: XClient, row: dict[str, Any], reply_t
     pid, attempts = row["id"], row["attempts"] + 1
     quote = reply_to if reply_to and row["kind"] in QUOTE_KINDS and not (row.get("reply_to_key") or "").startswith("x:")         else None
     try:
-        res = x.create_post(row["body"], reply_to=None if quote else reply_to, quote=quote)
+        media_ids = []
+        for name in json.loads(row.get("media") or "[]"):  # uploaded fresh each try: an unused upload just expires
+            path = media_path(name)
+            if path is None:
+                return _set(conn, pid, "failed", f"image not found: {name}")
+            media_ids.append(x.upload_image(str(path)))
+        res = x.create_post(row["body"], reply_to=None if quote else reply_to, quote=quote, media_ids=media_ids or None)
     except XNotConfigured as exc:
         return _set(conn, pid, "pending", str(exc), attempts=row["attempts"])
     except httpx.TimeoutException as exc:

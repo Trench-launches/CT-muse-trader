@@ -3,7 +3,8 @@
 Signatures come from the verified PonsV2LaunchFactory source (Sourcify):
   launchToken((name, symbol, logo, description, (twitter, telegram, discord, website, farcaster),
                creatorFeeRecipient, creatorTaxBps, buybackEnabled, expectedEconomics, salt), launchConfigId, pairToken)
-  payable, msg.value must equal launchFee(); launchConfigId 0 and pairToken 0x0 (native ETH) are the only config.
+  payable, msg.value must equal launchFee() in ETH whatever the pair; launchConfigId 0. pairToken is 0x0 for ETH or
+  a stock token from approvedPairTokens (see pairs.py); the curve then trades against that token.
   transferCreatorFeeRecipient(token, newRecipient): callable by the current recipient.
 Every transaction is simulated first and journalled; this wallet never trades.
 """
@@ -64,30 +65,34 @@ class Launcher:
             raise LaunchBlocked("connected RPC is not Robinhood Chain")
 
     def launch_calldata(self, *, name: str, symbol: str, logo: str, description: str, socials: dict[str, str],
-                        economics: bytes, salt: bytes) -> str:
+                        economics: bytes, salt: bytes, pair_token: str = ZERO_ADDRESS, recipient: str | None = None) -> str:
         params = (name, symbol, logo, description, tuple(socials.get(k, "") or "" for k in SOCIALS),
-                  checksum(self.wallet), self.s.launch_creator_tax_bps, False, economics, salt)
-        return selector(LAUNCH_SIG) + encode([TOKEN_PARAMS, "uint256", "address"], [params, 0, ZERO_ADDRESS]).hex()
+                  checksum(recipient or self.wallet), self.s.launch_creator_tax_bps, False, economics, salt)
+        return selector(LAUNCH_SIG) + encode([TOKEN_PARAMS, "uint256", "address"],
+                                             [params, 0, checksum(pair_token)]).hex()
 
-    def economics(self) -> bytes:
+    def economics(self, pair_token: str = ZERO_ADDRESS) -> bytes:
         """The launch terms as the factory states them now, so a launch reverts if they change under us."""
         try:
             out = self.rpc.eth_call(self.pons.factory, encode_call("previewLaunchEconomics(uint256,address)", 0,
-                                                                    ZERO_ADDRESS))
+                                                                    checksum(pair_token)))
             return bytes(decode_output(["bytes32"], out)[0])
         except (RpcError, ValueError):
             return b"\0" * 32  # zero skips the check
 
     def launch(self, *, name: str, symbol: str, logo: str, description: str, socials: dict[str, str],
-               ref: str) -> Launched:
-        """Launch the coin with this wallet as its creator-fee recipient. Raises LaunchBlocked if it can't."""
+               ref: str, pair_token: str = ZERO_ADDRESS, recipient: str | None = None) -> Launched:
+        """Launch the coin, paired with ETH or a stock token. Its creator-fee recipient is this wallet (the fees pay
+        the launch back, then get handed over) unless `recipient` names someone else. Raises LaunchBlocked."""
         self._ready()
         if not self.pons.can_launch(self.wallet):
             raise LaunchBlocked("Pons isn't taking launches from this wallet right now")
         fee = self.pons.launch_fee()
         data = self.launch_calldata(name=name, symbol=symbol, logo=logo, description=description, socials=socials,
-                                    economics=self.economics(), salt=os.urandom(32))
-        rc = self._send(self.pons.factory, data, fee, "launch", {"name": name, "symbol": symbol, "ref": ref})
+                                    economics=self.economics(pair_token), salt=os.urandom(32), pair_token=pair_token,
+                                    recipient=recipient)
+        rc = self._send(self.pons.factory, data, fee, "launch", {"name": name, "symbol": symbol, "ref": ref,
+                                                                 "pair_token": pair_token})
         token = curve = None
         for lg in rc.get("logs", []):
             if lg["topics"] and lg["topics"][0].lower() == TOKEN_LAUNCHED and lg["address"].lower() == self.pons.factory.lower():

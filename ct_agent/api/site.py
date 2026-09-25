@@ -153,12 +153,12 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
 def _recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
     """Coins the launchpad launched, newest first: who made it, and the proof (MOOSE's announcement, the tx)."""
     out = []
-    for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, r.logo, r.tx_hash, r.launched_at, r.status, "
+    for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, r.logo, r.tx_hash, r.launched_at, r.status, r.pair_symbol, "
                         "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
                         "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
                         "WHERE r.status IN ('launched','handed_over') ORDER BY r.launched_at DESC LIMIT ?", (n,)):
         out.append({k: r[k] for k in ("symbol", "name", "handle", "token", "logo", "tx_hash", "launched_at",
-                                      "announce_x_id")} | {"fees_handed_over": r["status"] == "handed_over"})
+                                      "announce_x_id", "pair_symbol")} | {"fees_handed_over": r["status"] == "handed_over"})
     return out
 
 

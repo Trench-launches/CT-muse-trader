@@ -191,7 +191,8 @@ CREATE TABLE IF NOT EXISTS posts (
     last_error       TEXT,
     created_at       TEXT NOT NULL,
     sent_at          TEXT,
-    reply_to_key     TEXT            -- idempotency_key of the post this one replies to (threads)
+    reply_to_key     TEXT,           -- idempotency_key of the post this one replies to (threads)
+    media            TEXT            -- JSON list of image files in ct_agent/social/media to attach
 );
 
 -- What happened after every call (buy/watch/pass): variables at the time and
@@ -271,7 +272,9 @@ CREATE TABLE IF NOT EXISTS launch_requests (
     cost_wei      TEXT,                   -- launch fee + gas, what the fees pay back first
     earned_wei    TEXT,                   -- creator fees MOOSE has collected for this coin
     launched_at   TEXT,
-    handed_at     TEXT
+    handed_at     TEXT,
+    pair_symbol   TEXT,                   -- a stock the coin trades against (TSLA...); NULL for ETH
+    pair_token    TEXT                    -- that stock token's address
 );
 CREATE INDEX IF NOT EXISTS ix_launch_requests_author ON launch_requests(author_id, created_at);
 CREATE INDEX IF NOT EXISTS ix_launch_requests_status ON launch_requests(status);

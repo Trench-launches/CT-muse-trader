@@ -1,6 +1,7 @@
 """Launchpad: requests on X are checked and screened, approved ones launched, and each coin's creator fees handed
 to the requester once they've paid the launch back."""
 import json
+import re
 from types import SimpleNamespace
 
 from eth_abi import decode
@@ -246,3 +247,53 @@ def test_any_name_goes_even_a_ticker_that_exists_but_not_moose(settings, db):
     moose = _ctx(settings, db, _Brain(symbol="MOOSE", name="Moose Two"))
     assert take_request(moose, {**_m("62", text=f"launch $MOOSE Moose Two {WALLET}"), "author_id": "u8"}) == "refused"
     assert "$MOOSE is my own coin" in _replies(db)[-1]
+
+
+TSLA = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
+
+
+def test_a_stock_paired_coin_pays_its_creator_from_the_start(settings, db):
+    ctx = _ctx(settings, db)
+    assert take_request(ctx, _m("70", text=f"@MooseByMuse launch $CAT Cat Coin\n\npaired with $tsla\n\nfees to {WALLET}")) \
+        == "approved"
+    r = rows(db, "SELECT * FROM launch_requests")[0]
+    assert (r["symbol"], r["pair_symbol"], r["pair_token"]) == ("CAT", "TSLA", TSLA)
+    ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
+    lp = _Launcher(pending=10**18, swept=10**18)
+    launchpad_once(ctx, lp)
+    assert "Paired with TSLA" in rows(db, "SELECT body FROM posts WHERE kind='launch_announce'")[0]["body"]
+    _announced(db, "990")
+    launchpad_once(ctx, lp)
+    assert (lp.last["pair_token"], lp.last["recipient"]) == (TSLA, WALLET)  # the creator is the fee recipient at launch
+    r = rows(db, "SELECT * FROM launch_requests")[0]
+    assert r["status"] == "handed_over" and r["handed_at"]
+    receipt = rows(db, "SELECT body FROM posts WHERE kind='launch_receipt'")[0]["body"]
+    assert "Pair: TSLA" in receipt and "straight to @catfan, paid in TSLA" in receipt
+    assert "paid in TSLA" in _replies(db)[-1]
+    for body in _replies(db):  # X refuses a post with more than one cashtag
+        assert len(set(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", body))) <= 1, body
+    launchpad_once(ctx, lp)  # nothing left for MOOSE to do: no sweeps, no hand-over
+    assert [c[0] for c in lp.calls] == ["launch"]
+
+
+def test_eth_launches_pass_no_pair_and_an_unknown_pair_is_refused(settings, db):
+    ctx = _ctx(settings, db)
+    assert take_request(ctx, _m("71", text=f"launch $CAT Cat Coin pair: ETH, a pair of socks {WALLET}")) == "approved"
+    assert rows(db, "SELECT pair_symbol FROM launch_requests")[0]["pair_symbol"] is None
+    assert take_request(ctx, {**_m("72", text=f"launch $CAT Cat Coin pair: DOGE {WALLET}"), "author_id": "u5"}) == "refused"
+    assert "not $DOGE" in _replies(db)[-1]
+    ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
+    lp = _Launcher()
+    launchpad_once(ctx, lp)
+    _announced(db, "991")
+    launchpad_once(ctx, lp)
+    assert lp.last["pair_token"] == "0x0000000000000000000000000000000000000000" and lp.last["recipient"] is None
+
+
+def test_launch_calldata_for_a_stock_pair_names_the_pair_and_the_creator(settings, db):
+    s = settings.model_copy(update={"launcher_wallet_private_key": "0x" + "22" * 32})
+    lp = Launcher(s, None, None, db)
+    data = lp.launch_calldata(name="Cat Coin", symbol="CAT", logo="l", description="d", socials={},
+                              economics=b"\1" * 32, salt=b"\2" * 32, pair_token=TSLA, recipient=WALLET)
+    params, cfg, pair = decode([TOKEN_PARAMS, "uint256", "address"], bytes.fromhex(data[10:]))
+    assert params[5].lower() == WALLET and (cfg, pair.lower()) == (0, TSLA.lower())

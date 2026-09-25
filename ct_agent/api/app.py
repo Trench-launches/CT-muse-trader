@@ -64,6 +64,7 @@ class ChatIn(BaseModel):
 
 class PostIn(BaseModel):
     text: str = Field(min_length=1, max_length=280)
+    image: str | None = None  # a file in ct_agent/social/media, e.g. "moose-cap.png"
 
 
 class ResolveIn(BaseModel):
@@ -196,7 +197,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         fee wallet from the form picks out the visitor's own request. All of it is public on X."""
         from datetime import datetime, timedelta, timezone
         since = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(timespec="seconds")
-        q = ("SELECT r.id, r.status, r.reason, r.symbol, r.name, r.handle, r.token, r.tx_hash, "
+        q = ("SELECT r.id, r.status, r.reason, r.symbol, r.name, r.handle, r.token, r.tx_hash, r.pair_symbol, "
              "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
              "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
              "WHERE upper(r.symbol)=? AND r.created_at>=?")
@@ -377,11 +378,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         same daily cap, retries and journal as every other post. The same text is only ever queued once."""
         import hashlib
         from ..social.compose import Draft
-        from ..social.outbox import enqueue
+        from ..social.outbox import enqueue, media_path
         text = body.text.strip()
-        key = "note:" + hashlib.sha256(text.encode()).hexdigest()[:16]
-        pid, created = enqueue(conn, Draft("note", text, "", key))
-        journal_append(conn, "post_queued_by_hand", {"post_id": pid, "by": who, "text": text, "new": created})
+        if body.image and media_path(body.image) is None:
+            raise HTTPException(400, f"no image called {body.image!r} in ct_agent/social/media")
+        key = "note:" + hashlib.sha256((text + (body.image or "")).encode()).hexdigest()[:16]
+        pid, created = enqueue(conn, Draft("note", text, "", key, media=(body.image,) if body.image else ()))
+        journal_append(conn, "post_queued_by_hand", {"post_id": pid, "by": who, "text": text, "image": body.image,
+                                                     "new": created})
         return {"id": pid, "queued": created}
 
     @app.post("/admin/posts/{post_id}/resolve")

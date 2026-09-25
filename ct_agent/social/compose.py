@@ -22,6 +22,7 @@ class Draft:
     ref: str
     idempotency_key: str
     reply_to: str | None = None  # idempotency_key of the post to thread under
+    media: tuple[str, ...] = ()  # image files in ct_agent/social/media to attach
 
 
 def _fit(parts_required: list[str], optional: list[str]) -> str:

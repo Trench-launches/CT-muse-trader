@@ -166,15 +166,21 @@ class XClient:
         r.raise_for_status()
         return str(r.json()["data"]["id"])
 
-    def upload_video(self, path: str, media_type: str = "video/mp4") -> str:
-        """Chunked video upload (initialize, append 4 MB segments, finalize, wait for processing). Returns the
+    def upload_image(self, path: str) -> str:
+        """Upload a PNG/JPEG/GIF/WEBP for a post; returns the media id."""
+        ext = path.rsplit(".", 1)[-1].lower()
+        kind = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "gif": "image/gif", "webp": "image/webp"}[ext]
+        return self.upload_video(path, kind, category="tweet_gif" if ext == "gif" else "tweet_image")
+
+    def upload_video(self, path: str, media_type: str = "video/mp4", category: str = "tweet_video") -> str:
+        """Chunked media upload (initialize, append 4 MB segments, finalize, wait for processing). Returns the
         media id to attach to a post. Needs the media.write scope on the posting login."""
         import os
         import time
         auth = {"authorization": f"Bearer {self._user_token()}"}
         size = os.path.getsize(path)
         r = self._http.post(f"{API}/media/upload/initialize", headers=auth,
-                            json={"media_type": media_type, "total_bytes": size, "media_category": "tweet_video"})
+                            json={"media_type": media_type, "total_bytes": size, "media_category": category})
         r.raise_for_status()
         media_id = str(r.json()["data"]["id"])
         with open(path, "rb") as f:

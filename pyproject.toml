@@ -32,7 +32,7 @@ build-backend = "setuptools.build_meta"
 include = ["ct_agent*"]
 
 [tool.setuptools.package-data]
-ct_agent = ["schema.sql"]
+ct_agent = ["schema.sql", "social/media/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
