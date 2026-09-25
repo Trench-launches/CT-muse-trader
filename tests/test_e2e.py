@@ -121,9 +121,7 @@ def test_full_paper_cycle(tmp_path):
     social_once(ctx)
     assert len(sent) == 1 and sent[0].startswith("Test buy $HOT") and hot.token not in sent[0]  # ticker only
     assert "Exits: -70% stop" in sent[0] and len(sent[0]) <= 280
-    assert "
-Entry: $" in sent[0] and " MC
-" in sent[0], sent[0]
+    assert "\nEntry: $" in sent[0] and " MC\n" in sent[0], sent[0]
 
     # second cycle: position held, no duplicate entry or post
     out2 = trader_once(ctx)
