@@ -66,7 +66,7 @@ def test_scanner_only_hands_over_calls_that_ran_30pct_in_their_eth_pool(settings
                ((datetime.now(timezone.utc) - timedelta(hours=7)).isoformat(timespec="seconds"), e))
     assert [r["token"] for r in scanner.refresh(ctx)] == [a]
     # bought calls aren't handed over again
-    scanner.mark_bought(db, a)
+    scanner.mark_bought(db, a.upper().replace("0X", "0x"))  # the engine passes a checksummed address
     assert scanner.refresh(ctx) == []
     facts = scanner.call_facts(dict(db.execute("SELECT * FROM scanner_calls WHERE token=?", (a,)).fetchone()), 30)
     assert facts["signals"] == {"positive": ["SM net buy $5k"]} and facts["move_since_call_pct"] == 35.0

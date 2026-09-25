@@ -188,7 +188,7 @@ def mark_analysed(conn: Any, call_id: int, decision_id: int) -> None:
 
 def mark_bought(conn: Any, token: str) -> None:
     with tx(conn):
-        conn.execute("UPDATE scanner_calls SET status='bought' WHERE token=? AND status='watching'", (token,))
+        conn.execute("UPDATE scanner_calls SET status='bought' WHERE lower(token)=lower(?) AND status='watching'", (token,))
 
 
 def call_facts(call: dict[str, Any], trigger_pct: float) -> dict[str, Any]:
