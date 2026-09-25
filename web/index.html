@@ -504,6 +504,10 @@ body.killed .paused-note { display: block; }
 .sc-chip.up { background: var(--green-soft); color: var(--green); } .sc-chip.down { background: var(--coral-soft); color: var(--coral); }
 .sc-meta { margin-top: 10px; font-size: var(--t-sm); color: var(--ink-2); }
 .sc-meta b { color: var(--ink); font-weight: 600; }
+.sc-acct { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--surface); font-size: var(--t-sm); color: var(--ink-2); }
+.sc-acct[hidden] { display: none; }
+.sc-acct b { font-family: var(--f-display); font-weight: 500; font-size: clamp(20px, 2vw, 26px); letter-spacing: -0.02em; color: var(--ink); }
+.sc-acct a { color: inherit; }
 .sc-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(14px, 1.6vw, 20px); }
 .sc-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
 .sc-tile .v { font-family: var(--f-display); font-size: clamp(28px, min(2.8vw, 5vh), 44px); letter-spacing: -0.04em; line-height: 1; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -919,7 +923,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   <div class="wrap">
     <div class="score-head">
       <div><span class="kicker">Scorecard</span><h2 class="h2" id="h-score">Judge it by its numbers.</h2></div>
-      <span class="pill amber">TESTING PHASE · simulated, not onchain</span>
+      <span class="pill amber" id="scPill">TESTING PHASE · simulated, not onchain</span>
     </div>
     <div class="panel grid-bg score-panel">
     <div class="score-grid">
@@ -927,6 +931,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div style="display:flex;justify-content:space-between;gap:12px"><span class="sc-lbl">Net P&amp;L · closed trades</span><span class="example">example data</span></div>
         <div class="sc-net"><span class="big" id="scNet" data-count="0.184" data-dec="3" data-prefix="+">+0.184</span><span class="unit">ETH</span><span class="sc-chip up" id="scRet">+8.0%</span></div>
         <p class="sc-meta" id="scMeta">on <b>2.300 ETH</b> traded · <b>+0.004 ETH</b> unrealised on 1 open trade</p>
+        <div class="sc-acct" id="scAcct" hidden><span class="sc-lbl">Account balance</span><b id="scAcctV"></b><span id="scAcctS"></span></div>
         <svg class="spark" id="spark" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Cumulative profit and loss"></svg>
         <div class="spark-tip" id="sparkTip"></div>
         <p class="sc-meta" id="spLbl" style="font-family:var(--f-mono);font-size:12px">Cumulative P&amp;L, trade by trade · hover the line</p>
@@ -1541,6 +1546,19 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     $("#scMeta").innerHTML = (sc.closed ? `on <b>${(sc.deployed_eth ?? 0).toFixed(dp(sc.deployed_eth))} ETH</b> traded` : "No closed trades yet")
       + (open ? ` · <b class="${cls(unreal)}">${sgn(unreal)} ETH${unrealPct}</b> unrealised on ${open} open trade${open === 1 ? "" : "s"}` : " · nothing open right now")
       + (sc.history ? (sc.history.includes.includes("net_eth") ? " · incl. MOOSE v1" : " · MOOSE v1 not in P&amp;L") : "");
+    const live = d.mode === "live";
+    $("#scPill").className = "pill " + (live ? "green" : "amber");
+    $("#scPill").textContent = live ? "LIVE · real trades, onchain" : "TESTING PHASE · simulated, not onchain";
+    /* account balance: the trading wallet's ETH plus what the open trades are worth now */
+    const acct = $("#scAcct");
+    if (live && d.wallet && d.wallet.eth != null) {
+      const inTrades = (d.positions || []).reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_eth || 0), 0);
+      const n = (d.positions || []).length;
+      $("#scAcctV").textContent = `${(Number(d.wallet.eth) + inTrades).toFixed(3)} ETH`;
+      $("#scAcctS").innerHTML = `${Number(d.wallet.eth).toFixed(3)} ETH in the <a href="https://explorer.mainnet.chain.robinhood.com/address/${esc(d.wallet.address)}" target="_blank" rel="noopener">trading wallet</a>`
+        + (n ? ` · ${inTrades.toFixed(inTrades < 0.1 ? 4 : 3)} ETH in ${n} open trade${n === 1 ? "" : "s"}` : "");
+      acct.hidden = false;
+    } else acct.hidden = true;
     setCount($("#scTaken"), sc.taken ?? sc.closed); const v1 = sc.history?.v1_trades || 0;
     $("#scTakenS").textContent = v1 ? `incl. ${v1} test trades from MOOSE v1 · ${open} open` : `${sc.closed} closed · ${open} open`;
     $("#scRate").textContent = sc.win_rate == null ? "—" : `${Math.round(sc.win_rate)}%`;
