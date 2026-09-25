@@ -1032,7 +1032,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   $$("[data-count]").forEach(el => onView(el, () => {
     if (reduce) return;
     const dec = +(el.dataset.dec || 0), t0 = performance.now();
-    const step = t => { const target = +el.dataset.count, pre = el.dataset.prefix || "", p = Math.max(0, Math.min(1, (t - t0) / 1300)), v = target * (1 - Math.pow(1 - p, 3)); el.textContent = pre + (dec ? v.toFixed(dec) : fmt(Math.round(v))); if (p < 1) requestAnimationFrame(step); };
+    const step = t => { if (el.dataset.count == null) return;  // blanked until live data lands
+      const target = +el.dataset.count, pre = el.dataset.prefix || "", p = Math.max(0, Math.min(1, (t - t0) / 1300)), v = target * (1 - Math.pow(1 - p, 3)); el.textContent = pre + (dec ? v.toFixed(dec) : fmt(Math.round(v))); if (p < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }, .5));
 
@@ -1538,7 +1539,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     const held = h => h == null ? "—" : h < 1 ? `${Math.max(1, Math.round(h * 60))}m` : h < 48 ? `${Math.floor(h)}h ${String(Math.round(h % 1 * 60)).padStart(2, "0")}m` : `${Math.round(h / 24)}d`;
     const eth = (el, v) => { el.className = "v " + cls(v ?? 0); el.innerHTML = v == null ? "—" : `${sgn(v)}<small>ETH</small>`; };
     const net = $("#scNet"); net.dataset.prefix = sc.net_eth > 0 ? "+" : sc.net_eth < 0 ? "-" : ""; net.dataset.dec = dp(sc.net_eth); setCount(net, Math.abs(sc.net_eth), dp(sc.net_eth), net.dataset.prefix);
-    const ret = sc.return_pct ?? 0; $("#scRet").className = "sc-chip " + (ret > 0 ? "up" : ret < 0 ? "down" : ""); $("#scRet").textContent = `${ret > 0 ? "+" : ""}${ret.toFixed(1)}%`;
+    const ret = sc.return_pct ?? 0; $("#scRet").style.display = ""; $("#scRet").className = "sc-chip " + (ret > 0 ? "up" : ret < 0 ? "down" : ""); $("#scRet").textContent = `${ret > 0 ? "+" : ""}${ret.toFixed(1)}%`;
     const open = sc.open ?? 0, unreal = sc.unrealized_eth ?? 0;
     const inOpen = (d.positions || []).reduce((a, p) => a + (p.entry_eth || 0), 0);
     const unrealPct = inOpen ? ` (${unreal > 0 ? "+" : unreal < 0 ? "−" : ""}${Math.abs(unreal / inOpen * 100).toFixed(1)}%)` : "";
@@ -1546,7 +1547,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       + (open ? ` · <b class="${cls(unreal)}">${sgn(unreal)} ETH${unrealPct}</b> unrealised on ${open} open trade${open === 1 ? "" : "s"}` : " · nothing open right now")
       + (sc.history ? (sc.history.includes.includes("net_eth") ? " · incl. MOOSE v1" : " · MOOSE v1 not in P&amp;L") : "");
     const live = d.mode === "live";
-    $("#scPill").className = "pill " + (live ? "green" : "amber");
+    $("#scPill").style.display = ""; $("#scPill").className = "pill " + (live ? "green" : "amber");
     $("#scPill").textContent = live ? "LIVE · real trades, onchain" : "TESTING PHASE · simulated, not onchain";
     /* account balance: the trading wallet's ETH plus what the open trades are worth now */
     const acct = $("#scAcct");
@@ -1572,9 +1573,19 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   };
   const load = async () => {
     try { const r = await apiFetch("/site", { cache: "no-store" }); if (!r.ok) throw new Error(r.status); hydrate(await r.json()); }
-    catch (e) { console.warn("live data unavailable, showing example data", e); }
+    catch (e) { console.warn("live data unavailable, retrying", e); }
   };
-  if (!(location.hostname === "localhost" && location.search.includes("example"))) { load(); setInterval(load, 30000); }
+  if (!(location.hostname === "localhost" && location.search.includes("example"))) {
+    /* the scorecard never shows made-up numbers: blank until the real data lands (a failed load just retries) */
+    ["#scNet", "#scTaken", "#scRate", "#scAvg", "#scHold", "#scBest", "#scWorst"].forEach(s => {
+      const el = $(s); el.removeAttribute("data-count"); el.classList.remove("up-t", "down-t"); el.textContent = "—"; });
+    ["#scTakenS", "#scWLs", "#scBestS", "#scWorstS", "#scAvgS"].forEach(s => { $(s).textContent = ""; });
+    hide($("#scRet")); hide($("#scPill")); $("#scWL").innerHTML = ""; $$("#score .example").forEach(hide);
+    $("#scMeta").textContent = "Loading live trades…"; $("#spLbl").textContent = "";
+    marquee(`<span class="rc-empty">Loading live trades…</span>`, false);
+    pnl = [0]; drawSpark();
+    load(); setInterval(load, 30000);
+  }
 
 })();
 </script>
