@@ -63,6 +63,11 @@ def decisions_once(ctx: Context) -> dict:
 
 def social_once(ctx: Context) -> dict:
     from ..social.replies import replies_once
+    from ..strategy.engine import post_jobs_once
+    try:  # the trade posts the exit loop left (sells, updates): written first, with Muse's words
+        post_jobs_once(ctx)
+    except Exception as exc:
+        log.warning("trade post jobs failed: %s", exc)
     try:
         replied = replies_once(ctx)
     except Exception as exc:  # replies are optional: a failure here never stops trade posts going out

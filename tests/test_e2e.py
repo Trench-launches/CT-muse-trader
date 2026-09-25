@@ -17,7 +17,7 @@ from ct_agent.db import journal_recent, journal_verify, rows
 from ct_agent.sources.store import SourceIn, add_source
 from ct_agent.workers.indexer import index_once
 from ct_agent.workers.research import research_once
-from ct_agent.workers.runner import social_once, trader_once
+from ct_agent.workers.runner import exits_once, social_once, trader_once
 
 from .fakes import FakeChain, FakeToken, addr
 
@@ -136,9 +136,12 @@ def test_full_paper_cycle(tmp_path):
 
     # price collapses -> stop loss -> exit posted, loss logged
     hot.real_quote = int(0.2 * ETH)
-    out3 = trader_once(ctx)
+    calls = len(muse.calls)
+    out3 = exits_once(ctx)
     assert out3["exits"][0]["action"] == "exit" and "stop loss" in out3["exits"][0]["reason"]
+    assert len(muse.calls) == calls and journal_recent(ctx.conn, kind="post_job")  # the sell didn't wait on Muse
     social_once(ctx)
+    assert len(muse.calls) > calls  # the post-mortem is written in the posting loop
     assert sent[-1].startswith("Top blasted $HOT in testing. Entry was poor.") and "Realised P&L: -" in sent[-1], sent[-1]
     assert "Underestimated how fast the buyers could leave." in sent[-1] and "Lesson: wait for buys from more wallets." in sent[-1]
     assert journal_recent(ctx.conn, kind="lesson")[0]["payload"]["lesson"] == "wait for buys from more wallets"

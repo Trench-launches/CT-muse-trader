@@ -975,11 +975,12 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
                 continue
         pnl_eth = realized + fill.quote_in - pos["entry_quote"]
         pnl_pct = pnl_eth / pos["entry_quote"] * 100 if pos["entry_quote"] else 0
-        story = _post_mortem(ctx, pos, reason, pnl_pct, age_h, symbol) if pnl_eth < 0 else {}
-        enqueue(conn, compose.trade_exit(mode=pos["mode"], symbol=symbol, token=pos["token"], pnl_pct=pnl_pct,
-                                         pnl_eth=pnl_eth, sold_pct=left / pos["entry_tokens"] * 100 if pos["entry_tokens"] else 100,
-                                         at=_at(ctx, pos["token"], fill), why=why or reason, position_id=pos["id"],
-                                         last_bit=bool(hits), **story))
+        _post_later(ctx, "trade_exit", dict(mode=pos["mode"], symbol=symbol, token=pos["token"], pnl_pct=pnl_pct,
+                                            pnl_eth=pnl_eth, sold_pct=left / pos["entry_tokens"] * 100 if pos["entry_tokens"] else 100,
+                                            at=_at(ctx, pos["token"], fill), why=why or reason, position_id=pos["id"],
+                                            last_bit=bool(hits)),
+                    {"type": "post_mortem", "pos": pos, "reason": reason, "pnl_pct": pnl_pct, "age_h": age_h}
+                    if pnl_eth < 0 else None)
         results.append({"position_id": pos["id"], "action": "exit", "reason": reason, "pnl_pct": round(pnl_pct, 2)})
     return results
 
@@ -1008,18 +1009,19 @@ def _take_profit(ctx: Context, pos: dict[str, Any], venue: str, tokens: float, r
     pnl_pct = (mult - 1) * 100
     # this post is the update for the gain so far: Muse says why the rest is still held, and the milestone
     # updates it already covers don't go out again separately
-    thesis = _updated_thesis(ctx, pos, symbol, pnl_pct, _market_cap(ctx, pos["token"], fill.spot_price or fill.avg_price),
-                             note=f"just sold {share * 100:.0f}% at {mult:.1f}x; say why the other {left_pct:.0f}% "
-                                  "is still worth holding, under 120 characters") if left_pct > 0 else ""
     s, key = ctx.settings, f"milestones:{pos['id']}"
     if s.x_update_step_pct > 0:
         done = {s.x_update_step_pct * k for k in range(1, int(pnl_pct // s.x_update_step_pct) + 1)}
         kv_set(conn, key, sorted(set(kv_get(conn, key, []) or []) | done))
-    enqueue(conn, compose.take_profit(mode=pos["mode"], symbol=symbol, token=pos["token"], sold_pct=share * 100,
-                                      at=_at(ctx, pos["token"], fill),
-                                      why=f"{nth} target hit at {mult:.1f}x, stop moved to entry{nxt}",
-                                      left_pct=left_pct, realized_eth=fill.quote_in - pos["entry_quote"] * share,
-                                      position_id=pos["id"], rung=rung, thesis=thesis))
+    _post_later(ctx, "take_profit", dict(mode=pos["mode"], symbol=symbol, token=pos["token"], sold_pct=share * 100,
+                                         at=_at(ctx, pos["token"], fill),
+                                         why=f"{nth} target hit at {mult:.1f}x, stop moved to entry{nxt}",
+                                         left_pct=left_pct, realized_eth=fill.quote_in - pos["entry_quote"] * share,
+                                         position_id=pos["id"], rung=rung),
+                {"type": "thesis", "pos": pos, "pnl_pct": pnl_pct,
+                 "mc": _market_cap(ctx, pos["token"], fill.spot_price or fill.avg_price),
+                 "note": f"just sold {share * 100:.0f}% at {mult:.1f}x; say why the other {left_pct:.0f}% is still "
+                         "worth holding, under 120 characters"} if left_pct > 0 else None)
     return {"position_id": pos["id"], "action": "take_profit", "rung": rung, "multiple": round(mult, 2),
             "sold_eth": round(fill.quote_in, 6)}
 
@@ -1039,10 +1041,40 @@ def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: F
     m = max(crossed, key=abs)
     symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
     mc = _market_cap(ctx, pos["token"], fill.spot_price)
-    thesis = _updated_thesis(ctx, pos, symbol or "?", pnl_pct, mc) if m > 0 else ""
-    enqueue(conn, compose.position_update(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
-                                          price=f"{fill.avg_price:.3g} ETH", milestone=m, plan=_plan(s, hits),
-                                          position_id=pos["id"], mc=mc, thesis=thesis))
+    _post_later(ctx, "position_update", dict(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
+                                             price=f"{fill.avg_price:.3g} ETH", milestone=m, plan=_plan(s, hits),
+                                             position_id=pos["id"], mc=mc),
+                {"type": "thesis", "pos": pos, "pnl_pct": pnl_pct, "mc": mc} if m > 0 else None)
+
+
+def _post_later(ctx: Context, draft: str, kwargs: dict[str, Any], muse: dict[str, Any] | None) -> None:
+    """The exit loop never waits on Muse: it journals the post to write (which compose function, its fields, and
+    what Muse should add), and the posting loop writes it within seconds (post_jobs_once)."""
+    journal_append(ctx.conn, "post_job", {"draft": draft, "kwargs": kwargs, "muse": muse}, ref=kwargs.get("token"))
+
+
+def post_jobs_once(ctx: Context) -> int:
+    """Write the posts the exit loop left: ask Muse for the post-mortem or the updated thesis, then queue the post.
+    Posts carry fixed keys, so a job that runs twice still posts once."""
+    conn = ctx.conn
+    last = kv_get(conn, "post_jobs_cursor") or 0
+    jobs = rows(conn, "SELECT id, payload FROM journal WHERE kind='post_job' AND id>? ORDER BY id", (last,))
+    for j in jobs:
+        p = json.loads(j["payload"]) if isinstance(j["payload"], str) else j["payload"]
+        kw, m = p["kwargs"], p.get("muse") or {}
+        try:
+            if m.get("type") == "post_mortem":
+                kw.update(_post_mortem(ctx, m["pos"], m["reason"], m["pnl_pct"], m["age_h"], kw["symbol"]))
+            elif m.get("type") == "thesis":
+                kw["thesis"] = _updated_thesis(ctx, m["pos"], kw["symbol"], m["pnl_pct"], m["mc"], note=m.get("note", ""))
+        except Exception as exc:  # Muse's words are extra: the post still goes out without them
+            log.warning("muse text for a %s post failed: %s", p["draft"], exc)
+        try:
+            enqueue(conn, getattr(compose, p["draft"])(**kw))
+        except Exception as exc:
+            log.exception("could not write a %s post: %s", p["draft"], exc)
+        kv_set(conn, "post_jobs_cursor", j["id"])
+    return len(jobs)
 
 
 def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: float, mc: str, note: str = "") -> str:
