@@ -271,7 +271,7 @@ def test_a_stock_paired_coin_pays_its_creator_from_the_start(settings, db):
     assert "Pair: TSLA" in receipt and "straight to @catfan, paid in TSLA" in receipt
     assert "paid in TSLA" in _replies(db)[-1]
     for body in _replies(db):  # X refuses a post with more than one cashtag
-        assert len(set(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", body))) <= 1, body
+        assert len(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", body)) <= 1, body
     launchpad_once(ctx, lp)  # nothing left for MOOSE to do: no sweeps, no hand-over
     assert [c[0] for c in lp.calls] == ["launch"]
 

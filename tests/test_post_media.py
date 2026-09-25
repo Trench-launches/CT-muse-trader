@@ -50,3 +50,11 @@ def test_the_admin_endpoint_queues_a_post_with_an_image(settings, db):
     r = api.post("/admin/posts", json={"text": "🎓 migrated", "image": "moose-cap.png"}, headers=auth).json()
     assert r["queued"] is True
     assert rows(db, "SELECT media FROM posts")[0]["media"] == '["moose-cap.png"]'
+
+
+def test_a_post_keeps_only_its_first_cashtag(db):
+    from ct_agent.social.outbox import one_cashtag
+    assert one_cashtag("not the $MOOSE chart. For $MOOSE use the CA") == "not the $MOOSE chart. For MOOSE use the CA"
+    assert one_cashtag("$ROBO paired with $TSLA, MC $63K") == "$ROBO paired with TSLA, MC $63K"
+    enqueue(db, Draft("reply", "$A and $B", "", "k"))
+    assert rows(db, "SELECT body FROM posts")[0]["body"] == "$A and B"

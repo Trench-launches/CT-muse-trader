@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -48,7 +49,24 @@ def media_path(name: str) -> Path | None:
     return p if p.is_file() else None
 
 
+CASHTAG = re.compile(r"\$([A-Za-z][A-Za-z0-9_]{0,14})\b")
+
+
+def one_cashtag(text: str) -> str:
+    """X refuses a post with more than one cashtag, even the same one twice: keep the first, the rest lose their $."""
+    seen = False
+
+    def keep_first(m: re.Match) -> str:
+        nonlocal seen
+        if seen:
+            return m.group(1)
+        seen = True
+        return m.group(0)
+    return CASHTAG.sub(keep_first, text)
+
+
 def enqueue(conn: sqlite3.Connection, d: Draft) -> tuple[int, bool]:
+    d.body = one_cashtag(d.body)
     existing = conn.execute("SELECT id FROM posts WHERE idempotency_key=?", (d.idempotency_key,)).fetchone()
     if existing:
         return int(existing["id"]), False

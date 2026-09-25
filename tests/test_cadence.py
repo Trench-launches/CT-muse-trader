@@ -45,7 +45,7 @@ def test_a_gap_is_filled_in_rotation_and_every_kind_comes_round(settings, db):
     bodies = [r["body"] for r in rows(db, "SELECT body FROM posts ORDER BY id")]
     assert "TALIS +93%" in bodies[1] and "Win rate: 20%" in bodies[3]
     for b in bodies:  # X refuses a post with more than one cashtag
-        assert len(set(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", b))) <= 1, b
+        assert len(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", b)) <= 1, b
 
 
 def test_a_trade_post_counts_as_the_slot_but_replies_do_not(settings, db):
