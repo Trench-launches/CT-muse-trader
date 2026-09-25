@@ -110,10 +110,12 @@ def test_site_lists_pons_scan_buys_next_to_the_smart_money_calls(settings, db):
                                                               0.01, 1000.0, 1e-5))
     db.execute("INSERT INTO scanner_calls(id,token,symbol,called_at,call_price_usd,data,status,first_seen) "
                "VALUES(1,?,'CALL','2026-09-25T01:00:00+00:00',1.0,'{}','bought','2026-09-25T01:00:00+00:00')", (call_tok,))
+    db.execute("UPDATE scanner_calls SET last_move_pct=38.6 WHERE id=1")  # the move when it was bought
     kv_set(db, "marks:2", [0.012])
     d = site_data(db, s)
     assert [w["token"] for w in d["watching"]] == [pons_tok, call_tok]  # the Pons pick first, the call not twice
     assert d["watching"][0]["status"] == "bought" and d["watching"][0]["note"] == "Pons scan pick"
     assert d["watching"][0]["move_pct"] == 20.0 and d["pons_scan"] and d["buy_on_call"]
+    assert d["watching"][1]["move_pct"] == 0  # the call it bought shows the trade now (no marks yet: flat)
     _CACHE.clear()
     assert site_data(db, s.model_copy(update={"pons_scan_enabled": False}))["watching"][0]["token"] == call_tok

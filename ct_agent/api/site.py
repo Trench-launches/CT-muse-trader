@@ -264,6 +264,10 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
                      "progress": max(0.0, min(1.0, p["pnl_pct"] / s.scanner_trigger_pct)) if s.scanner_trigger_pct else 0}
                     for p in reversed(positions) if p["token"].lower() not in called]
             watching = (pons + watching)[:6]
+        live = {p["token"].lower(): p["pnl_pct"] for p in positions}
+        for w in watching:  # a coin it holds shows the trade's P&L now, not the call's move frozen at the buy
+            if w["status"] == "bought" and w["token"].lower() in live:
+                w["move_pct"] = live[w["token"].lower()]
     pending = rows(conn, "SELECT kind, body, created_at FROM posts WHERE status='pending' AND kind!='reply' ORDER BY id LIMIT 1")
     posts = rows(conn, "SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND kind!='reply' ORDER BY id DESC LIMIT 6")
     for j in rows(conn, "SELECT ts, payload FROM journal WHERE kind='post_sent' AND payload LIKE '%\"intro\"%'"):

@@ -1500,7 +1500,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       lbl: sm ? sgnPct(w.move_pct) : null,
       tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)}`)) : "" }));
     $("#wlSub").textContent = sm ? (d.pons_scan ? "Smart-money calls + Pons scan" : "Smart-money calls") : "Close to graduating";
-    $("#wlFootL").textContent = sm ? (d.pons_scan ? "Move since the call or buy" : "Move since the call") : "Curve progress to graduation";
+    $("#wlFootL").textContent = sm ? "P&L on buys, move on calls" : "Curve progress to graduation";
     $("#wlFootR").textContent = sm ? (d.buy_on_call ? "calls bought as they land" : `+${d.trigger_pct}% = buy · ${d.window_h}h window`) : "85% = almost bonded";
     $("#holdSub").textContent = d.mode === "live" ? "Live trades" : "Testing Phase";
     const wal = d.wallet;
