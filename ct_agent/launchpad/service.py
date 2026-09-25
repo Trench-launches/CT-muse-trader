@@ -121,22 +121,7 @@ def launchpad_once(ctx: Any, launcher: Launcher | None = None) -> dict[str, Any]
     launcher = launcher or Launcher(s, ctx.rpc, ctx.pons, conn)
     launched = handed = 0
     for r in rows(conn, "SELECT * FROM launch_requests WHERE status='approved' ORDER BY id LIMIT 3"):
-        conn.execute("UPDATE launch_requests SET status='launching' WHERE id=?", (r["id"],))
-        m = {"id": r["x_post_id"], "author_id": r["author_id"]}
-        try:
-            out = launcher.launch(name=r["name"], symbol=r["symbol"], logo=r["logo"], description=r["description"] or "",
-                                  socials=json.loads(r["socials"] or "{}"), ref=r["x_post_id"])
-        except LaunchBlocked as exc:
-            conn.execute("UPDATE launch_requests SET status='failed', reason=? WHERE id=?", (str(exc)[:300], r["id"]))
-            _reply(conn, m, "Couldn't launch that one right now, something went wrong on my side. Sorry fren, "
-                            "try again later 🫎", kind="launch_failed")
-            continue
-        conn.execute("UPDATE launch_requests SET status='launched', token=?, curve=?, tx_hash=?, cost_wei=?, earned_wei='0', "
-                     "launched_at=? WHERE id=?", (out.token, out.curve, out.tx_hash, str(out.cost_wei), utcnow(), r["id"]))
-        _reply(conn, m, f"Launched ${r['symbol']} for you 🫎\n\nCA: {out.token}\n\nThe creator fees go to your wallet as "
-                        f"soon as the coin pays back its launch cost (about $2 of fees).\n\n"
-                        f"https://gmgn.ai/robinhood/token/{out.token}")
-        launched += 1
+        launched += _launch(ctx, launcher, r)
     for r in rows(conn, "SELECT * FROM launch_requests WHERE status='launched' ORDER BY id"):
         try:
             handed += _maybe_hand_over(ctx, launcher, r)
@@ -148,6 +133,64 @@ def launchpad_once(ctx: Any, launcher: Launcher | None = None) -> dict[str, Any]
     except (LaunchBlocked, Exception) as exc:
         log.warning("escrow claim failed: %s", exc)
     return {"launched": launched, "handed_over": handed}
+
+
+EXPLORER = "https://explorer.mainnet.chain.robinhood.com"
+
+
+def announce_key(r: dict[str, Any]) -> str:
+    return f"launch_announce:{r['id']}"
+
+
+def _by(r: dict[str, Any]) -> str:
+    return f"@{r['handle']}" if r.get("handle") else "its creator"
+
+
+def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
+    """Announce, launch, then post the receipt. The coin's X link is written onchain at launch and can't change,
+    so MOOSE's announcement goes out first and the coin links to it (unless they gave their own link)."""
+    conn = ctx.conn
+    key = announce_key(r)
+    ann = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?", (key,)).fetchone()
+    if ann is None:
+        desc = f"\n\n{r['description']}" if r["description"] else ""
+        enqueue(conn, Draft("launch_announce", f"New launch on the MOOSE launchpad 🫎\n\n${r['symbol']} · {r['name']}\n"
+                                               f"by {_by(r)}{desc}\n\nLaunching now. CA and receipt below 👇",
+                            r["token"] or f"launch:{r['id']}", key))
+        return 0
+    if ann["status"] in ("pending", "sending"):
+        return 0  # the coin links to that post: launch once it's out
+    posted = ann["status"] == "sent" and ann["x_post_id"]
+    conn.execute("UPDATE launch_requests SET status='launching' WHERE id=?", (r["id"],))
+    socials = json.loads(r["socials"] or "{}")
+    if not socials.get("twitter") and posted:
+        socials["twitter"] = f"https://x.com/MooseByMuse/status/{ann['x_post_id']}"
+    credit = f"Created by @{r['handle']}, launched via @MooseByMuse" if r["handle"] else "Launched via @MooseByMuse"
+    desc = f"{r['description']}. {credit}" if r["description"] else credit
+    m = {"id": r["x_post_id"], "author_id": r["author_id"]}
+    try:
+        out = launcher.launch(name=r["name"], symbol=r["symbol"], logo=r["logo"], description=desc, socials=socials,
+                              ref=r["x_post_id"])
+    except LaunchBlocked as exc:
+        conn.execute("UPDATE launch_requests SET status='failed', reason=? WHERE id=?", (str(exc)[:300], r["id"]))
+        sorry = f"${r['symbol']} didn't launch, something went wrong on my side. No coin was made. Sorry fren 🫎"
+        if posted:
+            enqueue(conn, Draft("launch_receipt", sorry, f"launch:{r['id']}", f"launch_receipt:{r['id']}", reply_to=key))
+        _reply(conn, m, "Couldn't launch that one right now, something went wrong on my side. Sorry fren, "
+                        "try again later 🫎", kind="launch_failed")
+        return 0
+    conn.execute("UPDATE launch_requests SET status='launched', token=?, curve=?, tx_hash=?, cost_wei=?, earned_wei='0', "
+                 "launched_at=?, socials=? WHERE id=?",
+                 (out.token, out.curve, out.tx_hash, str(out.cost_wei), utcnow(), json.dumps(socials), r["id"]))
+    receipt = (f"✅ Launched on Robinhood Chain\n\nCA: {out.token}\nTx: {EXPLORER}/tx/{out.tx_hash}\n\n"
+               f"Launch cost: {out.cost_wei / 10**18:.5f} ETH, paid by MOOSE\n"
+               f"Creator fees go to {_by(r)} once the launch is paid back")
+    if posted:
+        enqueue(conn, Draft("launch_receipt", receipt, out.token, f"launch_receipt:{r['id']}", reply_to=key))
+    link = f"https://x.com/MooseByMuse/status/{ann['x_post_id']}" if posted else f"https://gmgn.ai/robinhood/token/{out.token}"
+    _reply(conn, m, f"Launched ${r['symbol']} for you 🫎\n\nCA: {out.token}\n\nCreator fees go to your wallet once the "
+                    f"coin pays back its ~$2 launch.\n\n{link}")
+    return 1
 
 
 def _maybe_hand_over(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:

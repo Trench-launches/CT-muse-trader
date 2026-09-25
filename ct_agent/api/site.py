@@ -150,6 +150,18 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
     return sc
 
 
+def _recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
+    """Coins the launchpad launched, newest first: who made it, and the proof (MOOSE's announcement, the tx)."""
+    out = []
+    for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, r.logo, r.tx_hash, r.launched_at, r.status, "
+                        "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
+                        "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
+                        "WHERE r.status IN ('launched','handed_over') ORDER BY r.launched_at DESC LIMIT ?", (n,)):
+        out.append({k: r[k] for k in ("symbol", "name", "handle", "token", "logo", "tx_hash", "launched_at",
+                                      "announce_x_id")} | {"fees_handed_over": r["status"] == "handed_over"})
+    return out
+
+
 def site_data(conn: Any, s: Settings) -> dict[str, Any]:
     hit = _CACHE.get("site")
     if hit and time.time() - hit[1] < CACHE_S:
@@ -319,7 +331,8 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "pons_scan": s.pons_scan_enabled, "buy_on_call": s.scanner_buy_on_call,
         "wallet": kv_get(conn, "live_wallet") if s.trading_mode.value == "live" else None,
         "size_pct": s.position_size_pct,
-        "launchpad": {"enabled": s.launchpad_enabled and bool(s.launcher_wallet_private_key)},
+        "launchpad": {"enabled": s.launchpad_enabled and bool(s.launcher_wallet_private_key),
+                      "recent": _recent_launches(conn)},
         "next_post": pending[0] if pending else None,
         "posts_24h": one("SELECT COUNT(*) FROM posts WHERE status='sent' AND sent_at>=?", (day,)),
         "posts": posts, "trade_threads": trade_threads,

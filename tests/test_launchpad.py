@@ -35,6 +35,11 @@ def _m(i="1", text=f"@MooseByMuse launch $CAT Cat Coin, a cat that trades stocks
             "author": author or {"username": "catfan", "created_at": OLD}}
 
 
+def _announced(db, xid="900"):
+    """The announcement went out on X (the social loop does this within seconds in the bot)."""
+    db.execute("UPDATE posts SET status='sent', x_post_id=? WHERE kind='launch_announce' AND status='pending'", (xid,))
+
+
 def _replies(db):
     return [r["body"] for r in rows(db, "SELECT body FROM posts ORDER BY id")]
 
@@ -81,6 +86,7 @@ class _Launcher:
 
     def launch(self, **kw):
         self.calls.append(("launch", kw["symbol"]))
+        self.last = kw
         if self.fail:
             raise LaunchBlocked("launcher wallet is low on ETH")
         return Launched("0x" + "c0" * 20, "0x" + "cc" * 20, "0xtx", 650_000_000_000_000)
@@ -105,8 +111,18 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     take_request(ctx, _m("11"))
     ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
     lp = _Launcher(pending=100)  # fees so far: not enough yet
+    assert launchpad_once(ctx, lp) == {"launched": 0, "handed_over": 0}  # first the announcement, crediting them
+    ann = rows(db, "SELECT * FROM posts WHERE kind='launch_announce'")[0]
+    assert "$CAT · Cat Coin\nby @catfan" in ann["body"] and ann["reply_to_key"] is None and lp.calls == []
+    assert launchpad_once(ctx, lp)["launched"] == 0  # not launched until the announcement is out
+    _announced(db)
     assert launchpad_once(ctx, lp) == {"launched": 1, "handed_over": 0}
-    assert "Launched $CAT for you" in _replies(db)[-1] and ("0x" + "c0" * 20) in _replies(db)[-1]
+    assert lp.last["socials"]["twitter"] == "https://x.com/catcoin"  # they gave their own link: it stays
+    assert lp.last["description"].endswith("Created by @catfan, launched via @MooseByMuse")
+    receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
+    assert receipt["reply_to_key"] == ann["idempotency_key"] and "/tx/0xtx" in receipt["body"]
+    assert ("0x" + "c0" * 20) in receipt["body"] and "paid by MOOSE" in receipt["body"]
+    assert "Launched $CAT for you" in _replies(db)[-1] and "x.com/MooseByMuse/status/900" in _replies(db)[-1]
     lp.pending, lp.swept = 700_000_000_000_000, 700_000_000_000_000  # now the fees cover the launch
     assert launchpad_once(ctx, lp)["handed_over"] == 1
     assert lp.calls[-2:] == [("sweep", "0x" + "cc" * 20), ("hand_over", WALLET)]
@@ -116,18 +132,25 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
 
 
 def test_a_graduated_coin_is_handed_over_and_a_failed_launch_says_sorry(settings, db):
-    ctx = _ctx(settings, db)
+    ctx = _ctx(settings, db, _Brain(twitter=""))  # no link of their own: the coin links to MOOSE's announcement
     take_request(ctx, _m("12"))
     ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.POOL_CREATED))
     lp = _Launcher()
     launchpad_once(ctx, lp)
+    _announced(db, "901")
+    launchpad_once(ctx, lp)
+    assert lp.last["socials"]["twitter"] == "https://x.com/MooseByMuse/status/901"
     assert ("hand_over", WALLET) in lp.calls and ("sweep", "0x" + "cc" * 20) not in lp.calls
     take_request(ctx, {**_m("13", text=f"launch $DOG Dog Coin {WALLET}"), "author_id": "u3"})
     ctx.brain = _Brain(symbol="DOG", name="Dog Coin")
     take_request(ctx, {**_m("14", text=f"launch $DOG Dog Coin {WALLET}"), "author_id": "u3"})
     launchpad_once(ctx, _Launcher(fail=True))
+    _announced(db, "902")
+    launchpad_once(ctx, _Launcher(fail=True))
     assert rows(db, "SELECT status FROM launch_requests WHERE x_post_id='14'")[0]["status"] == "failed"
     assert "something went wrong on my side" in _replies(db)[-1]
+    sorry = rows(db, "SELECT body FROM posts WHERE kind='launch_receipt' AND body LIKE '%didn''t launch%'")
+    assert sorry and "No coin was made" in sorry[0]["body"]  # the announcement never points at nothing
 
 
 def test_launch_calldata_carries_the_coin_and_makes_moose_the_fee_recipient(settings, db):
@@ -141,3 +164,19 @@ def test_launch_calldata_carries_the_coin_and_makes_moose_the_fee_recipient(sett
     assert params[4] == ("https://x.com/catcoin", "", "", "", "")
     assert params[5].lower() == lp.wallet.lower() and params[6] == 200 and params[7] is False
     assert (cfg, pair) == (0, "0x0000000000000000000000000000000000000000")
+
+
+def test_the_site_lists_recent_launches_with_their_proof(settings, db):
+    from ct_agent.api.site import _CACHE, site_data
+    ctx = _ctx(settings, db)
+    take_request(ctx, _m("20"))
+    ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
+    launchpad_once(ctx, _Launcher())
+    _announced(db, "950")
+    launchpad_once(ctx, _Launcher())
+    _CACHE.clear()
+    lp = site_data(db, ctx.settings)["launchpad"]
+    assert lp["enabled"] is False  # no launcher key in the test settings: the site keeps the button closed
+    r = lp["recent"][0]
+    assert (r["symbol"], r["handle"], r["announce_x_id"], r["tx_hash"]) == ("CAT", "catfan", "950", "0xtx")
+    assert r["token"] == "0x" + "c0" * 20 and r["fees_handed_over"] is False
