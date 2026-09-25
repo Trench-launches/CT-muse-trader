@@ -106,6 +106,10 @@ def replies_once(ctx: Any) -> dict[str, Any]:
         author = m.get("author_id")
         if author == me or any(r.get("type") == "retweeted" for r in m.get("referenced_tweets") or []):
             continue
+        if s.launchpad_enabled:  # "launch my coin" requests go to the launchpad, which answers them itself
+            from ..launchpad.service import looks_like_request, take_request
+            if looks_like_request(m.get("text", "")) and take_request(ctx, m) != "not_request":
+                continue
         if _count(conn) >= s.x_replies_per_day:
             break
         who = f"x_user:{author}"

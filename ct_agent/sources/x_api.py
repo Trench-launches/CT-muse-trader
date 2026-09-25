@@ -129,11 +129,21 @@ class XClient:
         max_results = max(5, min(100, max_results))
         self._check_budget(max_results)
         params: dict[str, Any] = {"max_results": max_results,
-                                  "tweet.fields": "created_at,author_id,conversation_id,referenced_tweets"}
+                                  "tweet.fields": "created_at,author_id,conversation_id,referenced_tweets,attachments",
+                                  # for launch requests: the attached image, and who's asking (handle, account age)
+                                  "expansions": "attachments.media_keys,author_id",
+                                  "media.fields": "url,type", "user.fields": "created_at,username"}
         if since_id:
             params["since_id"] = since_id
         body = self._get(f"/users/{user_id}/mentions", params)
         posts = body.get("data") or []
+        inc = body.get("includes") or {}
+        media = {m["media_key"]: m for m in inc.get("media") or []}
+        users = {u["id"]: u for u in inc.get("users") or []}
+        for p in posts:
+            keys = (p.get("attachments") or {}).get("media_keys") or []
+            p["images"] = [media[k]["url"] for k in keys if k in media and media[k].get("type") == "photo" and media[k].get("url")]
+            p["author"] = users.get(p.get("author_id")) or {}
         self._charge(len(posts))
         return posts
 

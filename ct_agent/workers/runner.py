@@ -18,6 +18,7 @@ from ..strategy.engine import assess, caller_once, decide_and_act, manage_positi
 from ..strategy.outcomes import track_outcomes
 from .indexer import index_once
 from .research import research_once
+from ..launchpad.service import launchpad_once
 
 log = logging.getLogger("ct_agent")
 _stop = False
@@ -95,6 +96,7 @@ WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {
     "exits": (exits_once, 3.0),
     "trader": (decisions_once, 60.0),
     "social": (social_once, 20.0),
+    "launchpad": (launchpad_once, 15.0),
 }
 
 
@@ -114,7 +116,9 @@ def run_worker(name: str, *, once: bool = False) -> None:
         try:
             result = fn(ctx)
             failures = 0
-            if name != "exits" or any(e.get("action") != "hold" for e in result["exits"]):  # holds every 3s: quiet
+            quiet = ((name == "exits" and all(e.get("action") == "hold" for e in result["exits"]))
+                     or (name == "launchpad" and not (result.get("launched") or result.get("handed_over"))))
+            if not quiet:  # the fast loops only log when something happened
                 log.info("%s: %s", name, _brief(result))
         except Exception as exc:
             failures += 1

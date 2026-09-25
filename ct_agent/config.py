@@ -192,6 +192,17 @@ class Settings(BaseSettings):
     gmgn_chain: str = "robinhood"
     gmgn_slippage_pct: float = 0.0  # 0 = GMGN's auto slippage
 
+    # --- Launchpad: coins launched for people who ask on X ---------------------
+    # Its own wallet (never the trading wallet): it pays each launch (~0.00065 ETH), is the coin's creator-fee
+    # recipient until the fees have paid that back, then hands the fees to the requester.
+    launchpad_enabled: bool = False
+    launcher_wallet_private_key: str = ""
+    launch_daily_cap_eth: float = 0.1      # total launch spend per 24h; past it, requests wait for tomorrow
+    launch_per_user_day: int = 1           # launches per X account per 24h
+    launch_min_account_days: int = 30      # the requester's X account must be at least this old
+    launch_creator_tax_bps: int = 200      # the coin's creator tax (Pons allows up to 1000)
+    pons_fee_escrow: str = "0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e"  # where Pons credits creator fees
+
     # --- API ------------------------------------------------------------
     api_admin_token: str = ""  # required for mutating endpoints
 

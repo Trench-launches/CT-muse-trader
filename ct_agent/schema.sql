@@ -247,3 +247,31 @@ CREATE TABLE IF NOT EXISTS chat_requests (
 );
 CREATE INDEX IF NOT EXISTS ix_chat_requests_who ON chat_requests(who, ts);
 CREATE INDEX IF NOT EXISTS ix_chat_requests_ts ON chat_requests(ts);
+
+-- Launchpad: coins MOOSE launches for people who ask on X. One row per request, from the tweet to the hand-over
+-- of the coin's creator fees to the requester once the launch cost is paid back.
+CREATE TABLE IF NOT EXISTS launch_requests (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    x_post_id     TEXT NOT NULL UNIQUE,   -- the request tweet (MOOSE replies under it)
+    author_id     TEXT NOT NULL,
+    handle        TEXT,
+    created_at    TEXT NOT NULL,
+    status        TEXT NOT NULL
+                  CHECK (status IN ('refused','approved','launching','launched','failed','handed_over')),
+    reason        TEXT,                   -- why it was refused or failed
+    name          TEXT,
+    symbol        TEXT,
+    description   TEXT,
+    logo          TEXT,
+    socials       TEXT,                   -- JSON {twitter, telegram, discord, website, farcaster}
+    recipient     TEXT,                   -- the requester's wallet: gets the creator fees once the cost is back
+    token         TEXT,
+    curve         TEXT,
+    tx_hash       TEXT,
+    cost_wei      TEXT,                   -- launch fee + gas, what the fees pay back first
+    earned_wei    TEXT,                   -- creator fees MOOSE has collected for this coin
+    launched_at   TEXT,
+    handed_at     TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_launch_requests_author ON launch_requests(author_id, created_at);
+CREATE INDEX IF NOT EXISTS ix_launch_requests_status ON launch_requests(status);
