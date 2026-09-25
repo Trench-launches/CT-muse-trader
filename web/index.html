@@ -151,6 +151,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .xp-more .ic { width: 18.75px; height: 18.75px; vertical-align: 0; }
 .xp-text { font-size: 15px; line-height: 20px; font-weight: 400; color: #0F1419; white-space: pre-line; overflow-wrap: anywhere; margin-top: 2px; }
 .xp-text .tag { color: #1D9BF0; }
+.face.emo { display: inline-block; width: 18px; height: 18px; vertical-align: -3px; margin: 0 1px; box-shadow: none; }
 .xp-text .ca { color: inherit; } /* X shows raw addresses as plain text */
 .xp-actions { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0 -8px; max-width: 425px; color: #536471; font-size: 13px; line-height: 16px; }
 .xp-act { display: inline-flex; align-items: center; gap: 2px; min-width: 0; transition: color .2s; }
@@ -324,10 +325,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lform .btn { justify-content: center; }
 .lform[hidden], .ldone[hidden], .ldlive[hidden] { display: none; }
 .ldone { text-align: center; justify-items: center; gap: 10px; padding-block: clamp(22px, 3vw, 34px); }
-.ld-ic { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue); }
-.ld-ic .ic { width: 26px; height: 26px; }
-.ldone.live .ld-ic { background: var(--green-soft); color: var(--green); }
-.ldone.bad .ld-ic { background: var(--coral-soft); color: var(--coral); }
+.ld-ic { position: relative; width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; background: var(--blue-soft); }
+.ld-ic .face { width: 56px; height: 56px; }
+.ld-badge { position: absolute; right: -2px; bottom: -2px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--blue); color: var(--white); box-shadow: 0 0 0 3px var(--white); }
+.ld-badge .ic { width: 15px; height: 15px; }
+.ldone.live .ld-ic { background: var(--green-soft); } .ldone.live .ld-badge { background: var(--green); }
+.ldone.bad .ld-ic { background: var(--coral-soft); } .ldone.bad .ld-badge { background: var(--coral); }
+.ldone .pill { margin-top: 2px; }
+.ldwhy { width: min(100%, 440px); display: grid; gap: 4px; text-align: left; padding: 14px 16px; border-radius: 16px;
+  background: var(--coral-soft); border: 1px solid rgba(229,72,77,.18); }
+.ldwhy[hidden] { display: none; }
+.ldwhy .sc-lbl { color: var(--coral); }
+.ldwhy b { font-size: 15.5px; color: var(--ink); }
+.ldwhy p { margin: 0; font-size: 14px; color: var(--ink-2); max-width: none; }
 .ldone h3 { font-family: var(--f-display); font-weight: 500; font-size: clamp(22px, 2.2vw, 28px); letter-spacing: -0.02em; margin: 4px 0 0; }
 .ldone p { margin: 0; max-width: 440px; font-size: 14.5px; color: var(--ink-2); }
 .ldsteps { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; text-align: left; width: min(100%, 360px); }
@@ -599,15 +610,15 @@ body.killed .paused-note { display: block; }
 .rec-panel { position: relative; overflow: visible; height: clamp(440px, var(--fit), 640px); padding: clamp(16px, 2.6vh, 30px); display: flex; justify-content: flex-end; }
 /* two tweet cards float in the panel; every 5s one swaps post. Each is a fixed height (text is always
    5 lines), so a swap never moves anything */
-.rec-card { position: absolute; z-index: 2; width: min(400px, 64%); animation: recFloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
-.rec-card-0 { top: 7%; right: calc(4% + 100px); --r: 1.4deg; }
-.rec-card-1 { bottom: 8%; right: calc(3% + 25px); width: min(372px, 58%); --r: -1.6deg; --d: 8.5s; --delay: -3s; }
+.rec-card { position: absolute; z-index: 2; width: min(460px, 74%); animation: recFloat var(--d, 7s) ease-in-out infinite; animation-delay: var(--delay, 0s); }
+.rec-card-0 { top: 9%; right: calc(4% + 70px); --r: 1.4deg; }
+.rec-card-1 { top: 47%; right: calc(3% + 10px); width: min(440px, 70%); --r: -1.6deg; --d: 8.5s; --delay: -3s; }
 @keyframes recFloat { 0%, 100% { transform: translateY(0) rotate(var(--r)); } 50% { transform: translateY(-12px) rotate(calc(var(--r) * .4)); } }
 .rec-card .xtl { border-color: #E1E8ED; box-shadow: 0 1px 3px rgba(15,20,25,.08), 0 24px 44px -22px rgba(15,20,25,.35); transition: opacity .3s ease, transform .3s ease; }
 .rec-card .xtl.out { opacity: 0; transform: translateY(10px) scale(.98); }
 .rec-card .xp { cursor: default; }
 .rec-card .xp:hover { background: #FFFFFF; }
-.rec-card .xp-text { height: 100px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 5; line-clamp: 5; overflow: hidden; }
+.rec-card .xp-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 9; line-clamp: 9; overflow: hidden; }  /* sized to the tweet */
 .xp-act.bump { color: #F91880; }
 .rec-desk { position: absolute; z-index: 1; left: -12%; bottom: 0; height: 60%; width: auto; max-width: none; pointer-events: none; filter: drop-shadow(0 24px 30px rgba(28,43,51,.12)); }
 @media (max-width: 1000px) {
@@ -996,9 +1007,11 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <button class="btn btn-dark" type="submit" id="lfGo" disabled><svg class="ic"><use href="#b-x"/></svg> Post on X to launch <span class="arr">→</span></button>
       </form>
       <div class="lform ldone" id="lDone" hidden aria-live="polite">
-        <span class="ld-ic" id="ldIc"><svg class="ic"><use href="#i-rocket"/></svg></span>
+        <span class="ld-ic"><span class="face" aria-hidden="true"></span><i class="ld-badge" id="ldIc"><svg class="ic"><use href="#i-rocket"/></svg></i></span>
+        <span class="pill blue" id="ldPill">Waiting for your post</span>
         <h3 id="ldTitle">Your launch post is ready</h3>
         <p id="ldSub">Post it on X with your image attached. MOOSE picks it up within a few minutes and launches your coin.</p>
+        <div class="ldwhy" id="ldWhy" hidden><span class="sc-lbl">What happened</span><b id="ldWhyT"></b><p id="ldWhyD"></p></div>
         <ol class="ldsteps">
           <li id="ldS1"><b></b><span>Post it on X with your image</span></li>
           <li id="ldS2"><b></b><span>MOOSE checks your coin</span></li>
@@ -1145,7 +1158,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`, B = n => `<svg class="ic"><use href="#b-${n}"/></svg>`;
   const RH = `<span class="rh" aria-hidden="true">${B("robinhood")}</span>`;
   /* an X post, laid out like a real post on x.com */
-  const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>');
+  const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>')
+    .replace(/\u{1FACE}/gu, '<span class="face emo" role="img" aria-label="moose"></span>');  // most fonts lack the moose emoji: draw MOOSE
   const xAct = (cls, icon, n) => `<span class="xp-act ${cls}"><span class="hit">${I(icon)}</span>${n || ""}</span>`;
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@MooseByMuse · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   /* live data: text from X and the news is escaped before it touches the page */
@@ -1275,9 +1289,20 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   const ldStep = (i, st) => { $("#ldS" + i).className = st; };
   const ldShow = (kind, title, sub) => { $("#lDone").className = "lform ldone " + kind; $("#ldTitle").textContent = title; $("#ldSub").textContent = sub; };
   const ldIcon = id => { $("#ldIc").innerHTML = `<svg class="ic"><use href="#${id}"/></svg>`; };
+  const ldPill = (cls, txt) => { $("#ldPill").className = "pill " + cls; $("#ldPill").textContent = txt; };
+  // why a request was refused, in plain words, and what to do about it
+  const LD_WHY = {
+    "no image": ["You forgot the image", "Every coin needs a picture. Attach one to your post on X and post it again."],
+    "per-user limit": ["One launch per day", "Each X account can launch one coin a day. You can launch again tomorrow."],
+    "account too new": ["Your X account is too new", "Launches are open to X accounts older than 30 days, to keep bots out."],
+    "no wallet": ["No fee wallet in your post", "Add the wallet for your creator fees (one 0x address) and post again."],
+    "unclear name or ticker": ["MOOSE couldn't read the name or ticker", "Write it as: launch $TICKER Coin name. The ticker is letters and numbers, up to 10."],
+    "reserved ticker": ["$MOOSE is taken", "That's MOOSE's own coin. Pick another ticker and post again."],
+    "daily budget used": ["Launches are full for today", "MOOSE's launch budget for today is used up. Try again tomorrow."],
+  };
   const lTrack = (sym, url, wallet = "") => {
     $("#launchForm").hidden = true; $("#lDone").hidden = false; $("#ldLive").hidden = true; $("#ldOpen").href = url;
-    ldIcon("i-rocket");
+    $("#ldWhy").hidden = true; ldIcon("i-rocket"); ldPill("blue", "Waiting for your post");
     $("#ldS3t").textContent = `$${sym} goes live on Robinhood Chain`;
     ldShow("", "Your launch post is ready", `Post it on X with your image attached. MOOSE picks it up within a few minutes and launches $${sym}.`);
     ldStep(1, "on"); ldStep(2, ""); ldStep(3, "");
@@ -1290,19 +1315,21 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       if (st.status === "not_seen") return;
       ldStep(1, "done");
       if (st.status === "refused") {
-        clearInterval(lTimer); ldStep(2, "fail"); ldIcon("i-x");
-        return ldShow("bad", "MOOSE couldn't launch this one", "Check MOOSE's reply under your post for why, fix it and post again.");
+        clearInterval(lTimer); ldStep(2, "fail"); ldIcon("i-x"); ldPill("coral", "Not launched");
+        const [t, d] = LD_WHY[st.reason] || ["It didn't pass MOOSE's check", st.reason || "MOOSE explains why in its reply under your post."];
+        $("#ldWhyT").textContent = t; $("#ldWhyD").textContent = d; $("#ldWhy").hidden = false;
+        return ldShow("bad", `MOOSE couldn't launch $${sym}`, "Nothing was launched and nothing was spent. Fix it and post again.");
       }
       if (st.status === "failed") {
-        clearInterval(lTimer); ldStep(2, "done"); ldStep(3, "fail"); ldIcon("i-x");
+        clearInterval(lTimer); ldStep(2, "done"); ldStep(3, "fail"); ldIcon("i-x"); ldPill("coral", "Not launched");
         return ldShow("bad", "The launch didn't go through", "Something went wrong on MOOSE's side and no coin was made. Try again in a little while.");
       }
       ldStep(2, "done");
       if (st.status === "approved" || st.status === "launching") {
-        ldStep(3, "on");
+        ldStep(3, "on"); ldPill("blue", "Launching");
         return ldShow("", `$${sym} passed the checks`, "MOOSE is announcing it and launching it on Robinhood Chain now. This takes about a minute.");
       }
-      clearInterval(lTimer); ldStep(3, "done"); ldIcon("i-check");  // launched (or its fees already handed over)
+      clearInterval(lTimer); ldStep(3, "done"); ldIcon("i-check"); ldPill("green", "Live");  // launched (or fees handed over)
       ldShow("live", `$${sym} is live!`, "Your coin is launched on Robinhood Chain. Creator fees go to your wallet once it pays back its ~$2 launch.");
       $("#ldCa").textContent = st.token || "";
       $("#ldLinks").innerHTML = (st.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(st.announce_x_id)}" target="_blank" rel="noopener">MOOSE's post ↗</a>` : "")

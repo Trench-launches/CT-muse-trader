@@ -280,8 +280,10 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         for w in watching:  # a coin it holds shows the trade's P&L now, not the call's move frozen at the buy
             if w["status"] == "bought" and w["token"].lower() in live:
                 w["move_pct"] = live[w["token"].lower()]
-    pending = rows(conn, "SELECT kind, body, created_at FROM posts WHERE status='pending' AND kind!='reply' ORDER BY id LIMIT 1")
-    posts = rows(conn, "SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND kind!='reply' ORDER BY id DESC LIMIT 6")
+    # MOOSE's own posts only: replies to people (auto-replies, launch answers) stay on X
+    own = "kind NOT IN ('reply','launch','launch_failed','launch_handed','launch_followup')"
+    pending = rows(conn, f"SELECT kind, body, created_at FROM posts WHERE status='pending' AND {own} ORDER BY id LIMIT 1")
+    posts = rows(conn, f"SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND {own} ORDER BY id DESC LIMIT 6")
     for j in rows(conn, "SELECT ts, payload FROM journal WHERE kind='post_sent' AND payload LIKE '%\"intro\"%'"):
         p = _j(j["payload"], {})  # the intro post was sent by hand, outside the outbox
         if p.get("kind") == "intro":
