@@ -989,7 +989,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   // for a while after it goes live), the old address answers instead. Same server behind both.
   const apiFetch = async (path, opts) => { try { return await fetch(API + path, opts); } catch { return fetch(API_OLD + path, opts); } };
   // $MOOSE: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
-  const MOOSE_TOKEN = { ca: "", gmgn: "" };
+  const MOOSE_TOKEN = { ca: "0x6954c198203f95d97273de98b15aad0bef5b4028", gmgn: "https://gmgn.ai/robinhood/token/0x6954c198203f95d97273de98b15aad0bef5b4028" };
   // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
   const chatFetch = (path, opts) => location.hostname === "localhost" ? fetch("http://localhost:8000" + path, opts) : apiFetch(path, opts);
   let LIVE = false;   // true once real data has loaded; the example animations then stand down
