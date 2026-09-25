@@ -125,7 +125,7 @@ class Settings(BaseSettings):
     # Take-profit ladder: (price multiple of entry, share of the ORIGINAL position to sell).
     # After the first rung the stop moves to entry. Whatever the rungs don't sell rides until the stop
     # or max_hold_hours, when it is sold.
-    take_profit_ladder: list[tuple[float, float]] = [(1.6, 0.50), (2.0, 0.25)]
+    take_profit_ladder: list[tuple[float, float]] = [(1.5, 0.50), (2.0, 0.25)]
     max_hold_hours: float = 24.0
     # 0 = a buy can rest on onchain activity alone; 1+ = that many verified/first-party/reported sources required
     min_independent_sources_for_buy: int = 0

@@ -21,7 +21,8 @@ DECISION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
     "required": ["action", "confidence", "thesis", "reasons", "risks", "evidence_ids", "underfollowed",
-                 "post_angle", "public_line", "post", "narrative"],
+                 "post_angle", "public_line", "public_reasons", "public_risk", "post",
+                 "narrative"],
     "properties": {
         "action": {"type": "string", "enum": ["buy", "watch", "pass"]},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
@@ -32,6 +33,8 @@ DECISION_SCHEMA: dict[str, Any] = {
         "underfollowed": {"type": ["boolean", "null"]},
         "post_angle": {"type": "string"},
         "public_line": {"type": "string"},
+        "public_reasons": {"type": "array", "items": {"type": "string"}},
+        "public_risk": {"type": "string"},
         "narrative": {
             "type": "object",
             "additionalProperties": False,
@@ -111,6 +114,13 @@ narrative: score the story 0 to 10 and give a one-line take under 100 characters
 public_line: one plain-English sentence (max 140 characters) that MOOSE could post publicly about this \
 decision. Write it for normal readers: no field names, ids, codes or jargon (no "bps", "POOL_CREATED", \
 "evidence id", "independent_origins"). Example: "Volume is hot but every mention traces back to one account."
+
+public_reasons: when you buy, or the pack says MOOSE has already bought the coin, the 2 or 3 main reasons \
+as short bullets MOOSE posts under its buy, each under 75 characters, plain words a normal reader gets, one \
+fact each, round numbers, no field names or decimals. Example: ["51 wallets bought in the last hour, faster \
+every 5 minutes", "no wallet holds more than 3%, the dev holds none"]. Otherwise [].
+public_risk: in the same cases, the biggest risk in one plain sentence under 90 characters, same style. \
+Example: "a lot of the volume is the same wallets buying and selling, so it can fade fast". Otherwise "".
 
 post: short phrases MOOSE slots into its X posts. Each under 45 characters, no full stop, lowercase \
 unless it starts with a name or ticker, plain words, facts from the pack only. Fill the ones for your action \
@@ -305,6 +315,8 @@ class MuseDecision(BaseModel):
     underfollowed: bool | None
     post_angle: str
     public_line: str = ""
+    public_reasons: list[str] = Field(default_factory=list)
+    public_risk: str = ""
     post: MusePost = Field(default_factory=MusePost)
     narrative: MuseNarrative = Field(default_factory=MuseNarrative)
 

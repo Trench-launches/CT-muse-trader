@@ -142,7 +142,7 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
         got.append(json.loads(r.content))
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60)
-    assert [g["text"][:9] for g in got] == ["Test buy ", "$NEZU +26", "$W is on "]
+    assert [g["text"][:9] for g in got] == ["Test buy ", "$NEZU upd", "$W is on "]
     assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
 
 
@@ -178,8 +178,20 @@ def test_position_update_fits_the_thesis_in_280():
                                 plan="Stop -70%, first take-profit at 1.6x.", position_id=4, mc="$212K",
                                 thesis=long)
     assert len(d.body) <= 280 and "\n\nUpdated thesis: the story spread" in d.body and d.body.count("..") == 0
-    assert d.body.startswith("$NEZU +104% since the call, now $212K MC (2.1e-7 ETH). Still holding.")
-    assert d.body.endswith("Stop -70%, first take-profit at 1.6x.")
+    assert d.body.startswith("$NEZU update: +104% since entry\nMC now: $212K\n\nUpdated thesis: ")
+    assert d.body.endswith("\n\nStill holding. Stop -70%, first take-profit at 1.6x.")
     plain = compose.position_update(mode="live", symbol="NEZU", token=CA, pnl_pct=-15, price="1e-9 ETH",
                                     milestone=-15, plan="Stop -70%.", position_id=4)
     assert "Updated thesis" not in plain.body
+
+
+def test_buy_read_fits_muses_long_reasons_in_one_post():
+    reasons = ["51 unique buyers in 1h and 16 in 5m with acceleration 3.28 shows broad speeding buys despite 29% top "
+               "buyer share", "holders dispersed 201 holders top10 17.26% and top wallet 3.02% with deployer 0% so no "
+               "holder concentration", "X attention only 4 mentions of exact address versus 9.18 ETH buys in 1h and "
+               "44k market cap so underfollowed"]
+    d = compose.buy_read(symbol="RAINEGG", token=CA, key="analysis:375", reply_to="entry:live:7", reasons=reasons,
+                         risk="37 roundtrip traders flag suggests wash inflated volume and top buyer 29% could dump")
+    assert len(d.body) <= 280 and d.body.startswith("Why I bought $RAINEGG:\n\n• 51 unique buyers")
+    assert d.body.count("\n• ") >= 2 and "\n\nRisk: 37 roundtrip traders" in d.body
+    assert (d.kind, d.reply_to) == ("analysis", "entry:live:7")

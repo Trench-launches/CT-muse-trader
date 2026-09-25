@@ -126,22 +126,43 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
     return Draft("trade_entry", body, token, f"entry:{mode}:{position_id}")
 
 
+def buy_read(*, symbol: str, token: str, key: str, reply_to: str, why: str = "", reasons: list[str] | None = None,
+             risk: str = "") -> Draft:
+    """Muse's reasoning for a buy, as a reply under the BOUGHT post: a one-line take, the main reasons as
+    bullets and the biggest risk. Bullets are dropped, then shortened, until it fits in one post."""
+    why = " ".join((why or "").split())
+    reasons = [" ".join(str(r).split()) for r in (reasons or []) if str(r).strip()][:3]
+    risk = " ".join((risk or "").split())
+
+    def build(n: int, cut: int) -> str:
+        parts = [f"Why I bought ${symbol}:" + (f"\n{_s(_phrase(why, 140))}" if why else "")]
+        if n:
+            parts.append("\n".join(f"• {_cap(_phrase(r, cut))}" for r in reasons[:n]))
+        if risk:
+            parts.append(f"Risk: {_s(_phrase(risk, min(cut, 110)))}")
+        return "\n\n".join(parts)
+
+    for n in range(len(reasons), -1, -1):
+        for cut in (120, 95, 75, 55):
+            body = build(n, cut)
+            if len(body) <= LIMIT:
+                return Draft("analysis", body, token, key, reply_to=reply_to)
+    return Draft("analysis", build(0, 55)[:LIMIT], token, key, reply_to=reply_to)
+
+
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, plan: str,
                     position_id: int, mc: str = "", thesis: str = "") -> Draft:
     """A milestone update, posted as a reply under the entry post. `plan` says where the exits are now;
     `thesis` is Muse's updated read on the coin (dropped first if the post runs long)."""
-    now = f"now {mc} MC ({price})" if mc else f"now {price}"
-    body = f"${symbol} {pnl_pct:+.0f}% since the call, {now}. Still holding. {plan}"
-    if mode == "paper":
-        body += " Testing phase."
+    head = f"${symbol} update: {pnl_pct:+.0f}% since entry\n" + (f"MC now: {mc}" if mc else f"Price now: {price}")
+    tail = f"Still holding. {plan}" + (" Testing phase." if mode == "paper" else "")
+    body = f"{head}\n\n{tail}"
     thesis = " ".join((thesis or "").split())
-    if thesis:
-        head, rest = body.split(" Still holding. ", 1)
-        room = LIMIT - len(f"{head} Still holding.\n\nUpdated thesis: \n\n{rest}")
-        if room >= 40:
-            if len(thesis) > room:
-                thesis = thesis[:room - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
-            body = f"{head} Still holding.\n\nUpdated thesis: {thesis}\n\n{rest}"
+    room = LIMIT - len(f"{head}\n\nUpdated thesis: \n\n{tail}")
+    if thesis and room >= 40:
+        if len(thesis) > room:
+            thesis = thesis[:room - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+        body = f"{head}\n\nUpdated thesis: {thesis}\n\n{tail}"
     return Draft("update", body, token, f"update:{mode}:{position_id}:{milestone:+g}",
                  reply_to=f"entry:{mode}:{position_id}")
 

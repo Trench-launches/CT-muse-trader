@@ -314,12 +314,10 @@ def _post_read_under_buy(ctx: Context, token: str, symbol: str, did: int, d: Any
                        (token,)).fetchone()
     if not pos:
         return
-    why = (d.public_line or d.thesis or "").strip()
-    risk = (d.risks or [""])[0]
-    body = f"Why ${symbol}: {why}".strip()[:200]
-    if risk and len(body) + len(risk) + 8 <= 280:
-        body += f"\n\nRisk: {risk}"
-    enqueue(conn, compose.Draft("analysis", body, token, f"analysis:{did}", reply_to=f"entry:{pos['mode']}:{pos['id']}"))
+    enqueue(conn, compose.buy_read(symbol=symbol, token=token, key=f"analysis:{did}",
+                                   reply_to=f"entry:{pos['mode']}:{pos['id']}", why=d.public_line or d.thesis,
+                                   reasons=d.public_reasons or d.reasons[:2],
+                                   risk=d.public_risk or (d.risks or [""])[0]))
 
 
 def caller_once(ctx: Context) -> list[dict[str, Any]]:
@@ -713,7 +711,14 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
         log.warning("could not record call outcome for %s: %s", token, exc)
     out: dict[str, Any] = {"token": token, "decision_id": did, "action": action, "gates": gates}
     if action == "buy":
-        out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack))
+        d = res.decision  # Muse's one-line take goes in the buy post, its reasons in a reply under it
+        out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack,
+                          catalyst=compose._phrase(d.public_line or d.thesis, 150)))
+        if out.get("entered"):
+            enqueue(conn, compose.buy_read(symbol=symbol, token=token, key=f"analysis:{did}",
+                                           reply_to=f"entry:{s.trading_mode.value}:{out['position_id']}",
+                                           reasons=d.public_reasons or d.reasons,
+                                           risk=d.public_risk or (risks or [""])[0]))
     elif action == "watch" and conf >= 0.6 and res.decision:
         skip, parent = _thread(conn, token, "watch")
         if not skip:
