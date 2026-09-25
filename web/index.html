@@ -324,7 +324,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lform .btn { justify-content: center; }
 .lform .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .lrecent { margin-top: clamp(18px, 3vh, 26px); display: grid; gap: 8px; }
-.lrecent[hidden] { display: none; }
+.lempty { margin: 0; padding: 12px 14px; border-radius: 16px; background: var(--white); box-shadow: 0 1px 0 var(--line); font-size: 13.5px; color: var(--ink-2); }
+.lcredit { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.lcredit .ic { width: 14px; height: 14px; color: var(--blue); flex: none; }
 #lRecentList { display: grid; gap: 6px; }
 .lrow2 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 10px;
   border-radius: 16px; background: var(--white); box-shadow: 0 1px 0 var(--line); }
@@ -927,7 +929,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet.</span></div></li>
       </ol>
       <p class="lrules">One launch per X account a day · accounts older than 30 days · no real brands, famous people or scams</p>
-      <div class="lrecent" id="lRecent" hidden><span class="sc-lbl">Recently launched</span><div id="lRecentList"></div></div>
+      <div class="lrecent" id="lRecent"><span class="sc-lbl">Recently launched</span><div id="lRecentList"><p class="lempty">No coins launched yet. Yours could be the first.</p></div></div>
     </div>
     <div class="panel grid-bg launch-panel">
       <form class="lform" id="launchForm" autocomplete="off" novalidate>
@@ -936,9 +938,9 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
           <label class="lsym">Ticker<span class="lpre">$</span><input id="lfSym" maxlength="10" placeholder="PURR" required></label>
         </div>
         <label><span>What is it? <em>optional</em></span><input id="lfDesc" maxlength="100" placeholder="a cat that runs a hedge fund"></label>
-        <label><span>X or website link <em>optional</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
+        <label><span>Coin's own X or website <em>optional · if empty, your coin links to MOOSE's launch post</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
         <label>Wallet for your creator fees<input id="lfWallet" maxlength="42" placeholder="0x…" spellcheck="false" required></label>
-        <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div></div>
+        <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div><p class="lcredit"><svg class="ic"><use href="#i-badge-check"/></svg>You're credited as the creator: MOOSE tags the X account that posts this.</p></div>
         <p class="lnote" id="lfNote">Attach your coin's image on X before you post.</p>
         <button class="btn btn-dark" type="submit" id="lfGo" disabled><svg class="ic"><use href="#b-x"/></svg> Post on X to launch <span class="arr">→</span></button>
       </form>
@@ -1578,8 +1580,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     /* launchpad: open or not yet */
     launchOpen = !!(d.launchpad && d.launchpad.enabled); lRender();
     const lrec = (d.launchpad && d.launchpad.recent) || [];
-    $("#lRecent").hidden = !lrec.length;
-    $("#lRecentList").innerHTML = lrec.slice(0, 5).map(r => `<div class="lrow2">`
+    $("#lRecentList").innerHTML = !lrec.length ? `<p class="lempty">No coins launched yet. Yours could be the first.</p>` : lrec.slice(0, 5).map(r => `<div class="lrow2">`
       + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">` : `<span class="lgo"></span>`)
       + `<div><b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago`
       + `${r.fees_handed_over ? " · fees handed over" : ""}</small></div><span class="lk">`
