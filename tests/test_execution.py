@@ -171,3 +171,17 @@ def test_price_impact_excludes_fees():
     assert tiny.price_impact_bps <= 1 and tiny.fee_and_tax_quote > 0
     p = pool_estimate(0.0001, 1e-8, 100_000, 2_700, 700)
     assert p.price_impact_bps <= 1
+
+
+def test_graduated_positions_are_priced_by_the_pools_own_quoter():
+    from types import SimpleNamespace
+    from ct_agent.chain.pons import Phase
+    from ct_agent.strategy import engine
+    calls = []
+    live = SimpleNamespace(quote_sell=lambda token, wei: calls.append(wei) or wei // 2)  # 0.5 ETH per token
+    pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.POOL_CREATED))
+    ctx = SimpleNamespace(live=live, pons=pons)
+    engine._GRADUATED.discard(addr(0x77).lower())
+    fill, venue = engine._mark(ctx, {"token": addr(0x77)}, 10.0)
+    assert venue == "pool" and fill.method == "v4_quote_onchain" and fill.quote_in == pytest.approx(5.0)
+    assert calls == [10 * ETH] and addr(0x77).lower() in engine._GRADUATED  # next time: straight to the quote

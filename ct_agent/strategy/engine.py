@@ -819,10 +819,25 @@ def _left(pos: dict[str, Any]) -> float:
     return pos["tokens_left"] if pos.get("tokens_left") is not None else pos["entry_tokens"]
 
 
+_GRADUATED: set[str] = set()  # coins seen in their pool, so the fast exit loop skips re-reading their phase
+
+
 def _mark(ctx: Context, pos: dict[str, Any], tokens: float) -> tuple[FillEstimate | None, str]:
-    """What selling `tokens` of this position would return right now."""
-    rec = ctx.pons.launch_record(pos["token"])
+    """What selling `tokens` of this position would return right now. A graduated coin is priced by the pool's own
+    quoter onchain (exactly what a sell would pay, fees and tax in); the aggregator estimate is only the fallback."""
+    token = pos["token"]
+    if token.lower() in _GRADUATED:
+        try:
+            out = ctx.live.quote_sell(token, int(tokens * ETH)) / ETH
+            px = out / tokens if tokens else 0
+            return FillEstimate(out, tokens, px, px, 0, 0, "v4_quote_onchain"), "pool"
+        except Exception as exc:  # no quote this tick: fall back to the aggregator's estimate
+            log.warning("onchain quote failed for %s: %s", token, exc)
+    rec = ctx.pons.launch_record(token)
     fee = 100
+    if rec.phase == Phase.POOL_CREATED and token.lower() not in _GRADUATED:
+        _GRADUATED.add(token.lower())  # a pool never goes back to the curve
+        return _mark(ctx, pos, tokens)
     if rec.phase == Phase.NOT_GRADUATED:
         q, t = ctx.pons.curve_reserves(rec.curve)
         st = ctx.pons.curve_state(rec.curve)
@@ -911,8 +926,14 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
         # price multiple on what's still held: what it sells for now per token vs what it cost per token
         cost = pos["entry_quote"] / pos["entry_tokens"] if pos["entry_tokens"] else 0
         mult = (fill.quote_in / left) / cost if left and cost else 0
-        marks = (kv_get(conn, f"marks:{pos['id']}") or [])[-29:]  # recent marks for the site's sparkline
-        kv_set(conn, f"marks:{pos['id']}", marks + [round(value, 8)])
+        # the site's sparkline: a point a minute (30 kept), with the newest one kept live on every check
+        marks = kv_get(conn, f"marks:{pos['id']}") or []
+        if marks and datetime.now(timezone.utc).timestamp() - (kv_get(conn, f"marks_at:{pos['id']}") or 0) < 60:
+            marks[-1] = round(value, 8)
+        else:
+            marks = (marks + [round(value, 8)])[-30:]
+            kv_set(conn, f"marks_at:{pos['id']}", datetime.now(timezone.utc).timestamp())
+        kv_set(conn, f"marks:{pos['id']}", marks)
         age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
         crossed = [i for i, (m, _) in enumerate(ladder) if i >= hits and mult >= m]
         row = conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone()

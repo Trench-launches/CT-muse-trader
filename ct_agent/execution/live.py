@@ -61,6 +61,7 @@ class LiveExecutor:
         self._acct = Account.from_key(settings.trading_wallet_private_key) \
             if settings.trading_wallet_private_key else None
         self._gmgn: Any = None  # GMGN's trading API client, made on first use (live_venue=gmgn)
+        self._pools: dict[str, v4.EthPool] = {}  # graduated coins' pools, looked up once
 
     @property
     def wallet(self) -> str | None:
@@ -121,14 +122,24 @@ class LiveExecutor:
     # --- graduated: the coin's ETH pool on Uniswap V4 -------------------------
 
     def eth_pool(self, token: str) -> v4.EthPool:
-        """The pool Pons seeded for this coin, refused unless it's paired with ETH and graduated."""
+        """The pool Pons seeded for this coin, refused unless it's paired with ETH and graduated. A graduated
+        coin's pool never changes, so it's looked up once and kept."""
         from ..chain.pons import Phase
+        hit = self._pools.get(token.lower())
+        if hit:
+            return hit
         rec = self.pons.launch_record(token)
         if not rec.exists or rec.phase != Phase.POOL_CREATED:
             raise LiveTradingBlocked("not a graduated Pons coin")
         if rec.pair_token.lower() != v4.ZERO_ADDRESS:
             raise LiveTradingBlocked("pool is not paired with ETH")
-        return v4.EthPool(rec.token, rec.pool_fee, rec.tick_spacing, self.pons.meme_hook())
+        pool = self._pools[token.lower()] = v4.EthPool(rec.token, rec.pool_fee, rec.tick_spacing, self.pons.meme_hook())
+        return pool
+
+    def quote_sell(self, token: str, tokens_wei: int) -> int:
+        """ETH (wei) that selling this many tokens in the coin's pool would pay right now: the pool's own quoter,
+        fees and tax included. Raises LiveTradingBlocked if there's no quote."""
+        return self._quote(self.eth_pool(token), False, tokens_wei)
 
     def _quote(self, pool: v4.EthPool, buy: bool, amount_in: int) -> int:
         try:

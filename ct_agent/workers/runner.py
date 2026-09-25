@@ -28,8 +28,18 @@ def _handle_stop(*_: object) -> None:
     _stop = True
 
 
+def exits_once(ctx: Context) -> dict:
+    """Its own fast loop: stops, take-profits and the timer are checked every few seconds, never held up by a
+    slow scan or a Muse call in the trader loop. It's the only process that sells."""
+    return {"exits": manage_positions(ctx)}
+
+
 def trader_once(ctx: Context) -> dict:
-    exits = manage_positions(ctx)
+    """Exits then new decisions, in one go (tests and one-off runs; the live bot runs them as separate loops)."""
+    return {**exits_once(ctx), **decisions_once(ctx)}
+
+
+def decisions_once(ctx: Context) -> dict:
     killed, why = ctx.risk.kill_active()
     decisions = []
     if not killed:
@@ -48,7 +58,7 @@ def trader_once(ctx: Context) -> dict:
             log.warning("wallet balance unavailable: %s", exc)
     weekly_scorecard(ctx)
     tracked = track_outcomes(ctx)
-    return {"exits": exits, "decisions": decisions, "killed": why if killed else None, "outcomes": tracked}
+    return {"decisions": decisions, "killed": why if killed else None, "outcomes": tracked}
 
 
 def social_once(ctx: Context) -> dict:
@@ -77,7 +87,8 @@ WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {
     "caller": (fast_caller_once, 10.0),
     "indexer": (index_once, 10.0),
     "research": (research_once, 60.0),
-    "trader": (trader_once, 60.0),
+    "exits": (exits_once, 3.0),
+    "trader": (decisions_once, 60.0),
     "social": (social_once, 20.0),
 }
 
@@ -98,7 +109,8 @@ def run_worker(name: str, *, once: bool = False) -> None:
         try:
             result = fn(ctx)
             failures = 0
-            log.info("%s: %s", name, _brief(result))
+            if name != "exits" or any(e.get("action") != "hold" for e in result["exits"]):  # holds every 3s: quiet
+                log.info("%s: %s", name, _brief(result))
         except Exception as exc:
             failures += 1
             log.exception("%s cycle failed (%d in a row)", name, failures)

@@ -90,3 +90,29 @@ def test_musings_every_half_hour_never_eat_the_trade_posts_room(settings, db):
                    "strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))", (f"k{i}", "watch", "x", ""))
     kv_set(db, "musing_last_at", "2000-01-01T00:00:00+00:00")
     assert musings_once(ctx)["musing"].startswith("held")
+
+
+def test_a_reply_under_a_trade_post_gets_the_coins_story_and_todays_rules(settings, db, monkeypatch):
+    import json
+    import ct_agent.sources.lore as lore
+    tok = "0x" + "ab" * 20
+    monkeypatch.setattr(lore, "get_lore", lambda ctx, token, look=True: {"description": "AI models without subscriptions"})
+    kv_set(db, "mentions_since_id", "0")
+    kv_set(db, "x_my_user_id", "me")
+    db.execute("INSERT INTO launches(token,curve,deployer,pair_token,launch_config_id,graduation_threshold,block_number,"
+               "tx_hash,first_seen,symbol,name) VALUES(?,?,?,?,0,'1',1,'t','t','FRAI','Free AI')",
+               (tok, "0x" + "01" * 20, "0x" + "02" * 20, "0x" + "00" * 20))
+    db.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,model,raw) "
+               "VALUES('t',?,'migrated','buy',0.6,'internal thesis','[]','[]','[]','m',?)",
+               (tok, json.dumps({"public_thesis": "FRAI lets you use AI models without a subscription"})))
+    db.execute("INSERT INTO posts(idempotency_key,kind,body,ref,status,x_post_id,created_at) "
+               "VALUES('entry:live:9','trade_entry','Bought $FRAI',?,'sent','500','t')", (tok,))
+    brain = _Brain("FRAI is AI without the monthly bill, and that story travels")
+    s = settings.model_copy(update={"scanner_buy_on_call": True, "pons_scan_enabled": True})
+    ctx = _ctx(s, db, [{"id": "501", "author_id": "figz", "text": "whats the thesis here?",
+                        "referenced_tweets": [{"type": "replied_to", "id": "500"}]}], brain)
+    assert replies_once(ctx)["replies_queued"] == 1
+    sent = brain.seen[-1]
+    assert sent["coin"]["symbol"] == "FRAI" and sent["coin"]["moose_thesis"].startswith("FRAI lets you use AI")
+    assert sent["coin"]["coins_own_lore"]["description"] == "AI models without subscriptions"
+    assert "the moment it lands" in sent["rules"] and "Pons scan" in sent["rules"] and "+30%" not in sent["rules"]

@@ -7,6 +7,7 @@ contract addresses, no tags, no bad words. Replies go through the outbox like ev
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
@@ -34,6 +35,37 @@ def clean(reply: str) -> str | None:
     if not text or len(text) > 260 or BLOCKED.search(text) or LINK.search(text) or ADDRESS.search(text):
         return None
     return text
+
+
+def rules(s: Any) -> str:
+    """How MOOSE trades, from its live settings, so a reply never quotes an old rule."""
+    buy = ("buys every tradeable smart-money call the moment it lands" if s.scanner_buy_on_call
+           else f"buys a smart-money call once it runs +{s.scanner_trigger_pct:g}% from the call")
+    if s.pons_scan_enabled:
+        buy += ", and also coins its own Pons scan picks when Muse likes the story and the buying"
+    tps = ", ".join(f"{f * 100:g}% at {m:g}x" for m, f in sorted(s.take_profit_ladder))
+    return f"MOOSE {buy}. Exits: a -{s.stop_loss_pct:g}% stop, take-profits ({tps}), and a {s.max_hold_hours:g}h timer."
+
+
+def _coin(ctx: Any, token: str) -> dict[str, Any] | None:
+    """What MOOSE knows about the coin behind the post they replied to: its own story and MOOSE's thesis."""
+    conn = ctx.conn
+    row = conn.execute("SELECT symbol, name FROM launches WHERE lower(token)=lower(?)", (token,)).fetchone()
+    d = conn.execute("SELECT thesis, raw FROM decisions WHERE lower(token)=lower(?) AND raw IS NOT NULL AND raw!='' "
+                     "ORDER BY id DESC LIMIT 1", (token,)).fetchone()
+    try:
+        raw = json.loads(d["raw"]) if d else {}
+    except ValueError:
+        raw = {}
+    try:
+        from ..sources.lore import get_lore
+        lore = get_lore(ctx, token, look=False)  # cached or read onchain: no extra X or web calls for a reply
+    except Exception as exc:
+        log.warning("lore unavailable for %s: %s", token, exc)
+        lore = {}
+    return {"symbol": row["symbol"] if row else None, "name": row["name"] if row else None,
+            "moose_thesis": raw.get("public_thesis") or (raw.get("narrative") or {}).get("take") or (d["thesis"] if d else None),
+            "public_line": raw.get("public_line"), "coins_own_lore": lore}
 
 
 def _since(hours: float) -> str:
@@ -80,10 +112,11 @@ def replies_once(ctx: Any) -> dict[str, Any]:
         if _count(conn, who) >= s.x_replies_per_user_day:
             continue
         parent = next((r["id"] for r in m.get("referenced_tweets") or [] if r.get("type") == "replied_to"), None)
-        ours = conn.execute("SELECT body FROM posts WHERE x_post_id=?", (parent,)).fetchone() if parent else None
+        ours = conn.execute("SELECT body, ref FROM posts WHERE x_post_id=?", (parent,)).fetchone() if parent else None
+        coin = _coin(ctx, ours["ref"]) if ours and re.fullmatch(r"0x[0-9a-fA-F]{40}", ours["ref"] or "") else None
         res = ctx.brain.reply({"their_post": m.get("text", ""), "our_post_they_replied_to": ours["body"] if ours else None,
-                               "now_utc": datetime.now(timezone.utc).strftime("%A %d %B %Y, %H:%M UTC"),
-                               "mode": s.trading_mode.value, "trigger_pct": s.scanner_trigger_pct,
+                               "coin": coin, "now_utc": datetime.now(timezone.utc).strftime("%A %d %B %Y, %H:%M UTC"),
+                               "mode": s.trading_mode.value, "rules": rules(s),
                                "moose_token_launched": bool(s.agent_token_address)})
         d = res.decision
         text = clean(d.reply) if d and not d.skip else None
