@@ -169,6 +169,32 @@ def test_full_paper_cycle(tmp_path):
     assert "access-control-allow-origin" not in api.get("/site", headers={"origin": "https://evil.example"}).headers
 
 
+def test_pons_scan_runs_alongside_the_scanner(tmp_path, monkeypatch):
+    """Scanner source + pons_scan_enabled: the smart-money calls are worked AND the Pons scan still decides."""
+    from ct_agent.db import kv_set
+    from ct_agent.workers import runner
+    ch, hot, _ = _scenario()
+    ctx = build(_settings(tmp_path, candidate_source="scanner", pons_scan_enabled=True), rpc_transport=ch.transport(),
+                market_transport=_market(), x_transport=_x_transport([]), completer=_muse())
+    waiting = [{"token": addr(0xE1), "symbol": "CALL", "stage": "scanner_call", "score": 0, "progress": None}]
+
+    def fake_scanner_cycle(c):
+        kv_set(c.conn, "candidates", waiting)
+        return [{"token": addr(0xE1), "analysed": 1}]
+    monkeypatch.setattr(runner, "scanner_cycle", fake_scanner_cycle)
+    index_once(ctx)
+    add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
+                                  excerpt=f"contract {hot.token}", confidence="first_party"))
+    research_once(ctx)
+    out = trader_once(ctx)
+    assert out["decisions"][0]["token"] == addr(0xE1)
+    d = [x for x in out["decisions"] if x["token"] == hot.token][0]
+    assert d["action"] == "buy" and d.get("entered"), d
+    from ct_agent.db import kv_get
+    listed = {c["token"] for c in kv_get(ctx.conn, "candidates")}
+    assert hot.token in listed and addr(0xE1) in listed  # research covers both
+
+
 def test_rumor_only_cannot_trigger_buy(tmp_path):
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),

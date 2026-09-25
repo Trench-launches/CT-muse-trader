@@ -142,6 +142,7 @@ class Settings(BaseSettings):
     # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (MOOSE's own
     # Pons auto-scan of near-bonded and freshly graduated coins).
     candidate_source: str = "scanner"
+    pons_scan_enabled: bool = False  # with the scanner source, also run the Pons auto-scan (Muse decides those)
     supabase_url: str = ""
     supabase_key: str = ""
     # Fibbot: a second source of calls, in its own Supabase project

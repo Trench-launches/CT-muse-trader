@@ -12,7 +12,7 @@ import time
 from typing import Callable
 
 from ..context import Context, build
-from ..db import journal_append, kv_set
+from ..db import journal_append, kv_get, kv_set
 from ..social.outbox import recover_interrupted, send_pending
 from ..strategy.engine import assess, caller_once, decide_and_act, manage_positions, scanner_cycle, weekly_scorecard
 from ..strategy.outcomes import track_outcomes
@@ -33,10 +33,12 @@ def trader_once(ctx: Context) -> dict:
     killed, why = ctx.risk.kill_active()
     decisions = []
     if not killed:
-        if ctx.settings.candidate_source == "scanner":
+        scan = ctx.settings.candidate_source == "scanner"
+        if scan:
             decisions = scanner_cycle(ctx)
-        else:
-            for a in assess(ctx):
+        if not scan or ctx.settings.pons_scan_enabled:
+            # the scanner's waiting coins stay on the research worker's list next to the Pons shortlist
+            for a in assess(ctx, extra=kv_get(ctx.conn, "candidates") if scan else None):
                 decisions.append(decide_and_act(ctx, a))
     if ctx.settings.trading_mode.value == "live" and ctx.live.wallet:
         try:  # for the site: which wallet trades, and what it holds (the key never leaves the trader)

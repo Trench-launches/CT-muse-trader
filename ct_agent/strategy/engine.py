@@ -68,7 +68,7 @@ def _meta(ctx: Context, launch: dict[str, Any]) -> dict[str, Any]:
     return launch
 
 
-def assess_candidates(ctx: Context) -> list[Assessed]:
+def assess_candidates(ctx: Context, extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
     s, conn = ctx.settings, ctx.conn
     head = ctx.rpc.block_number()
     bt = float((kv_get(conn, "block_time_s") or {}).get("value", 0.1))
@@ -105,7 +105,7 @@ def assess_candidates(ctx: Context) -> list[Assessed]:
         a = _assess_migrated(ctx, l, eth_usd)
         if a:
             out.append(a)
-    return _shortlist(ctx, out)
+    return _shortlist(ctx, out, extra)
 
 
 def _shortlist(ctx: Context, out: list[Assessed], extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
@@ -404,9 +404,9 @@ def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
     return {"token": token, "decision_id": did, "action": "buy", **res}
 
 
-def assess(ctx: Context) -> list[Assessed]:
-    """The Pons auto-scan's candidates (the scanner source runs through scanner_cycle instead)."""
-    return assess_candidates(ctx)
+def assess(ctx: Context, extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
+    """The Pons auto-scan's candidates (scanner calls run through scanner_cycle; both can run together)."""
+    return assess_candidates(ctx, extra)
 
 
 # --- briefing pack ----------------------------------------------------------
