@@ -3,9 +3,9 @@
 <title>MooseByMuse</title>
 <meta name="description" content="MOOSE reads thousands of new memecoins a day on Robinhood Chain, checks every claim onchain and trades the rare good ones in public. Losses included.">
 <link rel="canonical" href="https://www.moosebymuse.com/">
-<link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon-64.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/assets/favicon-64.png?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png?v=2">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png?v=2">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.moosebymuse.com/">
 <meta property="og:title" content="MOOSE, powered by Muse">
@@ -16,12 +16,10 @@
 <meta name="twitter:image" content="https://www.moosebymuse.com/assets/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Figtree:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
-<!-- preloader: the MOOSE letters are slices of the 3D render; "powered by Muse" is Fredoka (just its letters) -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&text=powerdbyMus&display=swap">
-<link rel="preload" as="image" href="assets/moose-l0.webp"><link rel="preload" as="image" href="assets/moose-l1.webp">
-<link rel="preload" as="image" href="assets/moose-l2.webp"><link rel="preload" as="image" href="assets/moose-l3.webp">
-<link rel="preload" as="image" href="assets/moose-l4.webp">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Pixelify+Sans:wght@500;600;700&display=swap">
+
+
+
 <style>
 /* MOOSE landing page, v2. Layout language: big centred headlines, large soft-gradient
    panels, clean product cards floating on top. Every section is sized to fit one screen.
@@ -800,6 +798,207 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   .preload { display: none; }
 }
+
+/* ================= REBRAND: dark, tech ================= */
+/* One block, last in the sheet: new tokens, then component overrides. The old palette names are kept as
+   aliases so every section picks up the new look; sections get their own overrides as they're redone. */
+:root {
+  color-scheme: dark;
+  --white: #0A0A0B;       /* the page */
+  --surface: #151517;     /* raised fills: soft tags, inputs, bars */
+  --line: #2E2E33;        /* borders and dividers */
+  --ink: #F4F4F5;         /* text and the primary colour */
+  --ink-2: #B4B4BC;       /* secondary text: ~9:1 on the page */
+  --ink-3: #8E8E97;       /* labels and fine print: ~6:1, still AA on cards */
+  /* the old "blue" roles are now white: primary buttons, links, highlights */
+  --blue: #F4F4F5;
+  --blue-deep: #FFFFFF;
+  --blue-soft: #1C1C1F;
+  /* the moose's own beige is the one accent colour */
+  --beige: #E6D3B3;
+  --sand: #1F1A13;
+  --sand-ink: #E6D3B3;
+  --sand-deep: #3A3024;
+  --green: #22C55E;
+  --green-soft: #0F2418;
+  --coral: #F87171;
+  --coral-soft: #2A1515;
+  --panel: #0F0F11;
+  --panel-cool: #0F0F11;
+  --panel-warm: #0F0F11;
+  --f-display: "Geist", "Inter", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Geist", "Inter", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --f-pixel: "Pixelify Sans", "Geist Mono", monospace;
+  --r-card: 10px; --r-panel: 16px; --r-pill: 6px;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.8);
+}
+body { background: var(--white); color: var(--ink); }
+.nav { background: rgba(10,10,11,.78); }
+.nav.scrolled { border-bottom-color: var(--line); }
+::selection { background: var(--ink); color: var(--white); }
+h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
+/* MOOSE's profile picture: the small pixel character in a dark circle */
+.face { background: #1A1A1E url("assets/moose-mini.webp") center 60% / 92% no-repeat; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.xp .face { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.face.emo { background-color: transparent; background-size: contain; border-radius: 0; box-shadow: none; }
+
+/* panels: white, a thin border and a square grid instead of blue dots */
+.panel { border: 1px solid var(--line); }
+.panel.grid-bg::before { background-image: linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size: 32px 32px; mask-image: radial-gradient(80% 75% at 50% 50%, #000 35%, transparent 90%); -webkit-mask-image: radial-gradient(80% 75% at 50% 50%, #000 35%, transparent 90%); }
+
+/* tags: monospace caps with a thin border */
+.kicker { font-family: var(--f-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink); background: var(--white); border: 1px solid var(--line); padding: 6px 12px; }
+.kicker .ic { width: 14px; height: 14px; }
+.kicker.soft { background: var(--surface); color: var(--ink-2); border-color: transparent; }
+.pill { font-family: var(--f-mono); text-transform: uppercase; letter-spacing: .04em; }
+
+/* buttons: black primary, bordered ghost, squarer */
+.btn { border-radius: 10px; font-weight: 600; letter-spacing: -0.01em; }
+.btn-primary { background: var(--ink); color: var(--white); }
+.btn-primary:hover { background: #FFFFFF; box-shadow: 0 0 0 4px rgba(244,244,245,.08), 0 12px 26px -14px rgba(0,0,0,.8); }
+.btn-ghost { border-color: var(--line); }
+.btn-ghost:hover { border-color: var(--ink); }
+
+/* nav: the pixel wordmark */
+.wordmark-t { font-family: var(--f-pixel); font-size: 26px; font-weight: 700; letter-spacing: .01em; color: var(--ink); line-height: 1; }
+.brand-tag { font-family: var(--f-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+.brand-tag .ic { color: var(--ink); }
+.nav-links a { font-family: var(--f-mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; border-radius: 8px; }
+
+/* hero: terminal cursor on the headline, crisp pixel moose, bordered data cards */
+.hero h1 .blue { color: var(--ink); }
+.hero h1 .blue::after { content: ""; display: inline-block; width: .5em; height: .8em; margin-left: .08em; vertical-align: -.02em;
+  background: var(--ink); animation: caret 1.05s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+/* the one blue: the hero headline and the header wordmark */
+:root { --accent: #3B82F6; }
+.hero h1 { color: var(--accent); }
+.hero h1 .blue::after { background: var(--accent); }
+.nav .wordmark-t { color: var(--accent); }
+.hero-stage { background: var(--panel); }
+.stage-curve { color: var(--ink); }
+.hero-mascot { bottom: 4%; height: 84%; }
+.hero-mascot img { image-rendering: pixelated; animation: bob 2.4s steps(2) infinite; filter: drop-shadow(0 0 40px rgba(230,211,179,.10)) drop-shadow(0 20px 20px rgba(0,0,0,.6)); }
+.float { border-radius: 12px; border: 1px solid var(--line); background: #111113; box-shadow: 0 18px 34px -24px rgba(0,0,0,.9); }
+.float.f1, .float.f2, .float.f3, .float.f4 { rotate: 0deg; }
+.float b { font-family: var(--f-mono); font-weight: 600; letter-spacing: -0.01em; }
+.float .bar { height: 5px; border-radius: 1px; background: var(--surface); }
+.float .bar i { background: var(--ink); border-radius: 1px; }
+.hero-stats { font-family: var(--f-mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+.hero-stats b { font-weight: 600; }
+
+/* ---- the rest of the site, dark: one card surface, thin borders, no white glass */
+:root { --card: #111113; --card-2: #17171A; --x-text: #E7E9EA; --x-meta: #71767B; }
+.card, .lc, .sc-card, .lform, .chat, .lead, .src, .fl, .lcard, .lempty, .lrow2, .msg.att, .msg.scan, .msg.verdict-msg {
+  background: var(--card); border: 1px solid var(--line); box-shadow: 0 24px 48px -32px rgba(0,0,0,.9); }
+.lc, .sc-card, .lform { border-radius: 16px; }
+.chat { border-radius: 16px; }
+.chat.phone { border-color: #202024; box-shadow: 0 0 0 1px #34343A, 0 40px 80px -40px rgba(0,0,0,.95); }
+.msg.bot { background: var(--card-2); color: var(--ink); border: 1px solid var(--line); }
+.msg.sys { background: var(--ink); color: var(--white); }
+.msg.sys code { background: rgba(0,0,0,.12); }
+
+/* inputs and small controls */
+.lform input, .lform textarea, .ask-bar { background: var(--white); border: 1px solid var(--line); color: var(--ink); }
+.lform input:focus, .ask-bar:focus-within { background: var(--white); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+.lform label, .lform .lbl { color: var(--ink-3); }
+.ask-sugg button { background: var(--card-2); border-color: var(--line); color: var(--ink); font-family: var(--f-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .03em; }
+.ask-sugg button:hover { border-color: var(--ink-3); }
+.ask-send { background: var(--ink); color: var(--white); }
+.tnav button, .menu-btn, .ca-row button, .ldca button { background: var(--card-2); border-color: var(--line); color: var(--ink); }
+.ca-row { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.ca-row:hover { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--ink-3); }
+.ca-row button:hover { background: var(--ink); border-color: var(--ink); color: var(--white); }
+.gate { background: var(--card-2); }
+.gate.no { background: var(--coral-soft); border-color: rgba(248,113,113,.3); color: var(--coral); }
+
+/* coin glyphs, tiles and chips */
+.glyph .gl { background: linear-gradient(160deg, #1C1C1F, #111113); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
+.coin-logo { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line); }
+.tile { background: var(--card-2); }
+.wbar i, .vd-bar i { background: var(--ink); }
+.wprog.done .wbar i { background: var(--beige); }
+.vd-bar { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line); }
+.vd-head { background: var(--card-2); border-bottom-color: var(--line); }
+.vd-risk .ri { background: var(--coral-soft); box-shadow: none; }
+.pick[aria-selected="true"] .pill.ink { background: rgba(0,0,0,.14); }
+.lc-k.ink { background: var(--ink); color: var(--white); }
+.lsteps b { background: var(--ink); color: var(--white); font-family: var(--f-mono); }
+
+/* tweets: X's own dark theme */
+.xtl { background: #000; border: 1px solid #2F3336; border-radius: 12px; }
+.xp { background: #000; }
+.tslide .xtl a.xlink:hover .xp { background: #080808; }
+.xp { color: var(--x-text); }
+.xp + .xp { border-top-color: #2F3336; }
+.xp:hover, .lc .xp:hover, .rec-card .xp:hover { background: #080808; }
+.xp-name, .xp-text { color: var(--x-text); }
+.xp-meta, .xp-more, .xp-actions { color: var(--x-meta); }
+.rec-card .xtl { border-color: #2F3336; box-shadow: 0 30px 60px -30px rgba(0,0,0,.95); }
+
+/* sources: a pixel face in a terminal-style ring */
+.hub .ring { background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 0 0 12px rgba(255,255,255,.03), 0 0 0 13px var(--line), 0 0 0 26px rgba(255,255,255,.015); }
+.hub .ring img { width: 84%; transform: translateY(4%); }
+.hub p { text-transform: uppercase; letter-spacing: .06em; font-size: 11.5px; color: var(--ink-3); }
+
+/* the pixel moose, wherever it stands */
+.holder { right: -10%; bottom: -2%; height: 46%; }
+.holder img, .rec-desk, .cta-mascot img { image-rendering: pixelated; filter: drop-shadow(0 0 40px rgba(230,211,179,.08)) drop-shadow(0 20px 20px rgba(0,0,0,.6)); }
+.holder img { animation: bob 2.4s steps(2) infinite; }
+.rec-desk { left: -8%; bottom: 4%; height: 46%; }
+.cta-mascot { height: clamp(220px, 38vh, 380px); }
+.cta-panel:hover .cta-mascot img { transform: translateY(-6px); }
+
+/* scorecard */
+.sc-recent { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.rc { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line); }
+.sc-lbl, .lc-meta { font-family: var(--f-mono); }
+
+/* mobile tabs for the Live section */
+@media (max-width: 900px) {
+  .live-tabs { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+  .live-tabs button[aria-selected="true"] { background: var(--card-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+}
+
+/* preloader: MOOSE in pixels, typed in */
+.pl-word { gap: .04em; height: auto; font-family: var(--f-pixel); font-weight: 700; font-size: clamp(56px, 11vw, 104px); line-height: 1; color: var(--accent); }
+.pl-word span { display: inline-block; opacity: 0; animation: plType .01s steps(1) forwards; animation-delay: calc(var(--i) * .12s); }
+@keyframes plType { to { opacity: 1; } }
+.pl-sub { font-family: var(--f-mono); font-weight: 500; font-size: 12.5px; text-transform: uppercase; letter-spacing: .12em; }
+.pl-sub .mu, .pl-sub .st { color: var(--ink); }
+
+/* footer */
+.foot, footer { border-top: 1px solid var(--line); }
+footer .wordmark-t { color: var(--ink); }
+
+/* ---- contrast: nothing dark-on-dark */
+.chip-ic, .src-ic { color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.coinav { background: linear-gradient(160deg, #26262B, #18181B); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+.coin-logo { background: var(--card-2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.rh, .xl, .scan-row .si.rh, .scan-row .si.xl { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.xp-meta, .xp-more, .xp-actions { color: #8B98A5; }
+.ask-send:disabled { background: var(--card-2); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
+.lform .btn:disabled { opacity: 1; background: var(--card-2); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
+.msg code { background: rgba(255,255,255,.08); }
+.lform input::placeholder, .ask-bar textarea::placeholder { color: #6E6E77; }
+
+/* ---- background: a grid that lights up around the cursor, only over the bare black page */
+main, footer { position: relative; z-index: 1; }
+.bg-fx { --mx: -999px; --my: -999px; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .45s ease; }
+.bg-fx.on { opacity: 1; }
+.bg-fx i { position: absolute; inset: 0; }
+.bg-grid, .bg-hot { background-size: 44px 44px; background-position: 0 var(--gy, 0); }
+.bg-grid { background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+  -webkit-mask-image: radial-gradient(300px circle at var(--mx) var(--my), #000 0%, rgba(0,0,0,.5) 45%, transparent 75%);
+          mask-image: radial-gradient(300px circle at var(--mx) var(--my), #000 0%, rgba(0,0,0,.5) 45%, transparent 75%); }
+.bg-hot { background-image: linear-gradient(rgba(255,255,255,.28) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.28) 1px, transparent 1px);
+  -webkit-mask-image: radial-gradient(120px circle at var(--mx) var(--my), #000 0%, transparent 80%);
+          mask-image: radial-gradient(120px circle at var(--mx) var(--my), #000 0%, transparent 80%); }
+.bg-glow { background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.055), transparent 70%); }
+@media (hover: none), (prefers-reduced-motion: reduce) { .bg-fx { display: none; } }
 </style>
 <!-- Icons: brand marks from Simple Icons (CC0), UI icons from Lucide (ISC) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -848,11 +1047,11 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
 </svg>
 
-<div class="preload" id="preload" aria-hidden="true"><div><div class="pl-word"><img src="assets/moose-l0.webp" alt="" width="256" height="240" style="--i:0"><img src="assets/moose-l1.webp" alt="" width="241" height="240" style="--i:1"><img src="assets/moose-l2.webp" alt="" width="241" height="240" style="--i:2"><img src="assets/moose-l3.webp" alt="" width="194" height="240" style="--i:3"><img src="assets/moose-l4.webp" alt="" width="204" height="240" style="--i:4"></div><p class="pl-sub"><span class="st" style="--i:0"><svg class="ic"><use href="#i-sparkles"/></svg> </span><span style="--i:1">p</span><span style="--i:2">o</span><span style="--i:3">w</span><span style="--i:4">e</span><span style="--i:5">r</span><span style="--i:6">e</span><span style="--i:7">d</span><span style="--i:8"> </span><span style="--i:9">b</span><span style="--i:10">y</span><span style="--i:11"> </span><span class="mu" style="--i:12">M</span><span class="mu" style="--i:13">u</span><span class="mu" style="--i:14">s</span><span class="mu" style="--i:15">e</span></p></div></div>
+<div class="preload" id="preload" aria-hidden="true"><div><div class="pl-word"><span style="--i:0">M</span><span style="--i:1">O</span><span style="--i:2">O</span><span style="--i:3">S</span><span style="--i:4">E</span></div><p class="pl-sub"><span class="st" style="--i:0"><svg class="ic"><use href="#i-sparkles"/></svg> </span><span style="--i:1">p</span><span style="--i:2">o</span><span style="--i:3">w</span><span style="--i:4">e</span><span style="--i:5">r</span><span style="--i:6">e</span><span style="--i:7">d</span><span style="--i:8"> </span><span style="--i:9">b</span><span style="--i:10">y</span><span style="--i:11"> </span><span class="mu" style="--i:12">M</span><span class="mu" style="--i:13">u</span><span class="mu" style="--i:14">s</span><span class="mu" style="--i:15">e</span></p></div></div>
 
 <header class="nav" id="nav">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
+    <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><span class=" wordmark-t">MOOSE</span><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
       <a href="#ask">AskMoose</a>
       <a href="#listens">Sources</a>
@@ -869,6 +1068,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   </div>
 </header>
 
+<div class="bg-fx" id="bgFx" aria-hidden="true"><i class="bg-grid"></i><i class="bg-hot"></i><i class="bg-glow"></i></div>
 <main id="top">
 
 <!-- 1 HERO: an AI that watches every launch so you don't have to -->
@@ -883,12 +1083,12 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     </div>
     <div class="panel grid-bg hero-stage" id="stage">
       <svg class="stage-curve" viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true">
-        <defs><linearGradient id="hc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0082FB" stop-opacity=".22"/><stop offset="1" stop-color="#0082FB" stop-opacity="0"/></linearGradient></defs>
+        <defs><linearGradient id="hc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".10"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
         <path d="M0 380 C 380 372, 620 330, 760 230 S 930 40, 1000 20 L 1000 400 L 0 400 Z" fill="url(#hc)"/>
-        <path d="M0 380 C 380 372, 620 330, 760 230 S 930 40, 1000 20" fill="none" stroke="#0082FB" stroke-width="3" stroke-opacity=".5" vector-effect="non-scaling-stroke"/>
-        <line x1="560" x2="1000" y1="80" y2="80" stroke="#1C2B33" stroke-opacity=".3" stroke-dasharray="6 8" vector-effect="non-scaling-stroke"/>
+        <path d="M0 380 C 380 372, 620 330, 760 230 S 930 40, 1000 20" fill="none" stroke="currentColor" stroke-width="2" stroke-opacity=".8" vector-effect="non-scaling-stroke"/>
+        <line x1="560" x2="1000" y1="80" y2="80" stroke="currentColor" stroke-opacity=".22" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/>
       </svg>
-      <div class="hero-mascot"><img src="assets/moose.png" alt="MOOSE, a fluffy beige mascot"></div>
+      <div class="hero-mascot"><img src="assets/moose-pixel.webp" alt="MOOSE, a pixel-art moose" width="844" height="805"></div>
       <div class="float f1" data-depth="18">
         <div class="row"><span class="coinav" data-coin="blue" data-sym="HATCH" style="width:22px;height:22px"></span><b id="hfWatch">Watching $HATCH</b><span class="dot pulse" style="color:var(--green)"></span></div>
         <div class="bar"><i id="heroBar" style="width:91%"></i></div>
@@ -946,7 +1146,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     <div class="panel grid-bg listen-panel" id="listenPanel" style="text-align:left">
       <svg class="wires" id="wires" aria-hidden="true"></svg>
       <div class="srcs" id="srcs"></div>
-      <div class="hub" aria-hidden="true"><div class="ring"><img src="assets/moose-listen.webp" alt="" width="512" height="512"></div><p>MOOSE is listening</p></div>
+      <div class="hub" aria-hidden="true"><div class="ring"><img src="assets/moose-mini.webp" alt="" width="256" height="256"></div><p>MOOSE is listening</p></div>
       <div class="lead" id="leadCard" aria-live="polite"></div>
     </div>
   </div>
@@ -969,7 +1169,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div class="chat-foot"><span>Hard rules run after this.</span><span class="num" id="chatTime">14:06 UTC</span></div>
         <div class="home-ind" aria-hidden="true"></div>
       </div>
-      <div class="holder" aria-hidden="true"><img src="assets/moose-phone.webp" alt="" width="722" height="900"></div>
+      <div class="holder" aria-hidden="true"><img src="assets/moose-pixel.webp" alt="" width="844" height="805"></div>
       <div class="fl fl-1" aria-hidden="true"><span class="tile" style="background:var(--blue-soft);color:var(--blue-deep)"><svg class="ic"><use href="#i-sparkles"/></svg></span>Muse Spark <small>thinking…</small></div>
       <div class="fl fl-2" aria-hidden="true"><span class="tile" style="background:var(--green-soft);color:var(--green)"><svg class="ic"><use href="#i-shield-check"/></svg></span>4/4 checks passed</div>
       <div class="fl fl-3" aria-hidden="true"><span class="rh"><svg class="ic"><use href="#b-robinhood"/></svg></span>Robinhood Chain</div>
@@ -979,7 +1179,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 </section>
 
 <!-- 2 LAUNCH: launch your own coin by tagging MOOSE on X -->
-<section class="sec launch" id="launch" aria-labelledby="h-launch" style="background:var(--surface)">
+<section class="sec launch" id="launch" aria-labelledby="h-launch">
   <div class="wrap">
     <div>
       <span class="kicker"><svg class="ic"><use href="#i-rocket"/></svg>Launchpad</span>
@@ -1071,7 +1271,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 </section>
 
 <!-- 8 RECORD: every trade on the record, even the losses -->
-<section class="sec record" id="record" aria-labelledby="h-rec" style="background:var(--surface)">
+<section class="sec record" id="record" aria-labelledby="h-rec">
   <div class="wrap">
     <div>
       <span class="kicker">On the record</span>
@@ -1084,7 +1284,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
       <div class="ctas"><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a></div>
     </div>
     <div class="panel grid-bg rec-panel" style="background:var(--panel-warm)">
-      <img class="rec-desk" src="assets/moose-desk.webp" alt="" aria-hidden="true" width="912" height="1000" loading="lazy">
+      <img class="rec-desk" src="assets/moose-pixel.webp" alt="" aria-hidden="true" width="844" height="805" loading="lazy">
       <div class="rec-card rec-card-0"><div class="xtl"></div></div>
       <div class="rec-card rec-card-1"><div class="xtl"></div></div>
     </div>
@@ -1133,7 +1333,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
         <div class="ctas"><a class="btn btn-primary buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span>Buy $MOOSE<span class="soon">soon</span></a><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a></div>
         <div class="ca-row" id="caRow" hidden><span class="lbl">CA</span><code id="caTxt"></code><button type="button" id="caCopy" aria-label="Copy the $MOOSE contract address"><svg class="ic"><use href="#i-copy"/></svg></button></div>
       </div>
-      <div class="cta-mascot"><img src="assets/moose-board.webp" alt="MOOSE writing $MOOSE on a whiteboard" width="975" height="806"></div>
+      <div class="cta-mascot"><img src="assets/moose-board-pixel.webp" alt="MOOSE pointing at a chalkboard: Buy MOOSE here" width="965" height="780"></div>
     </div>
   </div>
 </section>
@@ -1141,7 +1341,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
 
 <footer>
   <div class="wrap">
-    <a class="brand" href="#top"><span class="face" aria-hidden="true"></span><img class="wordmark" src="assets/moose-wordmark.webp" alt="MOOSE" width="419" height="84"><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
+    <a class="brand" href="#top"><span class="face" aria-hidden="true"></span><span class=" wordmark-t">MOOSE</span><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
     <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> @MooseByMuse</a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
     <p class="legal">MOOSE, powered by Muse. MOOSE is an automated account run by software; its reasoning uses Meta's Muse Spark model through the public API. Not affiliated with Meta, Robinhood or Pons. Not financial advice. Testing Phase trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
   </div>
@@ -1219,8 +1419,8 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   $$(".coinav[data-coin]").forEach(el => { el.style.fontSize = "10px"; el.textContent = initial(el.dataset.sym); });
   const coins = [];
   // floating decor: glossy app-icon tiles carrying the site's own marks (where MOOSE listens, what it trades on)
-  const GLYPH = { x: [B("x"), "#0F1419", "#FFFFFF"], rh: [B("robinhood"), "#CCFF00", "#000000"], eth: [B("eth"), "#627EEA", "#FFFFFF"],
-                  muse: [I("sparkles"), "#0082FB", "#FFFFFF"], shield: [I("shield-check"), "#1E9E4A", "#FFFFFF"], eye: [I("eye"), "#0064E0", "#FFFFFF"] };
+  const GLYPH = { x: [B("x"), "#F4F4F5", "#000000"], rh: [B("robinhood"), "#CCFF00", "#000000"], eth: [B("eth"), "#627EEA", "#FFFFFF"],
+                  muse: [I("sparkles"), "#F4F4F5", "#0A0A0B"], shield: [I("shield-check"), "#22C55E", "#0F0F11"], eye: [I("eye"), "#3B82F6", "#0F0F11"] };
   const addCoin = (host, kind, size, x, y, rot, depth = 1) => {
     const [ic, fg, bg] = GLYPH[kind];
     // the X tiles are links to @MooseByMuse; the rest are decoration
@@ -1904,5 +2104,35 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
     load(); setInterval(load, 30000);
   }
 
+})();
+</script>
+<script>
+// background grid: follows the cursor, and only shows while it's over the bare page (not a card, panel or the nav)
+(() => {
+  const fx = document.getElementById("bgFx");
+  if (!fx || matchMedia("(hover: none)").matches) return;
+  const bare = new WeakMap();
+  const isBare = el => {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      if (bare.has(n)) { if (!bare.get(n)) return false; continue; }
+      const cs = getComputedStyle(n);
+      const solid = (cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent") || cs.backgroundImage !== "none"
+        || n.matches("a, button, input, textarea, img, svg, video, .card");
+      bare.set(n, !solid);
+      if (solid) return false;
+    }
+    return true;
+  };
+  let x = -999, y = -999, target = null, raf = 0;
+  const paint = () => {
+    raf = 0;
+    fx.style.setProperty("--mx", x + "px"); fx.style.setProperty("--my", y + "px");
+    fx.style.setProperty("--gy", -(scrollY % 44) + "px");  // the grid moves with the page as it scrolls
+    fx.classList.toggle("on", !!target && isBare(target));
+  };
+  const queue = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  addEventListener("pointermove", e => { if (e.pointerType !== "mouse") return; x = e.clientX; y = e.clientY; target = e.target; queue(); }, { passive: true });
+  addEventListener("scroll", () => { if (x > -999) { target = document.elementFromPoint(x, y); queue(); } }, { passive: true });
+  document.documentElement.addEventListener("pointerleave", () => { target = null; queue(); });
 })();
 </script>
