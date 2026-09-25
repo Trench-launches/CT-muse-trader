@@ -30,6 +30,10 @@ log = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
 # Trade posts go first, in the order they happened; anything else (watch, pass) is commentary.
 TRADE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "correction", "scorecard"}
+# Follow-ups on a coin MOOSE already posted about go out as quote posts of that post, so they land at the top of
+# the profile (a reply to its own post only shows inside the thread). The reasons under a buy and a launch
+# receipt come seconds after their post and stay replies, like replies to other people.
+QUOTE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "watch", "pass"}
 
 
 def enqueue(conn: sqlite3.Connection, d: Draft) -> tuple[int, bool]:
@@ -103,8 +107,9 @@ def _next_sendable(conn: sqlite3.Connection, threads_since: str = "") -> tuple[d
 
 def _send_one(conn: sqlite3.Connection, x: XClient, row: dict[str, Any], reply_to: str | None = None) -> dict[str, Any]:
     pid, attempts = row["id"], row["attempts"] + 1
+    quote = reply_to if reply_to and row["kind"] in QUOTE_KINDS and not (row.get("reply_to_key") or "").startswith("x:")         else None
     try:
-        res = x.create_post(row["body"], reply_to=reply_to)
+        res = x.create_post(row["body"], reply_to=None if quote else reply_to, quote=quote)
     except XNotConfigured as exc:
         return _set(conn, pid, "pending", str(exc), attempts=row["attempts"])
     except httpx.TimeoutException as exc:

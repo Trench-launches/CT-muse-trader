@@ -143,7 +143,7 @@ def test_trade_posts_go_before_commentary_and_replies_wait_for_parent(db):
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60)
     assert [g["text"][:9] for g in got] == ["Test buy ", "$NEZU upd", "$W is on "]
-    assert got[1]["reply"] == {"in_reply_to_tweet_id": "1"} and "reply" not in got[0]
+    assert got[1]["quote_tweet_id"] == "1" and "reply" not in got[1] and "reply" not in got[0]
 
 
 def test_no_replies_under_a_previous_x_account(db):
@@ -158,13 +158,13 @@ def test_no_replies_under_a_previous_x_account(db):
         got.append(json.loads(r.content))
         return httpx.Response(201, json={"data": {"id": str(len(got))}})
     send_pending(db, _x(h), enabled=True, daily_cap=60, threads_since="2026-09-24T19:19:00+00:00")
-    assert len(got) == 1 and "reply" not in got[0]  # the parent is on the old account
+    assert len(got) == 1 and "reply" not in got[0] and "quote_tweet_id" not in got[0]  # the parent is on the old account
     enqueue(db, _entry(pid=2))
     send_pending(db, _x(h), enabled=True, daily_cap=60, threads_since="2026-09-24T19:19:00+00:00")
     enqueue(db, compose.position_update(mode="paper", symbol="NEZU", token=CA, pnl_pct=26, price="1e-9 ETH",
                                         milestone=25, plan="Stop -30%.", position_id=2))
     send_pending(db, _x(h), enabled=True, daily_cap=60, threads_since="2026-09-24T19:19:00+00:00")
-    assert got[-1]["reply"] == {"in_reply_to_tweet_id": "2"}  # a thread on the new account still threads
+    assert got[-1]["quote_tweet_id"] == "2"  # a follow-up on the new account quotes its post
 
 
 def test_usd_compact():

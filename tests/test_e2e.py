@@ -297,12 +297,13 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
     assert "\nMC now: $" in sent[2]["text"], sent[2]["text"]
     assert "\n\nUpdated thesis: buyers kept spreading out" in sent[2]["text"] and len(sent[2]["text"]) <= 280
     assert journal_recent(ctx.conn, kind="thesis_update")[0]["payload"]["thesis"].startswith("buyers kept")
-    assert sent[1]["reply"] == sent[2]["reply"] == {"in_reply_to_tweet_id": "1001"}
+    assert sent[1]["reply"] == {"in_reply_to_tweet_id": "1001"}  # the reasons stay in the thread under the buy
+    assert sent[2]["quote_tweet_id"] == "1001" and "reply" not in sent[2]  # the update quotes it: top of the profile
 
     hot.real_quote = int(0.2 * ETH)  # collapse -> stop loss, exit replies under the entry too
     trader_once(ctx)
     social_once(ctx)
-    assert sent[-1]["text"].startswith("Top blasted $HOT") and sent[-1]["reply"] == {"in_reply_to_tweet_id": "1001"}
+    assert sent[-1]["text"].startswith("Top blasted $HOT") and sent[-1]["quote_tweet_id"] == "1001"
     assert len(sent) == 4
 
 

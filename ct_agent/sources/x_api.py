@@ -196,12 +196,15 @@ class XClient:
             info = (r.json().get("data") or {}).get("processing_info")
         raise RuntimeError("X video processing timed out")
 
-    def create_post(self, text: str, reply_to: str | None = None, media_ids: list[str] | None = None) -> PostResult:
+    def create_post(self, text: str, reply_to: str | None = None, media_ids: list[str] | None = None,
+                    quote: str | None = None) -> PostResult:
         token = self._user_token()
         body: dict[str, Any] = {"text": text}
         if media_ids:
             body["media"] = {"media_ids": media_ids}
-        if reply_to:  # threads under MOOSE's own posts, or an auto-reply to someone who engaged first
+        if quote:  # a follow-up that quotes MOOSE's earlier post: lands on the timeline, the old post shown below
+            body["quote_tweet_id"] = quote
+        elif reply_to:  # threads under MOOSE's own posts, or an auto-reply to someone who engaged first
             body["reply"] = {"in_reply_to_tweet_id": reply_to}
         r = self._http.post(f"{API}/tweets", json=body,
                             headers={"authorization": f"Bearer {token}"})
