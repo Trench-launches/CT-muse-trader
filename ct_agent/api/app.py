@@ -183,7 +183,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/scanner")
     def scanner_calls(limit: int = 50, conn=Depends(db)) -> dict[str, Any]:
-        """The smart-money scanner's Robinhood calls as HORIZON sees them: moved how far, and what it did."""
+        """The smart-money scanner's Robinhood calls as VIGIL sees them: moved how far, and what it did."""
         calls = rows(conn, "SELECT id, token, symbol, called_at, call_price_usd, status, note, last_move_pct, "
                            "peak_move_pct, triggered_at, checked_at, decision_id FROM scanner_calls "
                            "ORDER BY id DESC LIMIT ?", (min(limit, 500),))
@@ -210,7 +210,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return {"status": "not_seen"}
         out = dict(r)
         out.pop("id")
-        if out["status"] == "refused":  # the short public reason HORIZON replied with, not the internal note
+        if out["status"] == "refused":  # the short public reason VIGIL replied with, not the internal note
             out["reason"] = (out["reason"] or "").removeprefix("grok declined: ").removeprefix("muse declined: ")  # older rows
         return out
 
@@ -259,7 +259,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/outcomes")
     def outcomes(hours: float | None = None, conn=Depends(db)) -> dict[str, Any]:
-        """What happened after each call, split by the variables HORIZON saw."""
+        """What happened after each call, split by the variables VIGIL saw."""
         from ..strategy.outcomes import report
         return report(conn, hours)
 
@@ -278,7 +278,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return rows(conn, "SELECT * FROM posts WHERE status=? ORDER BY id DESC LIMIT 200", (status,))
         return rows(conn, "SELECT * FROM posts ORDER BY id DESC LIMIT 200")
 
-    # --- ask HORIZON (public chat, answered by Grok) ---------------------------------------------
+    # --- ask VIGIL (public chat, answered by Grok) ---------------------------------------------
 
     import threading
     chat_lock = threading.Lock()
@@ -326,23 +326,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(429, str(exc), headers={"Retry-After": str(exc.retry_after_s)})
         svc = chat_services()
         if not svc["brain"].enabled:
-            raise HTTPException(503, "HORIZON isn't connected right now.")
+            raise HTTPException(503, "VIGIL isn't connected right now.")
         history = [{"role": m.role, "text": m.text[:600]} for m in body.history[-8:]]
         return svc, who, msg, history
 
     @app.post("/chat")
-    def ask_horizon(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
-        """Ask HORIZON (Grok) about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
+    def ask_vigil(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
+        """Ask VIGIL (Grok) about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
         svc, who, msg, history = chat_start(body, request, conn)
         for e in chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token):
             if e["type"] == "error":
                 raise HTTPException(502, e["detail"])
             if e["type"] == "answer":
                 return {k: v for k, v in e.items() if k != "type"}
-        raise HTTPException(502, "HORIZON didn't answer that one. Try again in a moment.")
+        raise HTTPException(502, "VIGIL didn't answer that one. Try again in a moment.")
 
     @app.post("/chat/stream")
-    def ask_horizon_live(body: ChatIn, request: Request, conn=Depends(db)) -> StreamingResponse:
+    def ask_vigil_live(body: ChatIn, request: Request, conn=Depends(db)) -> StreamingResponse:
         """The same as /chat, but each research step is sent as it happens (one JSON object per line)."""
         svc, who, msg, history = chat_start(body, request, conn)
         events = chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token)

@@ -65,7 +65,7 @@ def fetch_fibbot(ctx: Context) -> int:
     """Fibbot's Robinhood smart-money calls (its table `smart_money_calls`, source 'smart_money' only; its
     Nansen alerts and fib alerts are ignored). Most are the same calls as the main scanner's; what Fibbot adds
     is re-calls: a coin called again later, which starts a fresh call with its own price and window. A Fibbot
-    call within 15 minutes of a call HORIZON already has for that coin is the same call and is skipped."""
+    call within 15 minutes of a call VIGIL already has for that coin is the same call and is skipped."""
     s, conn = ctx.settings, ctx.conn
     if not (s.fibbot_supabase_url and s.fibbot_supabase_key):
         return 0
@@ -181,7 +181,7 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
 
 def to_analyse(conn: Any, window_hours: float, limit: int = 3) -> list[dict[str, Any]]:
     """Calls Grok hasn't looked at yet, oldest first: every Robinhood call gets a read and a post, including
-    ones HORIZON can't trade (priced in a stock token, or not a Pons coin). Only our own token is left out."""
+    ones VIGIL can't trade (priced in a stock token, or not a Pons coin). Only our own token is left out."""
     cutoff = (_now() - timedelta(hours=window_hours)).isoformat(timespec="seconds")
     return rows(conn, "SELECT * FROM scanner_calls WHERE decision_id IS NULL AND called_at>=? AND "
                       "((status IN ('watching','bought') AND pool_id IS NOT NULL) OR "
@@ -215,7 +215,7 @@ def call_facts(call: dict[str, Any], trigger_pct: float) -> dict[str, Any]:
                         "held_usd": d.get("alert_sm_held_usd"), "supply_controlled_pct": d.get("alert_supply_ctl_pct")},
         "signals": signals,
         "move_since_call_pct": call.get("last_move_pct"), "peak_move_since_call_pct": call.get("peak_move_pct"),
-        "rule": (f"HORIZON buys this call automatically, by rule, if the coin gets to +{trigger_pct:g}% from the call "
+        "rule": (f"VIGIL buys this call automatically, by rule, if the coin gets to +{trigger_pct:g}% from the call "
                  "price. Your job here is the analysis: what the coin is, why smart money may be in, what could go "
                  "wrong. Your action does not decide the trade."),
     }

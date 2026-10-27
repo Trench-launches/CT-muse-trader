@@ -149,7 +149,7 @@ def _assess_migrated(ctx: Context, l: dict[str, Any], eth_usd: float | None) -> 
 
 
 def _ensure_launch(ctx: Context, token: str) -> dict[str, Any] | None:
-    """The launches row for a coin the scanner found. Coins launched before HORIZON's index started are
+    """The launches row for a coin the scanner found. Coins launched before VIGIL's index started are
     added from their onchain record (block = now, so no history is replayed for them)."""
     conn = ctx.conn
     row = conn.execute("SELECT * FROM launches WHERE token=? COLLATE NOCASE", (token,)).fetchone()
@@ -202,7 +202,7 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
     fresh = [c for c in ready if not c.get("decision_id")] + \
         [c for c in scanner.to_analyse(conn, s.scanner_window_hours) if c["id"] not in ready_ids]
     for call in fresh[:4]:
-        if not call.get("pool_id"):  # HORIZON can't trade it, but it still gets a read and a post
+        if not call.get("pool_id"):  # VIGIL can't trade it, but it still gets a read and a post
             did = analyse_untradeable(ctx, call)
             out.append({"token": call["token"], "analysed": did, "tradeable": False})
             continue
@@ -243,15 +243,15 @@ def _dex_stats(ctx: Context, token: str) -> dict[str, Any]:
 
 
 def analyse_untradeable(ctx: Context, call: dict[str, Any]) -> int:
-    """A call HORIZON can't trade still gets Grok's read and a radar post, with what's knowable about it."""
+    """A call VIGIL can't trade still gets Grok's read and a radar post, with what's knowable about it."""
     from ..sources.scanner import call_facts
     s = ctx.settings
     token = call["token"]
     symbol = (call.get("symbol") or "?").replace("\U0001f331", "").strip() or "?"
     facts = call_facts(call, s.scanner_trigger_pct)
-    facts["rule"] = (f"HORIZON can't trade this coin ({call.get('note') or 'not tradeable'}), so it won't buy it. "
+    facts["rule"] = (f"VIGIL can't trade this coin ({call.get('note') or 'not tradeable'}), so it won't buy it. "
                      "Your job is only the analysis: what the coin is, why smart money may be in, what could go wrong.")
-    pack = {"token": token, "symbol": symbol, "chain": "Robinhood Chain (4663)", "tradeable_by_horizon": False,
+    pack = {"token": token, "symbol": symbol, "chain": "Robinhood Chain (4663)", "tradeable_by_vigil": False,
             "why_not_tradeable": call.get("note"), "scanner_call": facts, "market": _dex_stats(ctx, token),
             "lore": _lore(ctx, token), "evidence": [], "limits": {"mode": s.trading_mode.value}}
     return _record_analysis(ctx, token, symbol, pack, call, None)
@@ -444,7 +444,7 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         pack["scanner_call"] = call_facts(a.call, s.scanner_trigger_pct)
         if s.scanner_buy_on_call:
             pack["scanner_call"]["rule"] = (
-                "HORIZON buys every smart-money call the moment it lands, and has ALREADY BOUGHT this one. Give your "
+                "VIGIL buys every smart-money call the moment it lands, and has ALREADY BOUGHT this one. Give your "
                 "honest read: what the coin is, why smart money may be in, what could go wrong. Don't say you are "
                 "watching, waiting or passing; the position is open.")
     if a.pool:

@@ -1,4 +1,4 @@
-# Deploys the HORIZON backend to Railway (project "moose", service "moose") on
+# Deploys the VIGIL backend to Railway (project "moose", service "moose") on
 # every push to main that touches backend files. Tests must pass first.
 # Uses a Railway project token stored as the RAILWAY_TOKEN repository secret.
 name: Deploy backend to Railway

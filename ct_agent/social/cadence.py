@@ -1,7 +1,7 @@
 """A steady timeline: a post at least every x_cadence_min minutes, in a rotation of kinds.
 
 Trades, updates and launches still post the moment they happen, and each one counts as that slot's post. Only
-when x_cadence_min minutes pass with nothing new on the timeline does HORIZON fill the gap with the next kind in
+when x_cadence_min minutes pass with nothing new on the timeline does VIGIL fill the gap with the next kind in
 the rotation that has something to say:
 
   scan     what the scanner looked at in the last hour (launches seen, coins screened, bought/watched/passed)
@@ -92,7 +92,7 @@ def score_post(site: dict[str, Any]) -> str | None:
     sc = site.get("score") or {}
     if not sc.get("taken"):
         return None
-    lines = ["📈 HORIZON scorecard", "",
+    lines = ["📈 VIGIL scorecard", "",
              f"Trades: {sc['taken']} ({sc.get('closed', 0)} closed, {sc.get('open', 0)} open)",
              f"Win rate: {sc.get('win_rate', 0):.0f}%",
              f"Closed P&L: {sc.get('net_eth', 0):+.4f} ETH"]

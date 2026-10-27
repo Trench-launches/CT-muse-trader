@@ -1,7 +1,7 @@
-"""Call outcomes: what happened to every token HORIZON made a call on.
+"""Call outcomes: what happened to every token VIGIL made a call on.
 
 Each decided token (buy, watch or pass) is recorded once per 24h with the
-variables HORIZON saw at that moment and its spot price. The price is then
+variables VIGIL saw at that moment and its spot price. The price is then
 re-read at fixed checkpoints, so the report can show which variables were
 followed by the token going up, and which by it dying.
 

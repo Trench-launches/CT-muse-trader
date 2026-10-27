@@ -20,12 +20,12 @@ class _X:
 
 
 def test_an_image_is_uploaded_and_attached(db):
-    enqueue(db, Draft("note", "🎓 $HRZN has migrated", "", "note:a", media=("moose-cap.png",)))
+    enqueue(db, Draft("note", "🎓 $VIGIL has migrated", "", "note:a", media=("moose-cap.png",)))
     enqueue(db, Draft("note", "gm", "", "note:b"))
     x = _X()
     send_pending(db, x, enabled=True, daily_cap=10)
     assert x.uploaded and x.uploaded[0].endswith("moose-cap.png")
-    assert x.posts == [("🎓 $HRZN has migrated", ["m1"]), ("gm", None)]
+    assert x.posts == [("🎓 $VIGIL has migrated", ["m1"]), ("gm", None)]
     assert [r["status"] for r in rows(db, "SELECT status FROM posts ORDER BY id")] == ["sent", "sent"]
 
 
@@ -54,7 +54,7 @@ def test_the_admin_endpoint_queues_a_post_with_an_image(settings, db):
 
 def test_a_post_keeps_only_its_first_cashtag(db):
     from ct_agent.social.outbox import one_cashtag
-    assert one_cashtag("not the $HRZN chart. For $HRZN use the CA") == "not the $HRZN chart. For HRZN use the CA"
+    assert one_cashtag("not the $VIGIL chart. For $VIGIL use the CA") == "not the $VIGIL chart. For VIGIL use the CA"
     assert one_cashtag("$ROBO paired with $TSLA, MC $63K") == "$ROBO paired with TSLA, MC $63K"
     enqueue(db, Draft("reply", "$A and $B", "", "k"))
     assert rows(db, "SELECT body FROM posts")[0]["body"] == "$A and B"

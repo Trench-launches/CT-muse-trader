@@ -116,7 +116,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     lp = _Launcher(pending=100)  # fees so far: not enough yet
     assert launchpad_once(ctx, lp) == {"launched": 0, "handed_over": 0}  # first the announcement, crediting them
     ann = rows(db, "SELECT * FROM posts WHERE kind='launch_announce'")[0]
-    assert ann["body"].startswith("🚀 New on the HORIZON launchpad\n\n$CAT · Cat Coin\nCreator: @catfan") and ann["reply_to_key"] is None and lp.calls == []
+    assert ann["body"].startswith("🚀 New on the VIGIL launchpad\n\n$CAT · Cat Coin\nCreator: @catfan") and ann["reply_to_key"] is None and lp.calls == []
     assert launchpad_once(ctx, lp)["launched"] == 0  # not launched until the announcement is out
     _announced(db)
     assert launchpad_once(ctx, lp) == {"launched": 1, "handed_over": 0}
@@ -124,7 +124,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     assert lp.last["description"] == "a cat that trades stocks. Created by @catfan, launched via @MooseByMuse"  # one full stop
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"] and "/tx/0xtx" in receipt["body"]
-    assert ("0x" + "c0" * 20) in receipt["body"] and "paid by HORIZON" in receipt["body"]
+    assert ("0x" + "c0" * 20) in receipt["body"] and "paid by VIGIL" in receipt["body"]
     assert _replies(db)[-1].startswith("🚀 $CAT is live") and "x.com/i/status/900" in _replies(db)[-1]
     lp.pending, lp.swept = 700_000_000_000_000, 700_000_000_000_000  # now the fees cover the launch
     assert launchpad_once(ctx, lp)["handed_over"] == 1
@@ -135,7 +135,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
 
 
 def test_a_graduated_coin_is_handed_over_and_a_failed_launch_says_sorry(settings, db):
-    ctx = _ctx(settings, db, _Brain(twitter=""))  # no link of their own: the coin links to HORIZON's announcement
+    ctx = _ctx(settings, db, _Brain(twitter=""))  # no link of their own: the coin links to VIGIL's announcement
     take_request(ctx, _m("12"))
     ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.POOL_CREATED))
     lp = _Launcher()
@@ -156,7 +156,7 @@ def test_a_graduated_coin_is_handed_over_and_a_failed_launch_says_sorry(settings
     assert sorry and sorry[0]["body"].startswith("❌ $DOG didn't launch") and "no coin was made" in sorry[0]["body"]  # the announcement never points at nothing
 
 
-def test_launch_calldata_carries_the_coin_and_makes_horizon_the_fee_recipient(settings, db):
+def test_launch_calldata_carries_the_coin_and_makes_vigil_the_fee_recipient(settings, db):
     s = settings.model_copy(update={"launcher_wallet_private_key": "0x" + "22" * 32})
     lp = Launcher(s, None, None, db)
     data = lp.launch_calldata(name="Cat Coin", symbol="CAT", logo="https://pbs.twimg.com/a.jpg", description="d",
@@ -244,9 +244,9 @@ def test_any_name_goes_even_a_ticker_that_exists_but_not_ours(settings, db):
     assert api.get("/launchpad/status", params={"symbol": "CAT", "wallet": WALLET}).json()["status"] == "approved"
     mine = api.get("/launchpad/status", params={"symbol": "CAT", "wallet": other.upper()}).json()
     assert mine["status"] == "approved" and mine["handle"] == "catfan"
-    ours = _ctx(settings, db, _Brain(symbol="HRZN", name="Horizon Two"))
-    assert take_request(ours, {**_m("62", text=f"launch $HRZN Horizon Two {WALLET}"), "author_id": "u8"}) == "refused"
-    assert "$HRZN is my own coin" in _replies(db)[-1]
+    ours = _ctx(settings, db, _Brain(symbol="VIGIL", name="Vigil Two"))
+    assert take_request(ours, {**_m("62", text=f"launch $VIGIL Vigil Two {WALLET}"), "author_id": "u8"}) == "refused"
+    assert "$VIGIL is my own coin" in _replies(db)[-1]
 
 
 TSLA = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
@@ -272,7 +272,7 @@ def test_a_stock_paired_coin_pays_its_creator_from_the_start(settings, db):
     assert "paid in TSLA" in _replies(db)[-1]
     for body in _replies(db):  # X refuses a post with more than one cashtag
         assert len(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", body)) <= 1, body
-    launchpad_once(ctx, lp)  # nothing left for HORIZON to do: no sweeps, no hand-over
+    launchpad_once(ctx, lp)  # nothing left for VIGIL to do: no sweeps, no hand-over
     assert [c[0] for c in lp.calls] == ["launch"]
 
 

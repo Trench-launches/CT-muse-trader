@@ -1,10 +1,10 @@
-"""Draws HORIZON's brand art: the orb (avatar, favicons) and the orb rising over the horizon (link card, X banner).
+"""Draws VIGIL's brand art: the orb (avatar, favicons) and the orb rising over the horizon (link card, X banner).
 
 The orb is a black disc with a thin white rim and a cool-white corona, brightest at the bottom where the horizon
 light hits it. The website draws the same orb in SVG; this script makes the raster copies.
 
 Run from the repo root:  .venv/Scripts/python.exe scripts/make_brand.py
-Writes web/favicon.ico, web/assets/icon-{16,32,48,64,180}.png, web/assets/og-horizon.png, brand/x-avatar.png, brand/x-banner.png.
+Writes web/favicon.ico, web/assets/icon-{16,32,48,64,180}.png, web/assets/og-vigil.png, brand/x-avatar.png, brand/x-banner.png.
 Text uses Segoe UI from C:/Windows/Fonts (falls back to Pillow's built-in font elsewhere).
 """
 from __future__ import annotations
@@ -57,7 +57,7 @@ def light(base: Image.Image, mask: Image.Image, strength=1.0, color=GLOW) -> Ima
 
 
 def orb(img: Image.Image, cx, cy, r, small=False, rim_w=None) -> Image.Image:
-    """The HORIZON orb: corona, black core, then a crisp rim lit from below. rim_w: rim width as a share of r."""
+    """The VIGIL orb: corona, black core, then a crisp rim lit from below. rim_w: rim width as a share of r."""
     if small:  # favicons: one tight glow and a thick rim, so it still reads at 16px
         img = light(img, ring(img.size, cx, cy, r * 1.02, r * .14, blur=r * .16), 1.25)
     else:
@@ -126,7 +126,7 @@ def og(ss=2) -> Image.Image:
         im = orb(im, w / 2, h * .70, h * .15)
         im = planet(im, circle)
         d = ImageDraw.Draw(im)
-        tracked(d, w / 2, h * .27, "HORIZON", font("seguisb.ttf", 92 * s), (250, 250, 250), .34)
+        tracked(d, w / 2, h * .27, "VIGIL", font("seguisb.ttf", 92 * s), (250, 250, 250), .34)
         tracked(d, w / 2, h * .35, "POWERED BY GROK", font("segoeui.ttf", 20 * s), (150, 150, 150), .32)
         tracked(d, w / 2, h * .45, "Watches every memecoin launch on Robinhood Chain. Trades in public, losses included.",
                 font("segoeuisl.ttf", 25 * s), (205, 205, 205), 0)
@@ -141,7 +141,7 @@ def banner(ss=2) -> Image.Image:
         im = orb(im, w * .5, h * .80, h * .11)
         im = planet(im, circle, .9)
         d = ImageDraw.Draw(im)
-        tracked(d, w * .5, h * .50, "HORIZON", font("seguisb.ttf", 88 * s), (250, 250, 250), .34)
+        tracked(d, w * .5, h * .50, "VIGIL", font("seguisb.ttf", 88 * s), (250, 250, 250), .34)
         tracked(d, w * .5, h * .62, "POWERED BY GROK", font("segoeui.ttf", 21 * s), (150, 150, 150), .32)
         return im
     return render((1500, 500), ss, draw)
@@ -160,10 +160,10 @@ def main() -> None:
     icon(180, round_mask=False).save(web / "assets" / "icon-180.png")  # iOS rounds the corners itself
     ico = [icon(px) for px in (16, 32, 48)]
     ico[-1].save(web / "favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)], append_images=ico[:-1])
-    og().save(web / "assets" / "og-horizon.png", optimize=True)  # a new name, so X drops its cached link card
+    og().save(web / "assets" / "og-vigil.png", optimize=True)  # a new name, so X drops its cached link card
     avatar().save(brand / "x-avatar.png", optimize=True)
     banner().save(brand / "x-banner.png", optimize=True)
-    print("wrote favicon.ico, icon-16/32/48/64/180.png, og-horizon.png, brand/x-avatar.png, brand/x-banner.png")
+    print("wrote favicon.ico, icon-16/32/48/64/180.png, og-vigil.png, brand/x-avatar.png, brand/x-banner.png")
 
 
 if __name__ == "__main__":

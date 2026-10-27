@@ -1,6 +1,6 @@
-# HORIZON backend
+# VIGIL backend
 
-HORIZON is an openly automated AI trading persona on Robinhood Chain (chain 4663),
+VIGIL is an openly automated AI trading persona on Robinhood Chain (chain 4663),
 watching Pons V2 memecoins, reasoning with xAI's Grok (through the xAI API), and
 posting its own trades on X. Built to the operating blueprint:
 verify before linking, paper first, disclose everything, journal every fill.

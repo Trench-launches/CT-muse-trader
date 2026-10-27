@@ -480,7 +480,7 @@ def _chat_api(tmp_path, **kw):
     return TestClient(app), hot, grok
 
 
-def test_ask_horizon_researches_a_contract(tmp_path):
+def test_ask_vigil_researches_a_contract(tmp_path):
     from ct_agent.api import chat
     chat._RESEARCH.clear()
     api, hot, grok = _chat_api(tmp_path)
@@ -524,7 +524,7 @@ def test_ask_horizon_researches_a_contract(tmp_path):
     assert pre.status_code == 400  # no Authorization header from browsers: admin calls stay server-side
 
 
-def test_ask_horizon_is_rate_limited(tmp_path):
+def test_ask_vigil_is_rate_limited(tmp_path):
     api, hot, grok = _chat_api(tmp_path, chat_per_ip_hour=2, chat_global_day=3)
     one = {"x-forwarded-for": "1.1.1.1"}
     assert api.get("/chat/limits", headers=one).json()["remaining"] == {"hour": 2, "day": 30}
@@ -585,7 +585,7 @@ def test_chat_streams_each_research_step(tmp_path):
     assert steps["x"] == "@hotcoin (profile not checked)"  # no X token in tests: shown, not faked
     assert ev[-1]["type"] == "answer" and ev[-1]["reply"].startswith("HOT is on the curve")
     # a general question has no research card: straight to Grok
-    ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "how does HORIZON pick trades?"}).text.splitlines()]
+    ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "how does VIGIL pick trades?"}).text.splitlines()]
     assert [e["id"] for e in ev if e["type"] == "step"] == ["grok", "grok"] and ev[-1]["type"] == "answer"
     # limits still apply before anything streams
     assert api.post("/chat/stream", json={"message": "x" * 501}).status_code == 400
@@ -664,7 +664,7 @@ def test_v1_history_folds_into_the_scorecard():
     assert sc["history"] == {"v1_trades": 100, "v1_wins": 54, "v1_losses": 46, "includes": ["best_eth"]}
     sc = _with_v1(now, {"trades": 100, "wins": 54, "net_eth": 0.35, "deployed_eth": 5.0, "avg_hold_h": 3.0})
     assert sc["net_eth"] == 0.3 and sc["deployed_eth"] == 5.1 and sc["return_pct"] == 5.88
-    assert sc["avg_hold_h"] == 2.96 and sc["series"] == [0.0, 0.35, 0.345, 0.3] and sc["labels"][0] == "HORIZON v1 (100 trades)"
+    assert sc["avg_hold_h"] == 2.96 and sc["series"] == [0.0, 0.35, 0.345, 0.3] and sc["labels"][0] == "VIGIL v1 (100 trades)"
 
 
 def test_admin_can_queue_a_hand_written_post(tmp_path):

@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="CT_", extra="ignore")
 
     # --- identity -------------------------------------------------------
-    agent_name: str = "HORIZON"
-    agent_ticker: str = "HRZN"  # the project's own coin; the launchpad won't launch a copy of it
+    agent_name: str = "VIGIL"
+    agent_ticker: str = "VIGIL"  # the project's own coin; the launchpad won't launch a copy of it
     agent_token_address: str = ""  # the project's own token, once launched
-    # Never traded from scanner calls, like our own token: $MOOSE, the coin from before the HORIZON rebrand.
+    # Never traded from scanner calls, like our own token: $MOOSE, the coin from before the VIGIL rebrand.
     skip_tokens: list[str] = ["0x6954c198203f95d97273de98b15aad0bef5b4028"]
     treasury_address: str = ""     # public treasury/creator-fee wallet, for disclosure only
 
@@ -146,7 +146,7 @@ class Settings(BaseSettings):
     max_deployer_hold_share: float = 0.10
     max_top10_hold_share: float = 0.35
     max_top_buyer_share: float = 0.40
-    # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (HORIZON's own
+    # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (VIGIL's own
     # Pons auto-scan of near-bonded and freshly graduated coins).
     candidate_source: str = "scanner"
     pons_scan_enabled: bool = False  # with the scanner source, also run the Pons auto-scan (Grok decides those)
@@ -161,7 +161,7 @@ class Settings(BaseSettings):
     scanner_buy_on_call: bool = False   # buy every tradeable call the moment it lands (no +trigger wait)
     decision_cooldown_min: int = 30  # don't re-ask Grok about the same token too often
     candidates_per_cycle: int = 5
-    # Paper-trading history from HORIZON v1 (before this journal), merged into the site's scorecard and labelled
+    # Paper-trading history from VIGIL v1 (before this journal), merged into the site's scorecard and labelled
     # as such. JSON, e.g. {"trades": 100, "wins": 54, "losses": 46, "best_eth": 0.3}; optional: net_eth,
     # worst_eth, best_symbol, worst_symbol, avg_hold_h. Empty = no v1 history shown.
     score_history_v1: dict = {}
@@ -170,14 +170,14 @@ class Settings(BaseSettings):
     site_origins: list[str] = ["https://www.moosebymuse.com", "https://moosebymuse.com",
                                "https://www.mooseonmuse.com", "https://mooseonmuse.com",
                                "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
-    # Public "Ask HORIZON" chat on the website. Every request is a paid Grok call, so it is capped per
+    # Public "Ask VIGIL" chat on the website. Every request is a paid Grok call, so it is capped per
     # visitor and overall; the global cap is the hard ceiling on spend.
     chat_enabled: bool = True
     chat_per_ip_hour: int = 10
     chat_per_ip_day: int = 30
     chat_global_day: int = 500
     chat_max_chars: int = 500
-    chat_x_lookups_day: int = 50  # X profile look-ups the chat may make per day (HORIZON's own research is separate)
+    chat_x_lookups_day: int = 50  # X profile look-ups the chat may make per day (VIGIL's own research is separate)
     max_entries_per_day: int = 10  # hard cap on new trades in any rolling 24h
     research_wait_min: int = 10  # wait this long for a token's X research before deciding without it
 
@@ -190,7 +190,7 @@ class Settings(BaseSettings):
     uniswap_v4_quoter: str = "0x8dc178efb8111bb0973dd9d722ebeff267c98f94"
     permit2: str = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
     live_execution_reviewed: bool = False  # flipped only after a human review
-    # Where graduated coins are swapped: "router" (HORIZON signs Uniswap router calls itself) or "gmgn" (GMGN's
+    # Where graduated coins are swapped: "router" (VIGIL signs Uniswap router calls itself) or "gmgn" (GMGN's
     # trading API, from the wallet bound to the API key). Curve (not yet graduated) trades stay on the router.
     live_venue: str = "router"
     gmgn_api_key: str = ""

@@ -112,7 +112,7 @@ def _scanner_watch(conn: Any, s: Settings) -> list[dict[str, Any]]:
 
 
 def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
-    """Fold HORIZON v1's paper-trading totals into the scorecard. v1's trades aren't in this journal, so the
+    """Fold VIGIL v1's paper-trading totals into the scorecard. v1's trades aren't in this journal, so the
     result says how much of it is v1 ("history") and figures v1 didn't give stay the current bot's own."""
     n = int(v1.get("trades") or 0)
     if not n:
@@ -131,7 +131,7 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
         sc["avg_eth"] = round(sc["net_eth"] / sc["closed"], 6)
         # the chart starts with v1 as one step, then this bot's trades on top of it
         sc["series"] = [0.0] + [round(v + v1_net, 6) for v in sc["series"]]
-        sc["labels"] = [f"HORIZON v1 ({n} trades)"] + list(sc["labels"])
+        sc["labels"] = [f"VIGIL v1 ({n} trades)"] + list(sc["labels"])
     if v1.get("deployed_eth") is not None:
         sc["deployed_eth"] = round(sc["deployed_eth"] + float(v1["deployed_eth"]), 6)
     if sc["deployed_eth"]:
@@ -151,7 +151,7 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
 
 
 def _recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
-    """Coins the launchpad launched, newest first: who made it, and the proof (HORIZON's announcement, the tx)."""
+    """Coins the launchpad launched, newest first: who made it, and the proof (VIGIL's announcement, the tx)."""
     out = []
     for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, r.logo, r.tx_hash, r.launched_at, r.status, r.pair_symbol, "
                         "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
@@ -280,7 +280,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         for w in watching:  # a coin it holds shows the trade's P&L now, not the call's move frozen at the buy
             if w["status"] == "bought" and w["token"].lower() in live:
                 w["move_pct"] = live[w["token"].lower()]
-    # HORIZON's own posts only: replies to people (auto-replies, launch answers) stay on X
+    # VIGIL's own posts only: replies to people (auto-replies, launch answers) stay on X
     own = "kind NOT IN ('reply','launch','launch_failed','launch_handed','launch_followup')"
     pending = rows(conn, f"SELECT kind, body, created_at FROM posts WHERE status='pending' AND {own} ORDER BY id LIMIT 1")
     posts = rows(conn, f"SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND {own} ORDER BY id DESC LIMIT 6")

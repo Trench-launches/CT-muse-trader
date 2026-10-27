@@ -1,7 +1,7 @@
 [project]
 name = "ct-agent"
 version = "0.1.0"
-description = "HORIZON: Robinhood Chain research and trading persona, powered by Grok (xAI API)"
+description = "VIGIL: Robinhood Chain research and trading persona, powered by Grok (xAI API)"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115",

@@ -125,7 +125,7 @@ def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int =
                 result["code"] = q["code"][0]
             else:
                 result["error"] = q.get("error_description", q.get("error", ["login was not completed"]))[0]
-            body = ("<h2>HORIZON is connected to X.</h2><p>You can close this tab.</p>" if ok
+            body = ("<h2>VIGIL is connected to X.</h2><p>You can close this tab.</p>" if ok
                     else f"<h2>Login failed</h2><p>{result['error']}</p>").encode()
             self.send_response(200 if ok else 400)
             self.send_header("content-type", "text/html; charset=utf-8")

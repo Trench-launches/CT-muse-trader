@@ -208,9 +208,9 @@ class XClient:
         body: dict[str, Any] = {"text": text}
         if media_ids:
             body["media"] = {"media_ids": media_ids}
-        if quote:  # a follow-up that quotes HORIZON's earlier post: lands on the timeline, the old post shown below
+        if quote:  # a follow-up that quotes VIGIL's earlier post: lands on the timeline, the old post shown below
             body["quote_tweet_id"] = quote
-        elif reply_to:  # threads under HORIZON's own posts, or an auto-reply to someone who engaged first
+        elif reply_to:  # threads under VIGIL's own posts, or an auto-reply to someone who engaged first
             body["reply"] = {"in_reply_to_tweet_id": reply_to}
         r = self._http.post(f"{API}/tweets", json=body,
                             headers={"authorization": f"Bearer {token}"})
