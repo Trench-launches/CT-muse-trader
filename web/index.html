@@ -432,11 +432,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .chat-panel { padding: clamp(14px, 2.4vh, 28px) clamp(14px, 2vw, 28px); height: clamp(460px, var(--fit), 700px); display: flex; justify-content: center; align-items: center; }
 /* the reasoning chat, shown on a phone */
 .chat.phone { position: relative; z-index: 2; flex: 0 0 auto; width: auto; height: 100%; aspect-ratio: 9 / 18.5; max-width: 100%; display: flex; flex-direction: column; background: var(--white); border-radius: 48px; border: 10px solid var(--ink); box-shadow: 0 0 0 2px #3A4A54, 0 40px 70px -30px rgba(0,40,100,.45), inset 0 0 0 1px rgba(255,255,255,.4); overflow: hidden; transform: translateX(-6%) rotate(-3deg); }
-.phone-bar { position: relative; flex: none; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 6px 26px 0 30px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
-.phone-bar .sys { display: flex; align-items: center; gap: 5px; }
-.phone-bar .sys .ic { width: 15px; height: 15px; vertical-align: 0; }
-.island { position: absolute; left: 50%; top: 9px; width: 96px; height: 28px; transform: translateX(-50%); border-radius: 20px; background: var(--ink); }
-.home-ind { flex: none; width: 36%; height: 5px; border-radius: 3px; background: var(--ink); margin: 6px auto 8px; opacity: .85; }
+/* iOS status bar: the time and the status icons each sit centred in the "ear" either side of the Dynamic Island */
+.phone-bar { position: relative; flex: none; height: 44px; display: grid; grid-template-columns: minmax(0, 1fr) min(31%, 92px) minmax(0, 1fr); align-items: center; padding: 2px 6px 0;
+  font-family: -apple-system, "SF Pro Text", var(--f-body); font-size: 14.5px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: #FFFFFF; }
+.phone-bar .time { justify-self: center; }
+.phone-bar .sys { justify-self: center; display: flex; align-items: center; gap: 5px; }
+.phone-bar .sys svg { display: block; height: 11px; width: auto; }
+.phone-bar .sys .bat { height: 12px; }
+/* Dynamic Island: true black, about a third of the screen wide, with the front camera's lens on the right */
+.island { width: 100%; aspect-ratio: 3.4 / 1; border-radius: 999px;
+  background: radial-gradient(circle at 80% 50%, #1B2130 0 2.5px, #0C0F16 3px 4px, transparent 4.5px), #000;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
+.home-ind { flex: none; width: 35%; height: 5px; border-radius: 3px; background: #FFFFFF; margin: 8px auto 7px; opacity: .9; }
 .phone .chat-h { padding: 8px 16px 12px; }
 .phone .msgs { padding: 14px; scrollbar-width: none; }
 .phone .msgs::-webkit-scrollbar { display: none; }
@@ -1108,7 +1115,18 @@ h1 .blue, h2 .blue { color: var(--ink-3); }               /* two-tone headlines:
 .coin { filter: drop-shadow(0 14px 18px rgba(0,0,0,.7)); }
 .glyph .gl { background: #0A0A0A; box-shadow: inset 0 0 0 1px #242424; }
 .coinav { background: linear-gradient(160deg, #1E1E1E, #0E0E0E); }
-.chat.phone { transform: none; border-color: #161616; box-shadow: 0 0 0 1px #2A2A2A, 0 0 80px -20px rgba(var(--glow), .14), 0 40px 80px -40px #000; }
+/* the phone: a thin black bezel, a brushed titanium band round the edge, and the side buttons. Its screen is
+   iOS dark mode, a hair lighter than pure black so the island and its lens still read. Nothing on the screen
+   reaches the rounded corners, so the frame doesn't clip and the buttons can sit outside it. */
+.chat.phone { transform: none; overflow: visible; background: #0C0C0E; border: 8px solid #000; border-radius: 46px;
+  box-shadow: 0 0 0 1px #1C1C1E, 0 0 0 3px #4E4E52, 0 0 0 4px #232325, inset 0 0 0 1px rgba(255,255,255,.03),
+    0 0 80px -20px rgba(var(--glow), .14), 0 40px 80px -40px #000; }
+.chat.phone::before, .chat.phone::after { content: ""; position: absolute; width: 3px; pointer-events: none;
+  background: linear-gradient(90deg, #2A2A2D, #6A6A6F 55%, #3A3A3D); }
+.chat.phone::before { right: -14px; top: 27%; height: 14%; border-radius: 0 2px 2px 0; }   /* side button */
+.chat.phone::after { left: -14px; top: 18%; height: 29%; border-radius: 2px 0 0 2px;     /* action button, volume up, volume down */
+  -webkit-mask-image: linear-gradient(#000 0 17%, transparent 17% 31%, #000 31% 62%, transparent 62% 69%, #000 69%);
+  mask-image: linear-gradient(#000 0 17%, transparent 17% 31%, #000 31% 62%, transparent 62% 69%, #000 69%); }
 @media (max-width: 1000px) { .chat.phone { transform: none; } }
 .chat-panel::before { background: radial-gradient(closest-side, rgba(var(--glow), .10), transparent); }
 .msg.bot { background: var(--card-2); }
@@ -1352,7 +1370,7 @@ footer nav a:hover { color: var(--ink); }
     </div>
     <div class="chat-panel">
       <div class="chat phone">
-        <div class="phone-bar" aria-hidden="true"><span class="num">9:41</span><span class="island"></span><span class="sys"><svg class="ic"><use href="#i-signal"/></svg><svg class="ic"><use href="#i-wifi"/></svg><svg class="ic"><use href="#i-battery-full"/></svg></span></div>
+        <div class="phone-bar" aria-hidden="true"><span class="time">9:41</span><span class="island"></span><span class="sys"><svg viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg viewBox="0 0 16 12"><path d="M1.64 4.64a9 9 0 0 1 12.72 0M3.76 6.76a6 6 0 0 1 8.48 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M8 11 5.88 8.88a3 3 0 0 1 4.24 0z" fill="currentColor"/></svg><svg class="bat" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="18" height="9" rx="2" fill="currentColor"/><rect x="24.5" y="4.5" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".4"/></svg></span></div>
         <div class="chat-h"><span class="face"></span><div><b>HORIZON</b><small>via Grok</small></div></div>
         <div class="msgs" id="msgs" aria-live="polite"></div>
         <div class="chat-foot"><span>Hard rules run after this.</span><span class="num" id="chatTime">14:06 UTC</span></div>
@@ -1372,7 +1390,6 @@ footer nav a:hover { color: var(--ink); }
     <div>
       <span class="kicker"><svg class="ic"><use href="#i-rocket"/></svg>Launchpad</span>
       <h2 class="h2" id="h-launch">Launch your own coin. <span class="blue">Just tag HORIZON.</span></h2>
-      <p class="sub">Post your coin on X and HORIZON launches it on Pons, on Robinhood Chain, then replies with your contract address. Free to launch: your coin's first ~$2 of fees pay the launch back, then every creator fee is yours. Or pair it with a stock like $TSLA or $NVDA, and its creator fees are yours from the very first trade.</p>
       <ol class="lsteps">
         <li><b>1</b><div><strong>Fill in your coin</strong><span>Name, ticker, a line about it and the wallet for your fees.</span></div></li>
         <li><b>2</b><div><strong>Post it on X with your image</strong><span>HORIZON checks every request before it launches anything.</span></div></li>
