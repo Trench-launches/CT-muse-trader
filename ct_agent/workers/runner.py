@@ -31,7 +31,7 @@ def _handle_stop(*_: object) -> None:
 
 def exits_once(ctx: Context) -> dict:
     """Its own fast loop: stops, take-profits and the timer are checked every few seconds, never held up by a
-    slow scan or a Muse call in the trader loop. It's the only process that sells."""
+    slow scan or a Grok call in the trader loop. It's the only process that sells."""
     return {"exits": manage_positions(ctx)}
 
 
@@ -65,7 +65,7 @@ def decisions_once(ctx: Context) -> dict:
 def social_once(ctx: Context) -> dict:
     from ..social.replies import replies_once
     from ..strategy.engine import post_jobs_once
-    try:  # the trade posts the exit loop left (sells, updates): written first, with Muse's words
+    try:  # the trade posts the exit loop left (sells, updates): written first, with Grok's words
         post_jobs_once(ctx)
     except Exception as exc:
         log.warning("trade post jobs failed: %s", exc)

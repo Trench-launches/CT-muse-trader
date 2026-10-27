@@ -72,6 +72,15 @@ def test_scanner_only_hands_over_calls_that_ran_30pct_in_their_eth_pool(settings
     assert facts["signals"] == {"positive": ["SM net buy $5k"]} and facts["move_since_call_pct"] == 35.0
 
 
+def test_scanner_never_trades_the_old_moose_token(settings, db):
+    old = settings.skip_tokens[0]
+    ctx = _ctx(settings, db, [_call(1, old, 1.0, 1)], {old: 2.0}, {old: (ETH_ADDR, Phase.POOL_CREATED)})
+    scanner.fetch_new(ctx)
+    assert scanner.refresh(ctx) == []  # up 100%, a genuine ETH pool, and still skipped
+    note = db.execute("SELECT status, note FROM scanner_calls WHERE token=?", (old,)).fetchone()
+    assert note["status"] == "skipped" and "tied to" in note["note"]
+
+
 def _unpack(calldata):
     assert calldata.startswith("0x3593564c")  # execute(bytes,bytes[],uint256)
     cmds, inputs, deadline = decode(["bytes", "bytes[]", "uint256"], bytes.fromhex(calldata[10:]))

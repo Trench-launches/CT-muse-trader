@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from eth_abi import decode
 
-from ct_agent.brain.muse import MuseLaunch, MuseResult
+from ct_agent.brain.grok import GrokLaunch, GrokResult
 from ct_agent.chain.pons import Phase
 from ct_agent.db import rows
 from ct_agent.launchpad.chain import TOKEN_PARAMS, LaunchBlocked, Launched, Launcher
@@ -18,11 +18,11 @@ OLD = "2020-01-01T00:00:00.000Z"
 
 class _Brain:
     def __init__(self, **kw):
-        self.d = MuseLaunch(**{"is_request": True, "approve": True, "name": "Cat Coin", "symbol": "CAT",
+        self.d = GrokLaunch(**{"is_request": True, "approve": True, "name": "Cat Coin", "symbol": "CAT",
                                "description": "a cat that trades stocks.", "twitter": "https://x.com/catcoin", **kw})
 
     def review_launch(self, text):
-        return MuseResult(self.d, "", "m", "h")
+        return GrokResult(self.d, "", "m", "h")
 
 
 def _ctx(settings, db, brain=None, **kw):
@@ -63,7 +63,7 @@ def test_refusals_each_get_a_short_reply(settings, db):
         assert words in _replies(db)[-1]
     assert take_request(_ctx(settings, db, _Brain(approve=False, reason="I can't launch coins named after real brands.")),
                         _m("5")) == "refused" and _replies(db)[-1] == "I can't launch coins named after real brands."
-    # Muse's name must really be in the post: no launching something they didn't ask for
+    # Grok's name must really be in the post: no launching something they didn't ask for
     assert take_request(_ctx(settings, db, _Brain(symbol="DOG")), _m("6")) == "refused"
 
 
@@ -116,7 +116,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     lp = _Launcher(pending=100)  # fees so far: not enough yet
     assert launchpad_once(ctx, lp) == {"launched": 0, "handed_over": 0}  # first the announcement, crediting them
     ann = rows(db, "SELECT * FROM posts WHERE kind='launch_announce'")[0]
-    assert ann["body"].startswith("🚀 New on the MOOSE launchpad\n\n$CAT · Cat Coin\nCreator: @catfan") and ann["reply_to_key"] is None and lp.calls == []
+    assert ann["body"].startswith("🚀 New on the HORIZON launchpad\n\n$CAT · Cat Coin\nCreator: @catfan") and ann["reply_to_key"] is None and lp.calls == []
     assert launchpad_once(ctx, lp)["launched"] == 0  # not launched until the announcement is out
     _announced(db)
     assert launchpad_once(ctx, lp) == {"launched": 1, "handed_over": 0}
@@ -124,8 +124,8 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     assert lp.last["description"] == "a cat that trades stocks. Created by @catfan, launched via @MooseByMuse"  # one full stop
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"] and "/tx/0xtx" in receipt["body"]
-    assert ("0x" + "c0" * 20) in receipt["body"] and "paid by MOOSE" in receipt["body"]
-    assert _replies(db)[-1].startswith("🚀 $CAT is live") and "x.com/MooseByMuse/status/900" in _replies(db)[-1]
+    assert ("0x" + "c0" * 20) in receipt["body"] and "paid by HORIZON" in receipt["body"]
+    assert _replies(db)[-1].startswith("🚀 $CAT is live") and "x.com/i/status/900" in _replies(db)[-1]
     lp.pending, lp.swept = 700_000_000_000_000, 700_000_000_000_000  # now the fees cover the launch
     assert launchpad_once(ctx, lp)["handed_over"] == 1
     assert lp.calls[-2:] == [("sweep", "0x" + "cc" * 20), ("hand_over", WALLET)]
@@ -135,14 +135,14 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
 
 
 def test_a_graduated_coin_is_handed_over_and_a_failed_launch_says_sorry(settings, db):
-    ctx = _ctx(settings, db, _Brain(twitter=""))  # no link of their own: the coin links to MOOSE's announcement
+    ctx = _ctx(settings, db, _Brain(twitter=""))  # no link of their own: the coin links to HORIZON's announcement
     take_request(ctx, _m("12"))
     ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.POOL_CREATED))
     lp = _Launcher()
     launchpad_once(ctx, lp)
     _announced(db, "901")
     launchpad_once(ctx, lp)
-    assert lp.last["socials"]["twitter"] == "https://x.com/MooseByMuse/status/901"
+    assert lp.last["socials"]["twitter"] == "https://x.com/i/status/901"
     assert ("hand_over", WALLET) in lp.calls and ("sweep", "0x" + "cc" * 20) not in lp.calls
     take_request(ctx, {**_m("13", text=f"launch $DOG Dog Coin {WALLET}"), "author_id": "u3"})
     ctx.brain = _Brain(symbol="DOG", name="Dog Coin")
@@ -156,7 +156,7 @@ def test_a_graduated_coin_is_handed_over_and_a_failed_launch_says_sorry(settings
     assert sorry and sorry[0]["body"].startswith("❌ $DOG didn't launch") and "no coin was made" in sorry[0]["body"]  # the announcement never points at nothing
 
 
-def test_launch_calldata_carries_the_coin_and_makes_moose_the_fee_recipient(settings, db):
+def test_launch_calldata_carries_the_coin_and_makes_horizon_the_fee_recipient(settings, db):
     s = settings.model_copy(update={"launcher_wallet_private_key": "0x" + "22" * 32})
     lp = Launcher(s, None, None, db)
     data = lp.launch_calldata(name="Cat Coin", symbol="CAT", logo="https://pbs.twimg.com/a.jpg", description="d",
@@ -212,7 +212,7 @@ def test_a_retry_after_a_refusal_also_answers_under_the_first_post(settings, db)
     launchpad_once(ctx, _Launcher())
     under_first = rows(db, "SELECT body FROM posts WHERE reply_to_key='x:40' AND kind='launch_followup'")
     assert under_first and under_first[0]["body"].startswith("🚀 $CAT is live now")
-    assert "x.com/MooseByMuse/status/970" in under_first[0]["body"] and ("0x" + "c0" * 20) in under_first[0]["body"]
+    assert "x.com/i/status/970" in under_first[0]["body"] and ("0x" + "c0" * 20) in under_first[0]["body"]
 
 
 def test_the_website_can_follow_a_launch_request(settings, db, tmp_path):
@@ -232,7 +232,7 @@ def test_the_website_can_follow_a_launch_request(settings, db, tmp_path):
     assert (st["status"], st["token"], st["announce_x_id"], st["handle"]) == ("launched", "0x" + "c0" * 20, "980", "catfan")
 
 
-def test_any_name_goes_even_a_ticker_that_exists_but_not_moose(settings, db):
+def test_any_name_goes_even_a_ticker_that_exists_but_not_ours(settings, db):
     from fastapi.testclient import TestClient
     from ct_agent.api.app import create_app
     ctx = _ctx(settings, db)
@@ -244,9 +244,9 @@ def test_any_name_goes_even_a_ticker_that_exists_but_not_moose(settings, db):
     assert api.get("/launchpad/status", params={"symbol": "CAT", "wallet": WALLET}).json()["status"] == "approved"
     mine = api.get("/launchpad/status", params={"symbol": "CAT", "wallet": other.upper()}).json()
     assert mine["status"] == "approved" and mine["handle"] == "catfan"
-    moose = _ctx(settings, db, _Brain(symbol="MOOSE", name="Moose Two"))
-    assert take_request(moose, {**_m("62", text=f"launch $MOOSE Moose Two {WALLET}"), "author_id": "u8"}) == "refused"
-    assert "$MOOSE is my own coin" in _replies(db)[-1]
+    ours = _ctx(settings, db, _Brain(symbol="HRZN", name="Horizon Two"))
+    assert take_request(ours, {**_m("62", text=f"launch $HRZN Horizon Two {WALLET}"), "author_id": "u8"}) == "refused"
+    assert "$HRZN is my own coin" in _replies(db)[-1]
 
 
 TSLA = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
@@ -272,7 +272,7 @@ def test_a_stock_paired_coin_pays_its_creator_from_the_start(settings, db):
     assert "paid in TSLA" in _replies(db)[-1]
     for body in _replies(db):  # X refuses a post with more than one cashtag
         assert len(re.findall(r"\$[A-Za-z][A-Za-z0-9]*", body)) <= 1, body
-    launchpad_once(ctx, lp)  # nothing left for MOOSE to do: no sweeps, no hand-over
+    launchpad_once(ctx, lp)  # nothing left for HORIZON to do: no sweeps, no hand-over
     assert [c[0] for c in lp.calls] == ["launch"]
 
 

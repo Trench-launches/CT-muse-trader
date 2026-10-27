@@ -1,7 +1,7 @@
 """Everything the public website shows, in one read-only payload.
 
 The landing page polls GET /site. Figures are real: counts from the
-indexer, the latest sources and onchain checks, Muse's actual reasoning,
+indexer, the latest sources and onchain checks, Grok's actual reasoning,
 open paper positions, posts that went out, and the paper scorecard.
 Nothing here is secret; the API is public by design.
 """
@@ -112,7 +112,7 @@ def _scanner_watch(conn: Any, s: Settings) -> list[dict[str, Any]]:
 
 
 def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
-    """Fold MOOSE v1's paper-trading totals into the scorecard. v1's trades aren't in this journal, so the
+    """Fold HORIZON v1's paper-trading totals into the scorecard. v1's trades aren't in this journal, so the
     result says how much of it is v1 ("history") and figures v1 didn't give stay the current bot's own."""
     n = int(v1.get("trades") or 0)
     if not n:
@@ -131,7 +131,7 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
         sc["avg_eth"] = round(sc["net_eth"] / sc["closed"], 6)
         # the chart starts with v1 as one step, then this bot's trades on top of it
         sc["series"] = [0.0] + [round(v + v1_net, 6) for v in sc["series"]]
-        sc["labels"] = [f"MOOSE v1 ({n} trades)"] + list(sc["labels"])
+        sc["labels"] = [f"HORIZON v1 ({n} trades)"] + list(sc["labels"])
     if v1.get("deployed_eth") is not None:
         sc["deployed_eth"] = round(sc["deployed_eth"] + float(v1["deployed_eth"]), 6)
     if sc["deployed_eth"]:
@@ -151,7 +151,7 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
 
 
 def _recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
-    """Coins the launchpad launched, newest first: who made it, and the proof (MOOSE's announcement, the tx)."""
+    """Coins the launchpad launched, newest first: who made it, and the proof (HORIZON's announcement, the tx)."""
     out = []
     for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, r.logo, r.tx_hash, r.launched_at, r.status, r.pair_symbol, "
                         "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
@@ -219,7 +219,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
     for x in leads:
         x["symbol"] = syms.get((x["verified_token"] or "").lower())
 
-    # --- thinking: Muse's latest real decisions (one of each kind if possible) ---
+    # --- thinking: Grok's latest real decisions (one of each kind if possible) ---
     raw = rows(conn, "SELECT d.*, l.symbol, l.last_progress FROM decisions d LEFT JOIN launches l ON l.token=d.token "
                      "WHERE (d.model!='rule' OR d.action='buy') ORDER BY d.id DESC LIMIT 60")
     picked: list[dict[str, Any]] = []
@@ -280,7 +280,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         for w in watching:  # a coin it holds shows the trade's P&L now, not the call's move frozen at the buy
             if w["status"] == "bought" and w["token"].lower() in live:
                 w["move_pct"] = live[w["token"].lower()]
-    # MOOSE's own posts only: replies to people (auto-replies, launch answers) stay on X
+    # HORIZON's own posts only: replies to people (auto-replies, launch answers) stay on X
     own = "kind NOT IN ('reply','launch','launch_failed','launch_handed','launch_followup')"
     pending = rows(conn, f"SELECT kind, body, created_at FROM posts WHERE status='pending' AND {own} ORDER BY id LIMIT 1")
     posts = rows(conn, f"SELECT kind, body, sent_at, x_post_id FROM posts WHERE status='sent' AND {own} ORDER BY id DESC LIMIT 6")
@@ -289,7 +289,7 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         if p.get("kind") == "intro":
             posts.append({"kind": "intro", "body": p.get("text", ""), "sent_at": j["ts"], "x_post_id": p.get("post_id")})
     posts = sorted(posts, key=lambda p: p["sent_at"] or "", reverse=True)[:6]
-    # The trade tweets, one thread per coin (the buy, Muse's reasons under it, updates, sells), newest trade first:
+    # The trade tweets, one thread per coin (the buy, Grok's reasons under it, updates, sells), newest trade first:
     # the public record of every coin it bought, as posted on X.
     trade_posts = rows(conn, "SELECT p.kind, p.body, p.sent_at, p.x_post_id, p.ref, l.symbol FROM posts p "
                              "LEFT JOIN launches l ON lower(l.token)=lower(p.ref) WHERE p.status='sent' AND p.kind IN "

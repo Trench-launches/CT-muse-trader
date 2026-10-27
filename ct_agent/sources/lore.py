@@ -3,7 +3,7 @@ onchain (Pons tokens carry description() and socials()), plus a quick look at
 those links: the X account's profile and the website's title and summary.
 
 All of it is written by the coin's creator, so it is a claim, not proof. It is
-handed to Muse as untrusted text, next to the third-party evidence.
+handed to Grok as untrusted text, next to the third-party evidence.
 
 The website fetch only goes to public internet addresses (never this server's
 own network), with a short timeout, a size cap and no automatic redirects.
@@ -81,7 +81,7 @@ def site_summary(http: httpx.Client, url: str) -> dict[str, Any] | None:
             return None
         try:
             with http.stream("GET", url, follow_redirects=False, timeout=6,
-                             headers={"user-agent": "MOOSE research bot (+https://www.moosebymuse.com)"}) as r:
+                             headers={"user-agent": "HORIZON research bot (+https://www.moosebymuse.com)"}) as r:
                 if r.is_redirect and r.headers.get("location"):
                     url = urljoin(url, r.headers["location"])
                     continue

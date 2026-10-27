@@ -1,8 +1,8 @@
-"""Decision engine: screen -> brief Muse -> hard gates -> act -> post.
+"""Decision engine: screen -> brief Grok -> hard gates -> act -> post.
 
-Muse can downgrade anything, but can never upgrade past a hard gate:
+Grok can downgrade anything, but can never upgrade past a hard gate:
 screen blockers, onchain verification, evidence requirements, risk limits,
-slippage bounds and the kill switch all sit after Muse in the pipeline.
+slippage bounds and the kill switch all sit after Grok in the pipeline.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from typing import Any
 
 from ..chain.abi import ZERO_ADDRESS
 from ..chain.pons import LaunchRecord, Phase
-from ..brain.muse import MuseDecision, MuseResult
+from ..brain.grok import GrokDecision, GrokResult
 from ..context import Context
 from ..db import journal_append, journal_recent, kv_get, kv_set, rows, tx, utcnow
 from ..execution.live import LiveTradingBlocked
@@ -149,7 +149,7 @@ def _assess_migrated(ctx: Context, l: dict[str, Any], eth_usd: float | None) -> 
 
 
 def _ensure_launch(ctx: Context, token: str) -> dict[str, Any] | None:
-    """The launches row for a coin the scanner found. Coins launched before MOOSE's index started are
+    """The launches row for a coin the scanner found. Coins launched before HORIZON's index started are
     added from their onchain record (block = now, so no history is replayed for them)."""
     conn = ctx.conn
     row = conn.execute("SELECT * FROM launches WHERE token=? COLLATE NOCASE", (token,)).fetchone()
@@ -180,7 +180,7 @@ def _assess_call(ctx: Context, call: dict[str, Any], eth_usd: float | None) -> A
 
 
 def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
-    """The smart-money scanner's calls. Muse analyses every new tradeable call and posts its read. The trade
+    """The smart-money scanner's calls. Grok analyses every new tradeable call and posts its read. The trade
     itself is a rule: a call is bought once the coin is up scanner_trigger_pct from the call price. Nothing
     about the coin can veto that; only the wallet's safety limits can (open trades, daily loss, balance)."""
     from ..sources import scanner
@@ -198,11 +198,11 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
     eth_usd = ctx.market.eth_usd()
     out: list[dict[str, Any]] = []
     ready_ids = {c["id"] for c in ready}
-    # calls that arrive already up get analysed first, so the buy post can use Muse's read
+    # calls that arrive already up get analysed first, so the buy post can use Grok's read
     fresh = [c for c in ready if not c.get("decision_id")] + \
         [c for c in scanner.to_analyse(conn, s.scanner_window_hours) if c["id"] not in ready_ids]
     for call in fresh[:4]:
-        if not call.get("pool_id"):  # MOOSE can't trade it, but it still gets a read and a post
+        if not call.get("pool_id"):  # HORIZON can't trade it, but it still gets a read and a post
             did = analyse_untradeable(ctx, call)
             out.append({"token": call["token"], "analysed": did, "tradeable": False})
             continue
@@ -243,22 +243,22 @@ def _dex_stats(ctx: Context, token: str) -> dict[str, Any]:
 
 
 def analyse_untradeable(ctx: Context, call: dict[str, Any]) -> int:
-    """A call MOOSE can't trade still gets Muse's read and a radar post, with what's knowable about it."""
+    """A call HORIZON can't trade still gets Grok's read and a radar post, with what's knowable about it."""
     from ..sources.scanner import call_facts
     s = ctx.settings
     token = call["token"]
     symbol = (call.get("symbol") or "?").replace("\U0001f331", "").strip() or "?"
     facts = call_facts(call, s.scanner_trigger_pct)
-    facts["rule"] = (f"MOOSE can't trade this coin ({call.get('note') or 'not tradeable'}), so it won't buy it. "
+    facts["rule"] = (f"HORIZON can't trade this coin ({call.get('note') or 'not tradeable'}), so it won't buy it. "
                      "Your job is only the analysis: what the coin is, why smart money may be in, what could go wrong.")
-    pack = {"token": token, "symbol": symbol, "chain": "Robinhood Chain (4663)", "tradeable_by_moose": False,
+    pack = {"token": token, "symbol": symbol, "chain": "Robinhood Chain (4663)", "tradeable_by_horizon": False,
             "why_not_tradeable": call.get("note"), "scanner_call": facts, "market": _dex_stats(ctx, token),
             "lore": _lore(ctx, token), "evidence": [], "limits": {"mode": s.trading_mode.value}}
     return _record_analysis(ctx, token, symbol, pack, call, None)
 
 
 def analyse_call(ctx: Context, a: Assessed) -> int:
-    """Muse's read on a new smart-money call: recorded, and posted to the radar. It does not decide the trade."""
+    """Grok's read on a new smart-money call: recorded, and posted to the radar. It does not decide the trade."""
     token, symbol = a.cand.token, a.launch.get("symbol") or "?"
     return _record_analysis(ctx, token, symbol, build_pack(ctx, a), a.call, a)
 
@@ -279,11 +279,11 @@ def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any]
                             res.model, res.raw))
         did = int(cur.lastrowid)
         journal_append(conn, "scanner_analysis", {"decision_id": did, "token": token, "symbol": symbol,
-                                                  "muse_action": d.action if d else None,
+                                                  "grok_action": d.action if d else None,
                                                   "confidence": d.confidence if d else None, "thesis": thesis,
                                                   "reasons": reasons, "risks": risks,
                                                   "narrative": d.narrative.model_dump() if d else None,
-                                                  "muse_error": res.error}, ref=token, in_tx=True)
+                                                  "grok_error": res.error}, ref=token, in_tx=True)
     mark_analysed(conn, call["id"], did)
     if a is not None:
         try:
@@ -308,7 +308,7 @@ def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any]
 
 
 def _post_read_under_buy(ctx: Context, token: str, symbol: str, did: int, d: Any) -> None:
-    """In buy-on-call mode the buy goes first; Muse's read on the coin follows as a reply under the BOUGHT post."""
+    """In buy-on-call mode the buy goes first; Grok's read on the coin follows as a reply under the BOUGHT post."""
     conn = ctx.conn
     pos = conn.execute("SELECT id, mode FROM positions WHERE lower(token)=lower(?) ORDER BY id DESC LIMIT 1",
                        (token,)).fetchone()
@@ -322,7 +322,7 @@ def _post_read_under_buy(ctx: Context, token: str, symbol: str, did: int, d: Any
 
 
 def caller_once(ctx: Context) -> list[dict[str, Any]]:
-    """The fast loop (every few seconds): new smart-money calls are bought as they land. Muse's analysis and
+    """The fast loop (every few seconds): new smart-money calls are bought as they land. Grok's analysis and
     the rest of the trading cycle run in the slower trader loop."""
     from ..sources import scanner
     s = ctx.settings
@@ -444,7 +444,7 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
         pack["scanner_call"] = call_facts(a.call, s.scanner_trigger_pct)
         if s.scanner_buy_on_call:
             pack["scanner_call"]["rule"] = (
-                "MOOSE buys every smart-money call the moment it lands, and has ALREADY BOUGHT this one. Give your "
+                "HORIZON buys every smart-money call the moment it lands, and has ALREADY BOUGHT this one. Give your "
                 "honest read: what the coin is, why smart money may be in, what could go wrong. Don't say you are "
                 "watching, waiting or passing; the position is open.")
     if a.pool:
@@ -577,7 +577,7 @@ def pool_holder_facts(ctx: Context, launch: dict[str, Any]) -> dict[str, Any] | 
 
 
 def _fee_facts(ctx: Context, a: Assessed) -> dict[str, Any]:
-    """Market cap and lifetime fees paid, for Muse and for the thin-chart gate."""
+    """Market cap and lifetime fees paid, for Grok and for the thin-chart gate."""
     try:
         price = spot_price(ctx, a.cand.token)[0]
     except Exception:
@@ -644,10 +644,10 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
     if pack["evidence"] or (no_source_ok and a.cand.eligible):
         res = ctx.brain.decide(pack)
     else:
-        # Nothing Muse could buy: no source when one is required, or no source and the screen already
-        # blocks it. Recording the pass without asking Muse saves a paid call per token.
+        # Nothing Grok could buy: no source when one is required, or no source and the screen already
+        # blocks it. Recording the pass without asking Grok saves a paid call per token.
         why = "screen blockers: " + "; ".join(a.cand.blockers) if no_source_ok else NO_EVIDENCE
-        res = MuseResult(MuseDecision(action="pass", confidence=1.0, thesis="", reasons=[why], risks=[],
+        res = GrokResult(GrokDecision(action="pass", confidence=1.0, thesis="", reasons=[why], risks=[],
                                       evidence_ids=[], underfollowed=None, post_angle="", public_line=""),
                          raw="", model="rule", prompt_hash="")
     gates: list[str] = []
@@ -661,7 +661,7 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
         provided = {e["id"]: e for e in pack["evidence"]}
         cited = [provided[i] for i in used if i in provided]
         if len(cited) != len(used):
-            gates.append("Muse cited evidence ids that were not provided")
+            gates.append("Grok cited evidence ids that were not provided")
         # Rumors and chat can motivate a watch, never a buy on their own.
         independent = {e.get("origin_url") for e in cited if e["confidence"] in BUY_GRADE_CONFIDENCE}
         if len(independent) < s.min_independent_sources_for_buy:
@@ -705,7 +705,7 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
                                           "action": action, "confidence": conf, "gates": gates, "reasons": reasons,
                                           "narrative": res.decision.narrative.model_dump() if res.decision else None,
                                           "risks": risks, "evidence_ids": used, "prompt_hash": res.prompt_hash,
-                                          "muse_error": res.error}, ref=token, in_tx=True)
+                                          "grok_error": res.error}, ref=token, in_tx=True)
 
     try:
         record_call(ctx, a, decision_id=did, action=action, confidence=conf, pack=pack, gates=gates, model=res.model)
@@ -713,7 +713,7 @@ def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
         log.warning("could not record call outcome for %s: %s", token, exc)
     out: dict[str, Any] = {"token": token, "decision_id": did, "action": action, "gates": gates}
     if action == "buy":
-        d = res.decision  # Muse's one-line take goes in the buy post, its reasons in a reply under it
+        d = res.decision  # Grok's one-line take goes in the buy post, its reasons in a reply under it
         out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack,
                           catalyst=compose._phrase(d.public_line or d.thesis, 150)))
         if out.get("entered"):
@@ -876,8 +876,8 @@ def _at(ctx: Context, token: str, fill: FillEstimate) -> str:
 
 def _post_mortem(ctx: Context, pos: dict[str, Any], reason: str, pnl_pct: float, age_h: float,
                  symbol: str) -> dict[str, str]:
-    """Muse's honest read on a losing trade for the exit post, journalled so it isn't lost.
-    Falls back to the original thesis alone if Muse can't answer."""
+    """Grok's honest read on a losing trade for the exit post, journalled so it isn't lost.
+    Falls back to the original thesis alone if Grok can't answer."""
     conn = ctx.conn
     d = conn.execute("SELECT thesis, reasons, risks FROM decisions WHERE id=?", (pos["decision_id"],)).fetchone() \
         if pos.get("decision_id") else None
@@ -907,7 +907,7 @@ def _plan(s: Any, hits: int) -> str:
 
 def manage_positions(ctx: Context) -> list[dict[str, Any]]:
     """Exits are fixed rules, no judgement calls: a stop loss, the take-profit rungs, and a timer. After the
-    first rung the stop moves to entry; whatever is left when the timer runs out is sold. (Muse's thesis
+    first rung the stop moves to entry; whatever is left when the timer runs out is sold. (Grok's thesis
     review used to sell here too, but a fresh position always looks down by the round-trip fees, so it
     sold new trades within a minute.)"""
     s, conn = ctx.settings, ctx.conn
@@ -1007,7 +1007,7 @@ def _take_profit(ctx: Context, pos: dict[str, Any], venue: str, tokens: float, r
     nth = {1: "first", 2: "second", 3: "third"}.get(rung, f"#{rung}")
     nxt = f", next one at {ladder[rung][0]:g}x" if rung < len(ladder) else ""
     pnl_pct = (mult - 1) * 100
-    # this post is the update for the gain so far: Muse says why the rest is still held, and the milestone
+    # this post is the update for the gain so far: Grok says why the rest is still held, and the milestone
     # updates it already covers don't go out again separately
     s, key = ctx.settings, f"milestones:{pos['id']}"
     if s.x_update_step_pct > 0:
@@ -1047,28 +1047,28 @@ def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: F
                 {"type": "thesis", "pos": pos, "pnl_pct": pnl_pct, "mc": mc} if m > 0 else None)
 
 
-def _post_later(ctx: Context, draft: str, kwargs: dict[str, Any], muse: dict[str, Any] | None) -> None:
-    """The exit loop never waits on Muse: it journals the post to write (which compose function, its fields, and
-    what Muse should add), and the posting loop writes it within seconds (post_jobs_once)."""
-    journal_append(ctx.conn, "post_job", {"draft": draft, "kwargs": kwargs, "muse": muse}, ref=kwargs.get("token"))
+def _post_later(ctx: Context, draft: str, kwargs: dict[str, Any], grok: dict[str, Any] | None) -> None:
+    """The exit loop never waits on Grok: it journals the post to write (which compose function, its fields, and
+    what Grok should add), and the posting loop writes it within seconds (post_jobs_once)."""
+    journal_append(ctx.conn, "post_job", {"draft": draft, "kwargs": kwargs, "grok": grok}, ref=kwargs.get("token"))
 
 
 def post_jobs_once(ctx: Context) -> int:
-    """Write the posts the exit loop left: ask Muse for the post-mortem or the updated thesis, then queue the post.
+    """Write the posts the exit loop left: ask Grok for the post-mortem or the updated thesis, then queue the post.
     Posts carry fixed keys, so a job that runs twice still posts once."""
     conn = ctx.conn
     last = kv_get(conn, "post_jobs_cursor") or 0
     jobs = rows(conn, "SELECT id, payload FROM journal WHERE kind='post_job' AND id>? ORDER BY id", (last,))
     for j in jobs:
         p = json.loads(j["payload"]) if isinstance(j["payload"], str) else j["payload"]
-        kw, m = p["kwargs"], p.get("muse") or {}
+        kw, m = p["kwargs"], p.get("grok") or p.get("muse") or {}  # jobs left by the pre-Grok build use "muse"
         try:
             if m.get("type") == "post_mortem":
                 kw.update(_post_mortem(ctx, m["pos"], m["reason"], m["pnl_pct"], m["age_h"], kw["symbol"]))
             elif m.get("type") == "thesis":
                 kw["thesis"] = _updated_thesis(ctx, m["pos"], kw["symbol"], m["pnl_pct"], m["mc"], note=m.get("note", ""))
-        except Exception as exc:  # Muse's words are extra: the post still goes out without them
-            log.warning("muse text for a %s post failed: %s", p["draft"], exc)
+        except Exception as exc:  # Grok's words are extra: the post still goes out without them
+            log.warning("grok text for a %s post failed: %s", p["draft"], exc)
         try:
             enqueue(conn, getattr(compose, p["draft"])(**kw))
         except Exception as exc:
@@ -1078,7 +1078,7 @@ def post_jobs_once(ctx: Context) -> int:
 
 
 def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: float, mc: str, note: str = "") -> str:
-    """Muse's fresh read on a coin that's running, for the milestone post. Journalled; '' if Muse can't answer,
+    """Grok's fresh read on a coin that's running, for the milestone post. Journalled; '' if Grok can't answer,
     and the update still goes out without it."""
     conn = ctx.conn
     try:
@@ -1097,7 +1097,7 @@ def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: flo
         return ""
     thesis = (r.decision.thesis if r.decision else "").strip()
     journal_append(conn, "thesis_update", {"position_id": pos["id"], "token": pos["token"], "symbol": symbol,
-                                           "pnl_pct": round(pnl_pct, 1), "thesis": thesis, "muse_error": r.error},
+                                           "pnl_pct": round(pnl_pct, 1), "thesis": thesis, "grok_error": r.error},
                    ref=pos["token"])
     return thesis
 

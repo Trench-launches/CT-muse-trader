@@ -1,6 +1,6 @@
-"""End-to-end: fake chain + fake Muse + fake X, real code in between.
+"""End-to-end: fake chain + fake Grok + fake X, real code in between.
 
-index -> research (lead verification) -> trader (screen, Muse, gates,
+index -> research (lead verification) -> trader (screen, Grok, gates,
 paper fill, post) -> social (send) -> API reads it all back.
 """
 import json
@@ -47,7 +47,7 @@ def _settings(tmp_path, **kw) -> Settings:
     return Settings(**base)
 
 
-def _muse(action="buy", ids=None):
+def _grok(action="buy", ids=None):
     calls = []
 
     def complete(instructions, text, schema, name):
@@ -94,9 +94,9 @@ def _market():
 def test_full_paper_cycle(tmp_path):
     ch, hot, cold = _scenario()
     sent: list[str] = []
-    muse = _muse()
+    grok = _grok()
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport(sent), completer=muse)
+                x_transport=_x_transport(sent), completer=grok)
 
     idx = index_once(ctx)
     assert idx["launches"] == 2 and idx["trades"] == 12 and idx["refreshed"] == 2
@@ -115,7 +115,7 @@ def test_full_paper_cycle(tmp_path):
     out = trader_once(ctx)
     d = [x for x in out["decisions"] if x["token"] == hot.token][0]
     assert d["action"] == "buy" and d.get("entered"), d
-    assert "<untrusted_evidence>" in muse.calls[0] and "HOT team ships" in muse.calls[0]
+    assert "<untrusted_evidence>" in grok.calls[0] and "HOT team ships" in grok.calls[0]
 
     pos = rows(ctx.conn, "SELECT * FROM positions")
     assert len(pos) == 1 and pos[0]["mode"] == "paper" and pos[0]["entry_quote"] == pytest.approx(0.05)
@@ -136,12 +136,12 @@ def test_full_paper_cycle(tmp_path):
 
     # price collapses -> stop loss -> exit posted, loss logged
     hot.real_quote = int(0.2 * ETH)
-    calls = len(muse.calls)
+    calls = len(grok.calls)
     out3 = exits_once(ctx)
     assert out3["exits"][0]["action"] == "exit" and "stop loss" in out3["exits"][0]["reason"]
-    assert len(muse.calls) == calls and journal_recent(ctx.conn, kind="post_job")  # the sell didn't wait on Muse
+    assert len(grok.calls) == calls and journal_recent(ctx.conn, kind="post_job")  # the sell didn't wait on Grok
     social_once(ctx)
-    assert len(muse.calls) > calls  # the post-mortem is written in the posting loop
+    assert len(grok.calls) > calls  # the post-mortem is written in the posting loop
     assert sent[-1].startswith("🔴 Top blasted $HOT (testing) · -") and "\nRealised P&L: -" in sent[-1], sent[-1]
     assert "What I missed: how fast the buyers could leave." in sent[-1] and "Lesson: wait for buys from more wallets." in sent[-1]
     assert journal_recent(ctx.conn, kind="lesson")[0]["payload"]["lesson"] == "wait for buys from more wallets"
@@ -150,7 +150,7 @@ def test_full_paper_cycle(tmp_path):
     # API reads it back; admin needs the token
     api = TestClient(create_app(ctx.settings))
     h = api.get("/health").json()
-    assert h["mode"] == "paper" and h["journal"]["chain_intact"] and h["integrations"]["muse"] is False
+    assert h["mode"] == "paper" and h["journal"]["chain_intact"] and h["integrations"]["grok"] is False
     assert api.get("/scorecard").json()["losses"] == 1
     assert api.get(f"/tokens/{hot.token}").json()["positions"][0]["status"] == "closed"
     assert api.post("/admin/kill", json={"on": True, "reason": "test stop"}).status_code == 401
@@ -184,7 +184,7 @@ def test_pons_scan_runs_alongside_the_scanner(tmp_path, monkeypatch):
     from ct_agent.workers import runner
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path, candidate_source="scanner", pons_scan_enabled=True), rpc_transport=ch.transport(),
-                market_transport=_market(), x_transport=_x_transport([]), completer=_muse())
+                market_transport=_market(), x_transport=_x_transport([]), completer=_grok())
     waiting = [{"token": addr(0xE1), "symbol": "CALL", "stage": "scanner_call", "score": 0, "progress": None}]
 
     def fake_scanner_cycle(c):
@@ -207,7 +207,7 @@ def test_pons_scan_runs_alongside_the_scanner(tmp_path, monkeypatch):
 def test_rumor_only_cannot_trigger_buy(tmp_path):
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=_muse())
+                x_transport=_x_transport([]), completer=_grok())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="x", origin_id="x1", origin_url="https://x.com/a/status/1",
                                   excerpt=f"heard {hot.token} gets listed", confidence="rumor"))
@@ -217,10 +217,10 @@ def test_rumor_only_cannot_trigger_buy(tmp_path):
     assert rows(ctx.conn, "SELECT COUNT(*) c FROM positions")[0]["c"] == 0
 
 
-def test_muse_citing_unknown_evidence_is_gated(tmp_path):
+def test_grok_citing_unknown_evidence_is_gated(tmp_path):
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=_muse(ids=[999]))
+                x_transport=_x_transport([]), completer=_grok(ids=[999]))
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"contract {hot.token}", confidence="first_party"))
@@ -229,14 +229,14 @@ def test_muse_citing_unknown_evidence_is_gated(tmp_path):
     assert d["action"] == "watch" and any("not provided" in g for g in d["gates"])
 
 
-def test_no_evidence_passes_without_calling_muse(tmp_path):
+def test_no_evidence_passes_without_calling_grok(tmp_path):
     ch, hot, _ = _scenario()
-    muse = _muse()
+    grok = _grok()
     ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=muse)
+                x_transport=_x_transport([]), completer=grok)
     index_once(ctx)
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
-    assert d["action"] == "pass" and muse.calls == []
+    assert d["action"] == "pass" and grok.calls == []
     row = rows(ctx.conn, "SELECT model, reasons FROM decisions WHERE token=?", (hot.token,))[0]
     assert row["model"] == "rule" and "no source" in row["reasons"]
     assert rows(ctx.conn, "SELECT COUNT(*) c FROM posts")[0]["c"] == 0
@@ -246,14 +246,14 @@ def test_kill_switch_stops_new_decisions(tmp_path):
     ch, hot, _ = _scenario()
     s = _settings(tmp_path)
     ctx = build(s, rpc_transport=ch.transport(), market_transport=_market(), x_transport=_x_transport([]),
-                completer=_muse())
+                completer=_grok())
     index_once(ctx)
     Path(s.kill_switch_file).write_text("halt")
     out = trader_once(ctx)
     assert out["decisions"] == [] and "kill file" in out["killed"]
 
 
-def test_no_muse_means_no_trades(tmp_path):
+def test_no_grok_means_no_trades(tmp_path):
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
                 x_transport=_x_transport([]))
@@ -278,7 +278,7 @@ def test_milestone_update_and_exit_thread_under_the_entry(tmp_path):
 
     # a +25% step so the milestone lands below the first take-profit rung (1.6x) in this scenario
     ctx = build(_settings(tmp_path, x_update_step_pct=25), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=httpx.MockTransport(h), completer=_muse())
+                x_transport=httpx.MockTransport(h), completer=_grok())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"HOT team ships, contract {hot.token}", confidence="first_party"))
@@ -335,9 +335,9 @@ def test_ten_trades_per_day_cap(tmp_path):
 def test_waits_for_x_research_before_deciding(tmp_path):
     from ct_agent.db import kv_set
     ch, hot, _ = _scenario()
-    muse = _muse()
+    grok = _grok()
     ctx = build(_settings(tmp_path, x_bearer_token="app", min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=muse)
+                x_transport=_x_transport([]), completer=grok)
     index_once(ctx)
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
     assert d == {"token": hot.token, "skipped": "waiting for X research"}
@@ -350,7 +350,7 @@ def test_call_outcomes_are_tracked_and_reported(tmp_path):
     from ct_agent.strategy.outcomes import report
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path, min_independent_sources_for_buy=1), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=_muse())
+                x_transport=_x_transport([]), completer=_grok())
     index_once(ctx)
     trader_once(ctx)
     r = rows(ctx.conn, "SELECT * FROM call_outcomes WHERE token=?", (hot.token,))[0]
@@ -373,7 +373,7 @@ def _entered(tmp_path, **kw):
     ch, hot, _ = _scenario()
     sent: list[str] = []
     ctx = build(_settings(tmp_path, **kw), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport(sent), completer=_muse())
+                x_transport=_x_transport(sent), completer=_grok())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"HOT team ships, contract {hot.token}", confidence="first_party"))
@@ -457,12 +457,12 @@ def test_thesis_review_never_sells(tmp_path):
 def test_buys_on_onchain_activity_without_a_source(tmp_path):
     ch, hot, _ = _scenario()
     sent: list[str] = []
-    muse = _muse(ids=[])
+    grok = _grok(ids=[])
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport(sent), completer=muse)
+                x_transport=_x_transport(sent), completer=grok)
     index_once(ctx)
     d = [x for x in trader_once(ctx)["decisions"] if x["token"] == hot.token][0]
-    assert muse.calls and '"verified_source_required": false' in muse.calls[0]  # asked with no source at all
+    assert grok.calls and '"verified_source_required": false' in grok.calls[0]  # asked with no source at all
     assert d["action"] == "buy" and d.get("entered") and not d["gates"], d
     assert rows(ctx.conn, "SELECT entry_quote FROM positions")[0]["entry_quote"] == pytest.approx(0.05)
     social_once(ctx)
@@ -471,19 +471,19 @@ def test_buys_on_onchain_activity_without_a_source(tmp_path):
 
 def _chat_api(tmp_path, **kw):
     ch, hot, cold = _scenario()
-    muse = _muse()
+    grok = _grok()
     ctx = build(_settings(tmp_path, **kw), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=muse)
+                x_transport=_x_transport([]), completer=grok)
     index_once(ctx)
     app = create_app(ctx.settings)
     app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market, "brain": ctx.brain}
-    return TestClient(app), hot, muse
+    return TestClient(app), hot, grok
 
 
-def test_ask_muse_researches_a_contract(tmp_path):
+def test_ask_horizon_researches_a_contract(tmp_path):
     from ct_agent.api import chat
     chat._RESEARCH.clear()
-    api, hot, muse = _chat_api(tmp_path)
+    api, hot, grok = _chat_api(tmp_path)
     # a suggestion chip sends the coin's address, so it resolves even before its ticker is indexed
     d = api.post("/chat", json={"message": "Research $HOT", "token": hot.token}).json()
     assert d["token"]["symbol"] == "HOT", d
@@ -493,27 +493,27 @@ def test_ask_muse_researches_a_contract(tmp_path):
     d = r.json()
     assert d["reply"].startswith("HOT is on the curve") and d["remaining"]["hour"] == 8
     assert d["token"]["symbol"] == "HOT" and d["token"]["stage"] == "on the bonding curve"
-    sent = muse.calls[-1]
+    sent = grok.calls[-1]
     assert '"curve_progress_pct"' in sent and '"onchain_activity"' in sent and "<visitor_conversation>" in sent
     assert "visitor: what do you think of" in sent
 
     d = api.post("/chat", json={"message": "is $hot risky?"}).json()  # ticker lookup, any case
     assert d["token"]["address"].lower() == hot.token.lower()
 
-    # a follow-up with no coin named: the earlier coin goes to Muse quietly (no card), marked as context
+    # a follow-up with no coin named: the earlier coin goes to Grok quietly (no card), marked as context
     d = api.post("/chat", json={"message": "and the fees?", "context_token": hot.token}).json()
-    assert d["token"] is None and '"context_only": true' in muse.calls[-1] and '"symbol": "HOT"' in muse.calls[-1]
+    assert d["token"] is None and '"context_only": true' in grok.calls[-1] and '"symbol": "HOT"' in grok.calls[-1]
     d = api.post("/chat", json={"message": "and the fees?", "history": [
-        {"role": "user", "text": f"look at {hot.token}"}, {"role": "muse", "text": "ok"}]}).json()
-    assert d["token"] is None and '"context_only": true' in muse.calls[-1]
-    # an unrelated question has no research card, and Muse knows today's date
+        {"role": "user", "text": f"look at {hot.token}"}, {"role": "grok", "text": "ok"}]}).json()
+    assert d["token"] is None and '"context_only": true' in grok.calls[-1]
+    # an unrelated question has no research card, and Grok knows today's date
     ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "what day is it?",
                                                                      "context_token": hot.token}).text.splitlines()]
-    assert [e["id"] for e in ev if e["type"] == "step"] == ["muse", "muse"] and ev[-1]["token"] is None
-    assert '"now_utc"' in muse.calls[-1]
+    assert [e["id"] for e in ev if e["type"] == "step"] == ["grok", "grok"] and ev[-1]["token"] is None
+    assert '"now_utc"' in grok.calls[-1]
 
     d = api.post("/chat", json={"message": f"check {addr(0xDEAD)}"}).json()  # not a Pons launch
-    assert d["token"] is None and '"is_pons_v2_launch_on_robinhood_chain": false' in muse.calls[-1]
+    assert d["token"] is None and '"is_pons_v2_launch_on_robinhood_chain": false' in grok.calls[-1]
 
     assert api.post("/chat", json={"message": "x" * 501}).status_code == 400
     pre = api.options("/chat", headers={"origin": "https://www.mooseonmuse.com", "access-control-request-method": "POST",
@@ -524,8 +524,8 @@ def test_ask_muse_researches_a_contract(tmp_path):
     assert pre.status_code == 400  # no Authorization header from browsers: admin calls stay server-side
 
 
-def test_ask_muse_is_rate_limited(tmp_path):
-    api, hot, muse = _chat_api(tmp_path, chat_per_ip_hour=2, chat_global_day=3)
+def test_ask_horizon_is_rate_limited(tmp_path):
+    api, hot, grok = _chat_api(tmp_path, chat_per_ip_hour=2, chat_global_day=3)
     one = {"x-forwarded-for": "1.1.1.1"}
     assert api.get("/chat/limits", headers=one).json()["remaining"] == {"hour": 2, "day": 30}
     for _ in range(2):
@@ -538,24 +538,24 @@ def test_ask_muse_is_rate_limited(tmp_path):
     assert api.post("/chat", json={"message": "hi"}, headers={"x-forwarded-for": "2.2.2.2"}).status_code == 200
     r = api.post("/chat", json={"message": "hi"}, headers={"x-forwarded-for": "3.3.3.3"})
     assert r.status_code == 429 and "all it can for today" in r.json()["detail"]
-    calls = len(muse.calls)
-    assert calls == 3  # refused requests never reached Muse
+    calls = len(grok.calls)
+    assert calls == 3  # refused requests never reached Grok
 
 
-def test_muse_reads_the_coins_own_lore(tmp_path):
+def test_grok_reads_the_coins_own_lore(tmp_path):
     from ct_agent.api import chat
     ch, hot, _ = _scenario()
     hot.description = "HOT is the cat who guards every fridge on Robinhood Chain."
     hot.socials = "https://x.com/hotcoin"
-    muse = _muse()
+    grok = _grok()
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=muse)
+                x_transport=_x_transport([]), completer=grok)
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
     research_once(ctx)
     trader_once(ctx)
-    sent = muse.calls[0]
+    sent = grok.calls[0]
     trusted, untrusted = sent.split("<untrusted_evidence>")
     assert "guards every fridge" in untrusted and "COIN'S OWN LORE" in untrusted
     assert "guards every fridge" not in trusted  # creator-written text never sits with the trusted numbers
@@ -565,13 +565,13 @@ def test_muse_reads_the_coins_own_lore(tmp_path):
     app = create_app(ctx.settings)
     app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market, "brain": ctx.brain}
     TestClient(app).post("/chat", json={"message": f"what about {hot.token}"})
-    assert "guards every fridge" in muse.calls[-1].split("<untrusted_evidence>")[1]
+    assert "guards every fridge" in grok.calls[-1].split("<untrusted_evidence>")[1]
 
 
 def test_chat_streams_each_research_step(tmp_path):
     from ct_agent.api import chat
     chat._RESEARCH.clear()
-    api, hot, muse = _chat_api(tmp_path)
+    api, hot, grok = _chat_api(tmp_path)
     hot.description = "HOT is the cat who guards every fridge on Robinhood Chain."
     hot.socials = "https://x.com/hotcoin"
     r = api.post("/chat/stream", json={"message": f"look at {hot.token}"})
@@ -579,14 +579,14 @@ def test_chat_streams_each_research_step(tmp_path):
     ev = [json.loads(line) for line in r.text.splitlines() if line.strip()]
     done = [(e["id"], e["status"]) for e in ev if e["type"] == "step" and e["status"] != "run"]
     assert done == [("coin", "done"), ("onchain", "done"), ("lore", "done"), ("x", "skip"), ("website", "skip"),
-                    ("muse", "done")], done
+                    ("grok", "done")], done
     steps = {e["id"]: e["detail"] for e in ev if e["type"] == "step" and e["status"] != "run"}
     assert steps["coin"] == "$HOT · Hot" and "curve" in steps["onchain"] and "guards every fridge" in steps["lore"]
     assert steps["x"] == "@hotcoin (profile not checked)"  # no X token in tests: shown, not faked
     assert ev[-1]["type"] == "answer" and ev[-1]["reply"].startswith("HOT is on the curve")
-    # a general question has no research card: straight to Muse
-    ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "how does MOOSE pick trades?"}).text.splitlines()]
-    assert [e["id"] for e in ev if e["type"] == "step"] == ["muse", "muse"] and ev[-1]["type"] == "answer"
+    # a general question has no research card: straight to Grok
+    ev = [json.loads(line) for line in api.post("/chat/stream", json={"message": "how does HORIZON pick trades?"}).text.splitlines()]
+    assert [e["id"] for e in ev if e["type"] == "step"] == ["grok", "grok"] and ev[-1]["type"] == "answer"
     # limits still apply before anything streams
     assert api.post("/chat/stream", json={"message": "x" * 501}).status_code == 400
 
@@ -594,7 +594,7 @@ def test_chat_streams_each_research_step(tmp_path):
 def test_thin_chart_gate_blocks_a_buy(tmp_path):
     ch, hot, _ = _scenario()  # ~$52K market cap, but only 11 small curve trades (~0.005 ETH of fees)
     ctx = build(_settings(tmp_path, min_fees_paid_eth=0.02), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=_muse())
+                x_transport=_x_transport([]), completer=_grok())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
@@ -607,7 +607,7 @@ def test_thin_chart_gate_blocks_a_buy(tmp_path):
     assert fees_paid_eth(ctx, launch) == pytest.approx(11 * 0.05 * 0.01, rel=0.3)  # summed from the trade events
     # plenty of fees paid: the same coin passes the gate
     ctx2 = build(_settings(tmp_path / "b", min_fees_paid_eth=0.001), rpc_transport=ch.transport(),
-                 market_transport=_market(), x_transport=_x_transport([]), completer=_muse())
+                 market_transport=_market(), x_transport=_x_transport([]), completer=_grok())
     index_once(ctx2)
     add_source(ctx2.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                    excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
@@ -620,7 +620,7 @@ def test_holder_gate_blocks_a_buy(tmp_path):
     ch, hot, _ = _scenario()
     ch.trade(hot, ch.head - 2_000, "buy", int(0.05 * ETH), 4 * 10**26, addr(0xBADBAD))  # one wallet takes 40% of supply
     ctx = build(_settings(tmp_path), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=_muse())
+                x_transport=_x_transport([]), completer=_grok())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
@@ -636,7 +636,7 @@ def test_holder_gate_blocks_a_buy(tmp_path):
 def test_rug_guards_fail_safe_when_the_chain_cant_be_read(tmp_path):
     ch, hot, _ = _scenario()
     ctx = build(_settings(tmp_path, min_fees_paid_eth=0.001), rpc_transport=ch.transport(), market_transport=_market(),
-                x_transport=_x_transport([]), completer=_muse())
+                x_transport=_x_transport([]), completer=_grok())
     index_once(ctx)
     add_source(ctx.conn, SourceIn(kind="news", origin_id="n1", origin_url="https://blog.example/hot",
                                   excerpt=f"HOT ships, contract {hot.token}", confidence="first_party"))
@@ -664,7 +664,7 @@ def test_v1_history_folds_into_the_scorecard():
     assert sc["history"] == {"v1_trades": 100, "v1_wins": 54, "v1_losses": 46, "includes": ["best_eth"]}
     sc = _with_v1(now, {"trades": 100, "wins": 54, "net_eth": 0.35, "deployed_eth": 5.0, "avg_hold_h": 3.0})
     assert sc["net_eth"] == 0.3 and sc["deployed_eth"] == 5.1 and sc["return_pct"] == 5.88
-    assert sc["avg_hold_h"] == 2.96 and sc["series"] == [0.0, 0.35, 0.345, 0.3] and sc["labels"][0] == "MOOSE v1 (100 trades)"
+    assert sc["avg_hold_h"] == 2.96 and sc["series"] == [0.0, 0.35, 0.345, 0.3] and sc["labels"][0] == "HORIZON v1 (100 trades)"
 
 
 def test_admin_can_queue_a_hand_written_post(tmp_path):

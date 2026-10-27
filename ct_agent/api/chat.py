@@ -1,10 +1,10 @@
-"""The website's "Ask Muse" chat.
+"""The website's "Ask HORIZON" chat, answered by Grok.
 
-A visitor sends a message, usually a contract address or a $ticker. MOOSE
+A visitor sends a message, usually a contract address or a $ticker. HORIZON
 researches that token live (the same onchain checks and screen the trader
-uses, plus what it has heard and decided), and Muse answers from those facts.
+uses, plus what it has heard and decided), and Grok answers from those facts.
 
-Every request is a paid Muse call, so it is rate limited per visitor (salted
+Every request is a paid Grok call, so it is rate limited per visitor (salted
 IP hash, never the raw IP) and capped overall per day. The global cap is the
 hard ceiling on spend.
 """
@@ -57,7 +57,7 @@ def check_limits(conn: Any, s: Any, who: str) -> None:
     """Raise ChatLimited if this visitor, or the site as a whole, is out of questions."""
     total = conn.execute("SELECT COUNT(*) FROM chat_requests WHERE ts>=?", (_since(days=1),)).fetchone()[0]
     if total >= s.chat_global_day:
-        raise ChatLimited("Muse has answered all it can for today. Try again tomorrow.", 3600)
+        raise ChatLimited("HORIZON has answered all it can for today. Try again tomorrow.", 3600)
     left = remaining(conn, s, who)
     if left["day"] <= 0:
         raise ChatLimited(f"That's your {s.chat_per_ip_day} questions for today. Come back tomorrow.", 3600)
@@ -75,7 +75,7 @@ def log_request(conn: Any, who: str, token: str | None, status: str) -> None:
 
 def find_token(conn: Any, text: str) -> tuple[str | None, str | None]:
     """(address, how) for the token the message is about: a pasted contract wins, else a $ticker
-    MOOSE has indexed (the most recent launch with that symbol)."""
+    HORIZON has indexed (the most recent launch with that symbol)."""
     m = ADDRESS.search(text)
     if m:
         return m.group(0), "address"
@@ -85,12 +85,12 @@ def find_token(conn: Any, text: str) -> tuple[str | None, str | None]:
                          (t.group(1),)).fetchone()
         if r:
             return r["token"], "ticker"
-        return None, f"no Robinhood Chain launch with the ticker ${t.group(1)} in MOOSE's index"
+        return None, f"no Robinhood Chain launch with the ticker ${t.group(1)} in HORIZON's index"
     return None, None
 
 
 def research(ctx: Any, token: str) -> dict[str, Any]:
-    """Live facts about one token for Muse. Cached briefly so a burst of questions about the
+    """Live facts about one token for Grok. Cached briefly so a burst of questions about the
     same coin doesn't repeat the chain reads."""
     key = token.lower()
     hit = _RESEARCH.get(key)
@@ -120,7 +120,7 @@ def _research(ctx: Any, token: str) -> dict[str, Any]:
                          "explorer": f"{s.explorer_url}/token/{token}",
                          "logo": f"/logo/{token}" if (launch or {}).get("logo_url") else None}
     stage = {Phase.NOT_GRADUATED: "on the bonding curve", Phase.POOL_CREATED: "graduated to its Pons V4 pool"}
-    f["stage"] = stage.get(rec.phase, f"{rec.phase.name.lower().replace('_', ' ')} (not tradable by MOOSE)")
+    f["stage"] = stage.get(rec.phase, f"{rec.phase.name.lower().replace('_', ' ')} (not tradable by HORIZON)")
     try:
         price, _ = spot_price(ctx, token)
         f["market_cap_usd"] = _market_cap(ctx, token, price) or "unknown"
@@ -144,9 +144,9 @@ def _research(ctx: Any, token: str) -> dict[str, Any]:
                                          "deployer_buy_share": round(act.deployer_buy_share, 3),
                                          "wallets_that_bought_and_sold_fast": act.roundtrip_traders,
                                          "accelerating": act.accelerating}
-                f["moose_screen"] = {"flags": c.flags, "red_flags": c.blockers}
+                f["horizon_screen"] = {"flags": c.flags, "red_flags": c.blockers}
             else:
-                f["onchain_activity"] = "not indexed by MOOSE yet"
+                f["onchain_activity"] = "not indexed by HORIZON yet"
         elif rec.phase == Phase.POOL_CREATED:
             pid = (launch or {}).get("pool_id") or ctx.pons.genuine_pool_id(rec)
             pool = ctx.market.genuine_pool_stats(token, pid)
@@ -157,7 +157,7 @@ def _research(ctx: Any, token: str) -> dict[str, Any]:
                                     volume_h1_usd=pool.volume_h1_usd, liquidity_usd=pool.liquidity_usd,
                                     volume_h24_usd=pool.volume_h24_usd, fee_bps=(launch or {}).get("fee_bps") or 100,
                                     creator_tax_bps=rec.creator_tax_bps, activity=None, quote_symbol=quote)
-                f["moose_screen"] = {"flags": c.flags, "red_flags": c.blockers}
+                f["horizon_screen"] = {"flags": c.flags, "red_flags": c.blockers}
             else:
                 f["pool"] = "no market data for the genuine pool yet"
     except Exception as exc:  # a missing figure must never break the answer
@@ -173,18 +173,18 @@ def _research(ctx: Any, token: str) -> dict[str, Any]:
     att = kv_get(conn, f"x_attention:{token.lower()}")
     if att:
         f["x_mentions_24h"] = att.get("count_24h")
-    f["moose_decisions"] = [{"when": d["ts"], "action": d["action"], "confidence": d["confidence"],
+    f["horizon_decisions"] = [{"when": d["ts"], "action": d["action"], "confidence": d["confidence"],
                              "thesis": (d["thesis"] or "")[:300]}
                             for d in rows(conn, "SELECT ts, action, confidence, thesis FROM decisions WHERE "
                                                 "lower(token)=lower(?) AND model!='rule' ORDER BY id DESC LIMIT 3", (token,))]
-    f["moose_trades"] = rows(conn, "SELECT mode, status, opened_at, closed_at, entry_quote AS entry_eth, "
+    f["horizon_trades"] = rows(conn, "SELECT mode, status, opened_at, closed_at, entry_quote AS entry_eth, "
                                    "pnl_quote AS pnl_eth, exit_reason FROM positions WHERE lower(token)=lower(?) "
                                    "ORDER BY id DESC LIMIT 3", (token,))
     return f
 
 
 def token_card(facts: dict[str, Any]) -> dict[str, Any] | None:
-    """What the website shows above Muse's reply."""
+    """What the website shows above Grok's reply."""
     if not facts.get("is_pons_v2_launch_on_robinhood_chain"):
         return None
     return {k: facts.get(k) for k in ("address", "name", "symbol", "stage", "curve_progress_pct", "market_cap_usd",
@@ -233,7 +233,7 @@ def onchain_detail(f: dict[str, Any]) -> str:
     hs = f.get("holders") or {}
     if hs.get("top10_share") is not None:
         bits.append(f"top 10 hold {hs['top10_share']:.0%}")
-    flags = len((f.get("moose_screen") or {}).get("red_flags") or [])
+    flags = len((f.get("horizon_screen") or {}).get("red_flags") or [])
     if flags:
         bits.append(f"{flags} red flag{'s' if flags != 1 else ''}")
     return " · ".join(b for b in bits if b)
@@ -245,7 +245,7 @@ def _clip(t: str, n: int) -> str:
 
 
 def _x_allowed(ctx: Any) -> bool:
-    """The chat's daily allowance of X profile look-ups, so visitors can't spend MOOSE's X budget."""
+    """The chat's daily allowance of X profile look-ups, so visitors can't spend HORIZON's X budget."""
     key = "chat_x_lookups:" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
     used = int(kv_get(ctx.conn, key) or 0)
     if used >= ctx.settings.chat_x_lookups_day:
@@ -256,7 +256,7 @@ def _x_allowed(ctx: Any) -> bool:
 
 def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str, history: list[dict[str, str]],
                   hint: str | None, context: str | None = None) -> Any:
-    """Research the coin step by step, then ask Muse. Yields what the site shows live:
+    """Research the coin step by step, then ask Grok. Yields what the site shows live:
     {"type": "step", "id", "status": run|done|skip|fail, "detail"}, then {"type": "answer", ...}
     or {"type": "error", "detail"}."""
     from types import SimpleNamespace
@@ -352,13 +352,13 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
                 facts = {}
         facts["now_utc"] = datetime.now(timezone.utc).strftime("%A %d %B %Y, %H:%M UTC")
         log_request(conn, who, token, "asked")  # counted before the paid call, whatever happens next
-        yield step("muse", "run")
+        yield step("grok", "run")
         res = svc["brain"].chat(facts, ev, history + [{"role": "user", "text": msg}], story)
         if res.decision is None:
-            yield step("muse", "fail")
-            yield {"type": "error", "detail": "Muse didn't answer that one. Try again in a moment."}
+            yield step("grok", "fail")
+            yield {"type": "error", "detail": "HORIZON didn't answer that one. Try again in a moment."}
             return
-        yield step("muse", "done")
+        yield step("grok", "done")
         yield {"type": "answer", "reply": res.decision.reply.strip()[:2000], "token": token_card(facts) if token else None,
                "remaining": remaining(conn, s, who)}
     finally:

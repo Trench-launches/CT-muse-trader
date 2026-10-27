@@ -1,4 +1,4 @@
-"""Hard limits and the stop switch. Muse can never loosen these.
+"""Hard limits and the stop switch. Grok can never loosen these.
 
 Limits are in ETH, so only ETH-quoted launches can be sized. ERC-20
 quoted launches are blocked until a priced conversion is added.

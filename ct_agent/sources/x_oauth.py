@@ -1,4 +1,4 @@
-"""OAuth 2.0 (PKCE) user login for posting as @MooseByMuse, with automatic refresh.
+"""OAuth 2.0 (PKCE) user login for posting as the bot's X account, with automatic refresh.
 
 X user access tokens last two hours. `ctagent x-login` runs the browser consent
 once and yields a refresh token; the server keeps its current token pair in the
@@ -125,7 +125,7 @@ def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int =
                 result["code"] = q["code"][0]
             else:
                 result["error"] = q.get("error_description", q.get("error", ["login was not completed"]))[0]
-            body = ("<h2>MOOSE is connected to X.</h2><p>You can close this tab.</p>" if ok
+            body = ("<h2>HORIZON is connected to X.</h2><p>You can close this tab.</p>" if ok
                     else f"<h2>Login failed</h2><p>{result['error']}</p>").encode()
             self.send_response(200 if ok else 400)
             self.send_header("content-type", "text/html; charset=utf-8")
@@ -139,7 +139,7 @@ def browser_login(oauth: XOAuth2, *, open_browser: bool = True, timeout_s: int =
     server = http.server.HTTPServer(("127.0.0.1", 8765), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = authorize_url(oauth.client_id, challenge, state)
-    print("Open this link and approve as @MooseByMuse (it should open automatically):\n" + url, flush=True)
+    print("Open this link and approve as the bot's X account (it should open automatically):\n" + url, flush=True)
     if open_browser:
         webbrowser.open(url)
     try:

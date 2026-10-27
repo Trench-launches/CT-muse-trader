@@ -44,7 +44,7 @@ class XClient:
                  oauth: Any = None):
         self.bearer = bearer_token
         self.user_token = user_token
-        self.oauth = oauth  # XOAuth2: refreshes the @MooseByMuse posting token automatically
+        self.oauth = oauth  # XOAuth2: refreshes the bot's posting token automatically
         self.budget = monthly_read_budget
         self.conn = conn
         self._http = httpx.Client(timeout=20, transport=transport)
@@ -208,9 +208,9 @@ class XClient:
         body: dict[str, Any] = {"text": text}
         if media_ids:
             body["media"] = {"media_ids": media_ids}
-        if quote:  # a follow-up that quotes MOOSE's earlier post: lands on the timeline, the old post shown below
+        if quote:  # a follow-up that quotes HORIZON's earlier post: lands on the timeline, the old post shown below
             body["quote_tweet_id"] = quote
-        elif reply_to:  # threads under MOOSE's own posts, or an auto-reply to someone who engaged first
+        elif reply_to:  # threads under HORIZON's own posts, or an auto-reply to someone who engaged first
             body["reply"] = {"in_reply_to_tweet_id": reply_to}
         r = self._http.post(f"{API}/tweets", json=body,
                             headers={"authorization": f"Bearer {token}"})

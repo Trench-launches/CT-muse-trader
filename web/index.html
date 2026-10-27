@@ -1,32 +1,32 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MooseByMuse</title>
-<meta name="description" content="MOOSE reads thousands of new memecoins a day on Robinhood Chain, checks every claim onchain and trades the rare good ones in public. Losses included.">
+<title>HORIZON · powered by Grok</title>
+<meta name="description" content="HORIZON reads thousands of new memecoins a day on Robinhood Chain, checks every claim onchain with Grok and trades the rare good ones in public. Losses included.">
+<!-- canonical, og:url and the share image use the current domain: they change when the site moves -->
 <link rel="canonical" href="https://www.moosebymuse.com/">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="64x64" href="/assets/moose-icon-64.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/moose-icon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/assets/moose-icon-16.png">
-<link rel="apple-touch-icon" href="/assets/moose-icon-180.png">
+<link rel="icon" type="image/png" sizes="64x64" href="/assets/icon-64.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/icon-16.png">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.moosebymuse.com/">
-<meta property="og:title" content="MOOSE, powered by Muse">
-<meta property="og:description" content="An AI that watches every memecoin launch on Robinhood Chain, checks every claim onchain and trades in public. Losses included.">
-<meta property="og:image" content="https://www.moosebymuse.com/assets/og-pixel.png">
+<meta property="og:title" content="HORIZON, powered by Grok">
+<meta property="og:description" content="An AI, powered by Grok, that watches every memecoin launch on Robinhood Chain, checks every claim onchain and trades in public. Losses included.">
+<meta property="og:image" content="https://www.moosebymuse.com/assets/og-horizon.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:site" content="@MooseByMuse">
-<meta name="twitter:image" content="https://www.moosebymuse.com/assets/og-pixel.png">
+<meta name="twitter:site" content="@MooseByMuse"><!-- the X account: change it together with X_HANDLE in the script -->
+<meta name="twitter:image" content="https://www.moosebymuse.com/assets/og-horizon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Pixelify+Sans:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
 
 
 
 <style>
-/* MOOSE landing page, v2. Layout language: big centred headlines, large soft-gradient
-   panels, clean product cards floating on top. Every section is sized to fit one screen.
-   Figures load live from api.moosebymuse.com/site; the markup holds example data until then.
-   Headline face: Outfit stands in for the Instagram Sans reference (not licensable). */
+/* HORIZON landing page. Layout language: big centred headlines, large panels, clean product cards
+   floating on top. Every section is sized to fit one screen. Figures load live from the API's /site;
+   the markup holds example data until then. The HORIZON block at the end of the sheet sets the look. */
 :root {
   color-scheme: light;
   --white: #FFFFFF;
@@ -151,7 +151,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .xp-more .ic { width: 18.75px; height: 18.75px; vertical-align: 0; }
 .xp-text { font-size: 15px; line-height: 20px; font-weight: 400; color: #0F1419; white-space: pre-line; overflow-wrap: anywhere; margin-top: 2px; }
 .xp-text .tag { color: #1D9BF0; }
-.face.emo { display: inline-block; width: 18px; height: 18px; vertical-align: -3px; margin: 0 1px; box-shadow: none; }
 .xp-text .ca { color: inherit; } /* X shows raw addresses as plain text */
 .xp-actions { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0 -8px; max-width: 425px; color: #536471; font-size: 13px; line-height: 16px; }
 .xp-act { display: inline-flex; align-items: center; gap: 2px; min-width: 0; transition: color .2s; }
@@ -163,7 +162,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .xp-act.vw:hover { color: #1D9BF0; } .xp-act.vw:hover .hit { background: rgba(29,155,240,.1); }
 .xp-end { display: flex; }
 .xp-end .xp-act:hover { color: #1D9BF0; } .xp-end .xp-act:hover .hit { background: rgba(29,155,240,.1); }
-.face { width: 34px; height: 34px; background: url("assets/moose-face.webp") center / contain no-repeat; flex: none; }
+/* the avatar: the HORIZON orb (drawn in CSS, see --orb) */
+.face { width: 34px; height: 34px; border-radius: 50%; background: var(--orb) center / cover no-repeat, #000; flex: none; }
 
 /* coins (placeholder decor until the generated 3D coins arrive) */
 .coin { position: absolute; pointer-events: none; will-change: transform; transition: transform .6s var(--ease); filter: drop-shadow(0 14px 18px rgba(0,60,140,.18)); z-index: 1; }
@@ -183,10 +183,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .nav.scrolled { border-bottom-color: var(--line); }
 .nav .wrap { display: flex; align-items: center; gap: 20px; height: 64px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--f-display); font-size: 25px; font-weight: 600; letter-spacing: -0.01em; }
-/* wordmark: the 3D MOOSE render */
-.wordmark { display: block; height: 28px; width: auto; }
 
-/* ---------- PRELOADER: letters rise and fade in one by one, then "powered by Muse"; 2s, then it fades away ---------- */
+/* ---------- PRELOADER: the orb, HORIZON typed in, then "powered by Grok"; 2s, then it fades away ---------- */
 .preload { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; background: var(--white); animation: plOut .45s ease 2s forwards; }
 @keyframes plOut { to { opacity: 0; visibility: hidden; } }
 .pl-word { display: flex; justify-content: center; gap: 0; height: clamp(56px, 12vw, 96px); }
@@ -194,7 +192,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes plIn { to { opacity: 1; transform: none; } }
 .pl-sub { margin-top: 14px; text-align: center; font-family: "Fredoka", var(--f-body); font-weight: 600; font-size: clamp(15px, 1.6vw, 18px); letter-spacing: .02em; color: var(--ink-3); }
 .pl-sub span { display: inline-block; white-space: pre; opacity: 0; transform: translateY(70%); animation: plIn .45s cubic-bezier(.2,.8,.2,1) forwards; animation-delay: calc(.75s + var(--i) * .045s); }
-.pl-sub .mu { color: var(--blue); }
+.pl-sub .gk { color: var(--blue); }
 .pl-sub .st { color: var(--blue); }
 .pl-sub .st .ic { width: .95em; height: .95em; vertical-align: -0.12em; }
 .brand-tag { font-family: var(--f-body); font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--ink-3); display: inline-flex; align-items: center; gap: 4px; margin-left: 2px; }
@@ -203,12 +201,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .kicker.soft { background: var(--surface); color: var(--ink-2); }
 @media (max-width: 640px) { .nav .brand-tag { display: none; } }
 .brand .face { transition: transform .4s var(--spring); }
-.brand:hover .face { transform: rotate(-12deg) scale(1.08); }
+.brand:hover .face { transform: scale(1.1); }
 .nav-links { display: flex; gap: 2px; margin-left: auto; }
 .nav-links a { text-decoration: none; font-size: var(--t-sm); font-weight: 500; color: var(--ink-2); padding: 8px 12px; border-radius: var(--r-pill); transition: background .2s, color .2s; }
 .nav-links a:hover { background: var(--surface); color: var(--ink); }
 .nav-right { display: flex; align-items: center; gap: 10px; }
-/* Buy $MOOSE: shows "soon" and goes nowhere until the token's contract and GMGN link are set in the script */
+/* Buy $HRZN: shows "soon" and goes nowhere until the token's contract and GMGN link are set in the script (OWN_TOKEN) */
 .buy-btn .face { width: 22px; height: 22px; margin-left: -6px; }
 .buy-btn .soon { font-family: var(--f-mono); font-size: 10.5px; font-weight: 500; padding: 2px 7px; border-radius: var(--r-pill); background: rgba(255,255,255,.22); }
 .buy-btn[aria-disabled="true"] { cursor: default; }
@@ -250,9 +248,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: clamp(16px, 2.6vh, 26px); }
 .hero-stage { margin-top: clamp(18px, 3vh, 36px); flex: 1 1 auto; min-height: clamp(300px, 38vh, 460px); width: 100%; }
 .stage-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
-.hero-mascot { position: absolute; left: 50%; bottom: -3%; height: 104%; transform: translateX(-50%); z-index: 2; pointer-events: none; }
-.hero-mascot img { height: 100%; width: auto; max-width: none; animation: bob 4.8s ease-in-out infinite; transform-origin: 50% 100%; }
-@keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-8px) rotate(-1deg); } }
 .float { position: absolute; z-index: 3; padding: 12px 14px; border-radius: 16px; background: var(--white); box-shadow: var(--shadow); font-size: var(--t-sm); display: grid; gap: 6px; transition: transform .6s var(--ease); min-width: 0; will-change: transform; backface-visibility: hidden; }
 .float .row { display: flex; align-items: center; gap: 8px; }
 /* a slight tilt; `rotate` composes with the parallax transform instead of being overwritten by it */
@@ -267,8 +262,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (max-width: 1000px) {
   .hero { height: auto; min-height: 0; }
   .hero-stage { flex: none; height: clamp(380px, 52vw, 460px); }
-  .hero-mascot { left: 50%; height: 86%; bottom: 0; }
-  .f1, .f2, .f4 { display: none; }            /* one compact card, under the mascot's face */
+  .f1, .f2, .f4 { display: none; }            /* one compact card, on the horizon under the orb */
   .f3 { left: 6%; right: 6%; bottom: 5%; max-width: 420px; margin-inline: auto; padding: 9px 12px; font-size: 13px; }
   .f3 small { font-size: 11px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }
@@ -434,7 +428,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pick .pill { margin-left: auto; }
 .pick[aria-selected="true"] .pill.ink { background: rgba(255,255,255,.16); }
 .chat-panel { padding: clamp(14px, 2.4vh, 28px) clamp(14px, 2vw, 28px); height: clamp(460px, var(--fit), 700px); display: flex; justify-content: center; align-items: center; }
-/* the reasoning chat, shown on a phone that the mascot is holding */
+/* the reasoning chat, shown on a phone */
 .chat.phone { position: relative; z-index: 2; flex: 0 0 auto; width: auto; height: 100%; aspect-ratio: 9 / 18.5; max-width: 100%; display: flex; flex-direction: column; background: var(--white); border-radius: 48px; border: 10px solid var(--ink); box-shadow: 0 0 0 2px #3A4A54, 0 40px 70px -30px rgba(0,40,100,.45), inset 0 0 0 1px rgba(255,255,255,.4); overflow: hidden; transform: translateX(-6%) rotate(-3deg); }
 .phone-bar { position: relative; flex: none; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 6px 26px 0 30px; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
 .phone-bar .sys { display: flex; align-items: center; gap: 5px; }
@@ -456,9 +450,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 .fl-1 { left: 0; top: 12%; } .fl-2 { left: -3%; top: 44%; animation-delay: -2s; } .fl-3 { right: 2%; top: 14%; animation-delay: -4s; } .fl-4 { left: 5%; bottom: 10%; animation-delay: -1s; }
 @media (max-width: 1000px) { .fl { display: none; } }  /* the floating labels would cover the phone on narrower screens */
-.holder { position: absolute; z-index: 3; right: -6%; bottom: -5%; height: 56%; pointer-events: none; }
-.holder img { height: 100%; width: auto; max-width: none; transform-origin: 30% 80%; animation: bob 4.8s ease-in-out infinite; filter: drop-shadow(0 18px 24px rgba(28,43,51,.18)); }
-@media (max-width: 1000px) { .chat.phone { transform: rotate(-2deg); } .holder { height: 40%; right: -4%; } }
+@media (max-width: 1000px) { .chat.phone { transform: rotate(-2deg); } }
 .chat { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; background: rgba(255,255,255,.9); border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
 .chat-h { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .chat-h b { font-weight: 700; } .chat-h small { display: block; font-size: 12px; color: var(--ink-3); }
@@ -620,12 +612,11 @@ body.killed .paused-note { display: block; }
 .rec-card .xp:hover { background: #FFFFFF; }
 .rec-card .xp-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 9; line-clamp: 9; overflow: hidden; }  /* sized to the tweet */
 .xp-act.bump { color: #F91880; }
-.rec-desk { position: absolute; z-index: 1; left: -12%; bottom: 0; height: 60%; width: auto; max-width: none; pointer-events: none; filter: drop-shadow(0 24px 30px rgba(28,43,51,.12)); }
 @media (max-width: 1000px) {
   .record .wrap { grid-template-columns: minmax(0, 1fr); }
   .rec-panel { height: auto; flex-direction: column; gap: 14px; }
   .rec-card { position: static; width: 100%; animation: none; }
-  .rec-desk { display: none; }
+  .rec-panel .hz { display: none; }
 }
 
 /* ---------- 9 SCORE: white cards on the brand panel, like the Live section ---------- */
@@ -669,7 +660,7 @@ body.killed .paused-note { display: block; }
 .spark { width: 100%; height: clamp(90px, 17vh, 200px); display: block; margin-top: 18px; overflow: visible; }
 .spark-tip { position: absolute; background: var(--ink); color: var(--white); font-family: var(--f-mono); font-size: 12px; padding: 6px 10px; border-radius: 8px; pointer-events: none; transform: translate(-50%, calc(-100% - 12px)); opacity: 0; transition: opacity .15s; white-space: nowrap; }
 
-/* ---------- 5b ASK MUSE ---------- */
+/* ---------- 5b ASK HORIZON ---------- */
 .ask .wrap { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
 .ask-points { list-style: none; padding: 0; margin: clamp(18px, 3vh, 28px) 0 0; display: grid; gap: 12px; }
 .ask-points li { display: flex; align-items: center; gap: 12px; color: var(--ink-2); }
@@ -734,9 +725,7 @@ body.killed .paused-note { display: block; }
 .cta-panel h2 { font-size: var(--t-h2); position: relative; z-index: 2; }
 .cta-panel .sub { position: relative; z-index: 2; }
 .cta-panel .ctas { justify-content: flex-start; position: relative; z-index: 2; }
-.cta-mascot { position: relative; z-index: 2; justify-self: center; height: clamp(240px, 45vh, 450px); }
-.cta-mascot img { height: 100%; width: auto; max-width: none; transition: transform .5s var(--spring); }
-.cta-panel:hover .cta-mascot img { transform: rotate(-2deg) scale(1.03); }
+.cta-orb { position: relative; z-index: 1; justify-self: stretch; height: clamp(240px, 45vh, 450px); }
 footer { padding-block: 0 40px; /* the section above already provides the gap */ font-size: 13.5px; color: var(--ink-2); }
 footer .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 40px; border-top: 1px solid var(--line); padding-top: 28px; }
 footer nav { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
@@ -758,8 +747,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   footer .wrap { grid-template-columns: minmax(0, 1fr); }
   .cta-panel { grid-template-columns: minmax(0, 1fr); }
   .cta-panel .ctas { flex-wrap: wrap; }
-  .cta-mascot { height: auto; width: 100%; justify-self: center; }
-  .cta-mascot img { width: 100%; height: auto; max-width: 440px; max-height: 360px; object-fit: contain; display: block; margin-inline: auto; }
+  .cta-orb { height: clamp(220px, 60vw, 320px); }
 }
 /* touch screens (phones and tablets): comfortable tap targets for the small footer links */
 @media (pointer: coarse) { footer nav a { padding-block: 11px; } }
@@ -816,7 +804,7 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   --blue: #F4F4F5;
   --blue-deep: #FFFFFF;
   --blue-soft: #1C1C1F;
-  /* the moose's own beige is the one accent colour */
+  /* the warm accent (now neutral: the HORIZON block below) */
   --beige: #E6D3B3;
   --sand: #1F1A13;
   --sand-ink: #E6D3B3;
@@ -831,7 +819,6 @@ footer .legal { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink-3); max
   --f-display: "Geist", "Inter", "Segoe UI", system-ui, sans-serif;
   --f-body: "Geist", "Inter", "Segoe UI", system-ui, sans-serif;
   --f-mono: "Geist Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --f-pixel: "Pixelify Sans", "Geist Mono", monospace;
   --r-card: 10px; --r-panel: 16px; --r-pill: 6px;
   --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 18px 40px -24px rgba(0,0,0,.8);
 }
@@ -840,10 +827,7 @@ body { background: var(--white); color: var(--ink); }
 .nav.scrolled { border-bottom-color: var(--line); }
 ::selection { background: var(--ink); color: var(--white); }
 h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
-/* MOOSE's profile picture: the small pixel character in a dark circle */
-.face { background: #1A1A1E url("assets/moose-mini.webp") center 60% / 92% no-repeat; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
 .xp .face { box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
-.face.emo { background-color: transparent; background-size: contain; border-radius: 0; box-shadow: none; }
 
 /* panels: white, a thin border and a square grid instead of blue dots */
 .panel { border: 1px solid var(--line); }
@@ -864,28 +848,26 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
 .btn-ghost { border-color: var(--line); }
 .btn-ghost:hover { border-color: var(--ink); }
 
-/* nav: the pixel wordmark */
-.wordmark-t { font-family: var(--f-pixel); font-size: 26px; font-weight: 700; letter-spacing: .01em; color: var(--ink); line-height: 1; }
+/* nav: the wordmark, wide-tracked caps */
+.wordmark-t { font-family: var(--f-display); font-size: 15px; font-weight: 500; letter-spacing: .34em; margin-right: -.34em; color: var(--ink); line-height: 1; }
 .brand-tag { font-family: var(--f-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
 .brand-tag .ic { color: var(--ink); }
 .nav-links a { font-family: var(--f-mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; border-radius: 8px; }
 .nav-links a.nav-hl, .nav.open .nav-links a.nav-hl { color: var(--accent); }
-.nav-links a.nav-hl:hover { color: var(--accent); background: rgba(59,130,246,.12); }
+.nav-links a.nav-hl:hover { color: var(--accent); background: rgba(255,255,255,.06); }
 
-/* hero: terminal cursor on the headline, crisp pixel moose, bordered data cards */
+/* hero: terminal cursor on the headline, the orb rising over the horizon, bordered data cards */
 .hero h1 .blue { color: var(--ink); }
 .hero h1 .blue::after { content: ""; display: inline-block; width: .5em; height: .8em; margin-left: .08em; vertical-align: -.02em;
   background: var(--ink); animation: caret 1.05s steps(1) infinite; }
 @keyframes caret { 50% { opacity: 0; } }
-/* the one blue: the hero headline and the header wordmark */
-:root { --accent: #3B82F6; }
+/* the accent: white (the HORIZON block sets it) */
+:root { --accent: #FAFAFA; }
 .hero h1 { color: var(--accent); }
 .hero h1 .blue::after { background: var(--accent); }
 .nav .wordmark-t { color: var(--accent); }
 .hero-stage { background: var(--panel); }
 .stage-curve { color: var(--ink); }
-.hero-mascot { bottom: 4%; height: 84%; }
-.hero-mascot img { image-rendering: pixelated; animation: bob 2.4s steps(2) infinite; filter: drop-shadow(0 0 40px rgba(230,211,179,.10)) drop-shadow(0 20px 20px rgba(0,0,0,.6)); }
 .float { border-radius: 12px; border: 1px solid var(--line); background: #111113; box-shadow: 0 18px 34px -24px rgba(0,0,0,.9); }
 .float.f1, .float.f2, .float.f3, .float.f4 { rotate: 0deg; }
 .float b { font-family: var(--f-mono); font-weight: 600; letter-spacing: -0.01em; }
@@ -907,7 +889,7 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
 
 /* inputs and small controls */
 .lform input, .lform textarea, .ask-bar { background: var(--white); border: 1px solid var(--line); color: var(--ink); }
-.lform input:focus, .ask-bar:focus-within { background: var(--white); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+.lform input:focus, .ask-bar:focus-within { background: var(--white); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
 .lform label, .lform .lbl { color: var(--ink-3); }
 .ask-sugg button { background: var(--card-2); border-color: var(--line); color: var(--ink); font-family: var(--f-mono); font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .03em; }
 .ask-sugg button:hover { border-color: var(--ink-3); }
@@ -943,18 +925,11 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
 .xp-meta, .xp-more, .xp-actions { color: var(--x-meta); }
 .rec-card .xtl { border-color: #2F3336; box-shadow: 0 30px 60px -30px rgba(0,0,0,.95); }
 
-/* sources: a pixel face in a terminal-style ring */
+/* sources: the orb in a terminal-style ring */
 .hub .ring { background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 0 0 12px rgba(255,255,255,.03), 0 0 0 13px var(--line), 0 0 0 26px rgba(255,255,255,.015); }
-.hub .ring img { width: 84%; transform: translateY(4%); }
+.hub .ring svg { width: 150%; height: 150%; flex: none; }
 .hub p { text-transform: uppercase; letter-spacing: .06em; font-size: 11.5px; color: var(--ink-3); }
 
-/* the pixel moose, wherever it stands */
-.holder { right: -3%; bottom: -2%; height: 45%; }
-.holder img, .rec-desk, .cta-mascot img { image-rendering: pixelated; filter: drop-shadow(0 0 40px rgba(230,211,179,.08)) drop-shadow(0 20px 20px rgba(0,0,0,.6)); }
-.holder img { animation: bob 2.4s steps(2) infinite; }
-.rec-desk { left: -17%; bottom: 3%; height: 49%; }
-.cta-mascot { height: clamp(220px, 38vh, 380px); }
-.cta-panel:hover .cta-mascot img { transform: translateY(-6px); }
 
 /* scorecard */
 .sc-recent { background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
@@ -967,12 +942,12 @@ h1, h2, h3, h4 { font-weight: 600; letter-spacing: -0.045em; }
   .live-tabs button[aria-selected="true"] { background: var(--card-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 }
 
-/* preloader: MOOSE in pixels, typed in */
-.pl-word { gap: .04em; height: auto; font-family: var(--f-pixel); font-weight: 700; font-size: clamp(56px, 11vw, 104px); line-height: 1; color: var(--accent); }
+/* preloader: HORIZON typed in, wide-tracked */
+.pl-word { gap: .3em; margin-right: -.3em; height: auto; font-family: var(--f-display); font-weight: 500; font-size: clamp(34px, 7vw, 72px); line-height: 1; color: var(--accent); }
 .pl-word span { display: inline-block; opacity: 0; animation: plType .01s steps(1) forwards; animation-delay: calc(var(--i) * .12s); }
 @keyframes plType { to { opacity: 1; } }
 .pl-sub { font-family: var(--f-mono); font-weight: 500; font-size: 12.5px; text-transform: uppercase; letter-spacing: .12em; }
-.pl-sub .mu, .pl-sub .st { color: var(--ink); }
+.pl-sub .gk, .pl-sub .st { color: var(--ink); }
 
 /* footer */
 .foot, footer { border-top: 1px solid var(--line); }
@@ -1011,7 +986,7 @@ main, footer { position: relative; z-index: 1; }
   border-radius: 12px; padding: 12px 40px 12px 14px; width: 100%; cursor: pointer; appearance: none; -webkit-appearance: none;
   background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
   background-position: calc(100% - 20px) 52%, calc(100% - 14px) 52%; background-size: 6px 6px; background-repeat: no-repeat; }
-.lform select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+.lform select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
 .lform select option, .lform select optgroup { background: #111113; color: var(--ink); }
 .lpair small { font-size: 12.5px; font-weight: 500; color: var(--green); }
 .lpair small[hidden] { display: none; }
@@ -1025,7 +1000,7 @@ main, footer { position: relative; z-index: 1; }
 .pk-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; cursor: pointer; text-align: left;
   font: inherit; color: var(--ink); background: var(--white); border: 1px solid var(--line); transition: border-color .2s, box-shadow .2s; }
 .pk-btn:hover { border-color: var(--ink-3); }
-.pk-btn:focus-visible, .pk.open .pk-btn { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,.18); }
+.pk-btn:focus-visible, .pk.open .pk-btn { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
 .pk-cur { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
 .pk-cur b { font-family: var(--f-mono); font-size: 14.5px; font-weight: 600; letter-spacing: .01em; }
 .pk-cur span { font-size: 13.5px; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1057,6 +1032,134 @@ main, footer { position: relative; z-index: 1; }
 .pk-o.on .pk-ok { visibility: visible; }
 .pk-o.on .pk-t { color: var(--accent); }
 .pk-none { padding: 18px 12px; font-size: 13.5px; color: var(--ink-3); text-align: center; }
+
+/* ================= HORIZON: Grok-style black and white ================= */
+/* Last in the sheet, so it wins. Pure black, white type, neutral greys and thin borders; the only light is the
+   cool white of the horizon and the orb. Green and red stay, for gains and losses only. */
+:root {
+  --white: #000000;       /* the page (the old token names stay, so every section follows) */
+  --surface: #0E0E0E;
+  --line: #1F1F1F;
+  --ink: #FAFAFA;
+  --ink-2: #A6A6A6;       /* ~8:1 on black */
+  --ink-3: #858585;       /* ~5:1 on the cards, still AA */
+  --blue: #FAFAFA; --blue-deep: #FFFFFF; --blue-soft: #141414;
+  --beige: #D4D4D4; --sand: #141414; --sand-ink: #D4D4D4; --sand-deep: #262626;
+  --green: #22C55E; --green-soft: #0B1F12; --coral: #F87171; --coral-soft: #241010;
+  --panel: #050505; --panel-cool: #050505; --panel-warm: #050505;
+  --card: #0A0A0A; --card-2: #121212;
+  --accent: #FAFAFA;
+  --glow: 222, 230, 255;  /* the horizon light, as r, g, b */
+  --r-card: 12px; --r-panel: 20px; --r-pill: 999px;
+  /* the orb, small: black disc, white rim lit from below, a soft corona (the same drawing as #orb-lg) */
+  --orb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3CradialGradient id='c'%3E%3Cstop offset='.58' stop-color='%23DEE6FF' stop-opacity='0'/%3E%3Cstop offset='.62' stop-color='%23DEE6FF' stop-opacity='.75'/%3E%3Cstop offset='.7' stop-color='%23DEE6FF' stop-opacity='.24'/%3E%3Cstop offset='.85' stop-color='%23DEE6FF' stop-opacity='.06'/%3E%3Cstop offset='1' stop-color='%23DEE6FF' stop-opacity='0'/%3E%3C/radialGradient%3E%3ClinearGradient id='r' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23fff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='%23000'/%3E%3Ccircle cx='50' cy='50' r='50' fill='url(%23c)'/%3E%3Ccircle cx='50' cy='50' r='30' fill='%23000' stroke='url(%23r)' stroke-width='3.2'/%3E%3C/svg%3E");
+}
+body { background: #000; }
+.nav { background: rgba(0,0,0,.72); }
+h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.05em; }
+h1 .blue, h2 .blue { color: var(--ink-3); }               /* two-tone headlines: white, then grey */
+.hero h1 { color: var(--ink); }
+.hero h1 .blue::after { background: var(--ink); box-shadow: 0 0 16px rgba(var(--glow), .35); }
+.face { box-shadow: none; }
+.brand { gap: 12px; }
+.brand-tag { color: var(--ink-3); }
+.nav-links a.nav-hl, .nav.open .nav-links a.nav-hl { color: var(--ink); }
+.nav-links a.nav-hl::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: 1px; border-radius: 50%;
+  background: var(--ink); box-shadow: 0 0 10px rgba(var(--glow), .9); }
+.brand-tag, .nav-links a { white-space: nowrap; }
+/* the wide-tracked links don't fit beside the wordmark below 1200px, so the menu takes over earlier than before */
+@media (max-width: 1200px) {
+  .nav-links { display: none; } .nav-right { margin-left: auto; }
+  .menu-btn { display: inline-grid; }
+  .nav.open .nav-links { display: flex; position: absolute; top: calc(100% + 8px); left: 5%; right: 5%; flex-direction: column; gap: 2px; padding: 8px;
+    background: #050505; border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow); }
+  .nav.open .nav-links a { padding: 13px 16px; font-size: var(--t-md); color: var(--ink); }
+}
+
+/* buttons: white pill primary, black pill with a hairline, both glow a little on hover */
+.btn { border-radius: var(--r-pill); }
+.btn-primary { background: #FAFAFA; color: #000; }
+.btn-primary:hover { background: #FFFFFF; box-shadow: 0 0 0 4px rgba(255,255,255,.07), 0 0 28px rgba(var(--glow), .28); }
+.btn-dark { background: #000; color: var(--ink); border-color: #2A2A2A; }
+.btn-dark:hover { background: #FAFAFA; color: #000; border-color: #FAFAFA; box-shadow: 0 0 28px rgba(var(--glow), .22); }
+.btn-ghost { background: transparent; border-color: #2A2A2A; }
+.btn-ghost:hover { border-color: #FAFAFA; }
+.buy-btn .soon { background: rgba(0,0,0,.1); }
+.buy-btn[aria-disabled="true"]:hover { background: #FAFAFA; }
+.menu-btn { border-radius: 50%; }
+
+/* tags and pills: hairline outlines, white for the one that matters */
+.kicker { background: transparent; border-color: #262626; border-radius: var(--r-pill); }
+.kicker.soft { background: transparent; border-color: #1A1A1A; }
+.pill.blue { background: #141414; color: var(--ink); box-shadow: inset 0 0 0 1px #262626; }
+.pill.solid-blue { background: #FAFAFA; color: #000; }
+.pill.sand, .pill.amber, .pill.grey { background: #121212; color: var(--ink-2); box-shadow: inset 0 0 0 1px #242424; }
+.pill.ink { background: #000; color: var(--ink); box-shadow: inset 0 0 0 1px #333; }
+.lc-k.sand { background: transparent; color: var(--ink); }
+.lc-k.ink { background: #FAFAFA; color: #000; }
+
+/* surfaces */
+.panel { background: var(--panel); border-color: #171717; }
+.panel.grid-bg::before { background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px); }
+.card, .lc, .sc-card, .lform, .chat, .lead, .src, .fl, .lcard, .lempty, .lrow2, .msg.att, .msg.scan, .msg.verdict-msg { box-shadow: 0 30px 60px -40px rgba(0,0,0,1); }
+.float { background: rgba(10,10,10,.82); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-color: #222; border-radius: 14px; }
+.coin { filter: drop-shadow(0 14px 18px rgba(0,0,0,.7)); }
+.glyph .gl { background: #0A0A0A; box-shadow: inset 0 0 0 1px #242424; }
+.coinav { background: linear-gradient(160deg, #1E1E1E, #0E0E0E); }
+.chat.phone { transform: none; border-color: #161616; box-shadow: 0 0 0 1px #2A2A2A, 0 0 80px -20px rgba(var(--glow), .14), 0 40px 80px -40px #000; }
+@media (max-width: 1000px) { .chat.phone { transform: none; } }
+.chat-panel::before { background: radial-gradient(closest-side, rgba(var(--glow), .10), transparent); }
+.msg.bot { background: var(--card-2); }
+.msg.sys { background: #FAFAFA; color: #000; }
+.vd-head { background: #0E0E0E; }
+.vd-act.buy { background: #FAFAFA; color: #000; }
+.vd-act.watch { background: #262626; color: var(--ink); }
+.vd-act.pass { background: #000; color: var(--ink); box-shadow: inset 0 0 0 1px #333; }
+.vd-bar i, .wbar i { background: linear-gradient(90deg, #5C5C5C, #FAFAFA); }
+.wprog.done .wbar i { background: #8C8C8C; }
+.wrow.bump { background: #111; }
+.ask-points .ic-b, .scan-row .si { box-shadow: inset 0 0 0 1px #262626; }
+.spin { border-color: #262626; border-top-color: #FAFAFA; }
+.src[aria-pressed="true"] { border-color: #FAFAFA; box-shadow: 0 0 30px -10px rgba(var(--glow), .35); }
+.wires path { stroke: #FAFAFA; }
+footer nav a:hover { color: var(--ink); }
+
+/* ---- the orb, large: a symbol (#orb-lg) in an svg; a soft glow behind it breathes */
+.orb-svg { display: block; width: 100%; height: 100%; overflow: visible; }
+@keyframes breathe { 0%, 100% { opacity: .7; transform: scale(.97); } 50% { opacity: 1; transform: scale(1.03); } }
+@keyframes rise { from { opacity: 0; transform: translate(-50%, 22%); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ---- a horizon scene: sky glow, the orb rising, the planet in front hiding the orb's lower edge */
+.hz { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; z-index: 0; }
+.hz-sky { position: absolute; left: 0; right: 0; top: 10%; bottom: 32%;
+  background: radial-gradient(48% 70% at 50% 100%, rgba(var(--glow), .20), rgba(var(--glow), .06) 45%, transparent 75%);
+  animation: breathe 8s ease-in-out infinite; transform-origin: 50% 100%; }
+.hz-orb { position: absolute; left: 50%; top: 20%; height: 76%; aspect-ratio: 1; transform: translateX(-50%); }
+.hz-orb::before { content: ""; position: absolute; inset: 14%; border-radius: 50%;
+  background: radial-gradient(closest-side, transparent 64%, rgba(var(--glow), .30) 74%, transparent 100%); animation: breathe 7s ease-in-out infinite; }
+.hz-planet { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; }
+.hero-stage { background: #000; border-color: #161616; }
+.hero .hz-orb { animation: rise 1.8s var(--ease) 1.7s both; }
+.hero .float, .hero .coin { z-index: 3; }
+/* the hero cards keep to the edges so the orb stays clear */
+@media (min-width: 1001px) {
+  .f1 { left: 3%; top: 12%; } .f2 { right: 3%; top: 10%; } .f3 { right: 3%; bottom: 9%; } .f4 { left: 3%; bottom: 9%; }
+  .float { max-width: 31%; }
+  .float small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+.rec-panel .hz-sky { top: 30%; }
+.rec-panel, .cta-panel { background: #000; }
+.cta-orb .hz { border-radius: 0; }
+.cta-orb .hz-orb { top: 18%; height: 70%; }
+
+/* the sources hub: the orb in its ring */
+.hub .ring { background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
+.hub .ring::after { content: ""; position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 40px rgba(var(--glow), .10); animation: breathe 7s ease-in-out infinite; }
+
+/* the preloader: the orb, then the name */
+.preload { background: #000; }
+.pl-orb { display: block; width: clamp(90px, 14vw, 130px); aspect-ratio: 1; margin: 0 auto 18px; opacity: 0; animation: plIn .9s var(--ease) forwards; transform: translateY(20%); }
+.pl-sub { letter-spacing: .3em; }
 </style>
 <!-- Icons: brand marks from Simple Icons (CC0), UI icons from Lucide (ISC) -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -1103,15 +1206,46 @@ main, footer { position: relative; z-index: 1; }
 <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34" /> <circle cx="11" cy="11" r="8" /></symbol>
 <symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
 <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" /> <path d="M20 3v4" /> <path d="M22 5h-4" /> <path d="M4 17v2" /> <path d="M5 18H3" /></symbol>
+<symbol id="orb-lg" viewBox="0 0 400 400">
+  <defs>
+    <radialGradient id="orbCorona" cx="200" cy="200" r="200" gradientUnits="userSpaceOnUse">
+      <stop offset=".5" stop-color="#DEE6FF" stop-opacity="0"/><stop offset=".535" stop-color="#DEE6FF" stop-opacity=".6"/>
+      <stop offset=".58" stop-color="#DEE6FF" stop-opacity=".24"/><stop offset=".72" stop-color="#DEE6FF" stop-opacity=".07"/>
+      <stop offset="1" stop-color="#DEE6FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="orbRim" x1="0" y1="94" x2="0" y2="306" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".45"/><stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <circle cx="200" cy="200" r="200" fill="url(#orbCorona)"/>
+  <circle cx="200" cy="200" r="106" fill="#000"/>
+  <circle cx="200" cy="200" r="99" fill="none" stroke="#FFFFFF" stroke-opacity=".07" stroke-width="5"/>
+  <circle cx="200" cy="200" r="106" fill="none" stroke="url(#orbRim)" stroke-width="2.4"/>
+</symbol>
+<symbol id="planet" viewBox="0 0 1000 300" preserveAspectRatio="none">
+  <defs>
+    <linearGradient id="planetEdge" x1="0" y1="0" x2="1000" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="planetShine" cx="500" cy="205" r="460" gradientUnits="userSpaceOnUse" gradientTransform="translate(0 133) scale(1 .35)">
+      <stop offset="0" stop-color="#DEE6FF" stop-opacity=".09"/><stop offset="1" stop-color="#DEE6FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <path d="M0 262 Q 500 148 1000 262 V 300 H 0 Z" fill="#000"/>
+  <path d="M0 262 Q 500 148 1000 262 V 300 H 0 Z" fill="url(#planetShine)"/>
+  <path d="M0 262 Q 500 148 1000 262" fill="none" stroke="url(#planetEdge)" stroke-opacity=".08" stroke-width="16" vector-effect="non-scaling-stroke"/>
+  <path d="M0 262 Q 500 148 1000 262" fill="none" stroke="url(#planetEdge)" stroke-opacity=".2" stroke-width="5" vector-effect="non-scaling-stroke"/>
+  <path d="M0 262 Q 500 148 1000 262" fill="none" stroke="url(#planetEdge)" stroke-width="1.4" vector-effect="non-scaling-stroke"/>
+</symbol>
 </svg>
 
-<div class="preload" id="preload" aria-hidden="true"><div><div class="pl-word"><span style="--i:0">M</span><span style="--i:1">O</span><span style="--i:2">O</span><span style="--i:3">S</span><span style="--i:4">E</span></div><p class="pl-sub"><span class="st" style="--i:0"><svg class="ic"><use href="#i-sparkles"/></svg> </span><span style="--i:1">p</span><span style="--i:2">o</span><span style="--i:3">w</span><span style="--i:4">e</span><span style="--i:5">r</span><span style="--i:6">e</span><span style="--i:7">d</span><span style="--i:8"> </span><span style="--i:9">b</span><span style="--i:10">y</span><span style="--i:11"> </span><span class="mu" style="--i:12">M</span><span class="mu" style="--i:13">u</span><span class="mu" style="--i:14">s</span><span class="mu" style="--i:15">e</span></p></div></div>
+<div class="preload" id="preload" aria-hidden="true"><div><span class="pl-orb"><svg class="orb-svg" viewBox="0 0 400 400" aria-hidden="true"><use href="#orb-lg"/></svg></span><div class="pl-word"><span style="--i:0">H</span><span style="--i:1">O</span><span style="--i:2">R</span><span style="--i:3">I</span><span style="--i:4">Z</span><span style="--i:5">O</span><span style="--i:6">N</span></div><p class="pl-sub"><span class="st" style="--i:0"><svg class="ic"><use href="#i-sparkles"/></svg> </span><span style="--i:1">p</span><span style="--i:2">o</span><span style="--i:3">w</span><span style="--i:4">e</span><span style="--i:5">r</span><span style="--i:6">e</span><span style="--i:7">d</span><span style="--i:8"> </span><span style="--i:9">b</span><span style="--i:10">y</span><span style="--i:11"> </span><span class="gk" style="--i:12">G</span><span class="gk" style="--i:13">r</span><span class="gk" style="--i:14">o</span><span class="gk" style="--i:15">k</span></p></div></div>
 
 <header class="nav" id="nav">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="MOOSE home, powered by Muse"><span class="face" aria-hidden="true"></span><span class=" wordmark-t">MOOSE</span><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
+    <a class="brand" href="#top" aria-label="HORIZON home, powered by Grok"><span class="face" aria-hidden="true"></span><span class="wordmark-t">HORIZON</span><span class="brand-tag">powered by Grok</span></a>
     <nav class="nav-links" id="navLinks" aria-label="Sections">
-      <a href="#ask">AskMoose</a>
+      <a href="#ask">Ask HORIZON</a>
       <a href="#listens">Sources</a>
       <a href="#think">How it thinks</a>
       <a href="#launch" class="nav-hl">Launch a coin</a>
@@ -1119,8 +1253,8 @@ main, footer { position: relative; z-index: 1; }
       <a href="#record">Journal</a>
     </nav>
     <div class="nav-right">
-      <a class="btn btn-primary btn-sm buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span><span class="lbl">Buy $MOOSE</span><span class="lbl-s">Buy</span><span class="soon">soon</span></a>
-      <a class="btn btn-dark btn-sm" href="https://x.com/MooseByMuse" target="_blank" rel="noopener" aria-label="Follow @MooseByMuse on X"><svg class="ic"><use href="#b-x"/></svg><span class="lbl"> Follow</span></a>
+      <a class="btn btn-primary btn-sm buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span><span class="lbl">Buy $HRZN</span><span class="lbl-s">Buy</span><span class="soon">soon</span></a>
+      <a class="btn btn-dark btn-sm" data-x-link href="https://x.com/" target="_blank" rel="noopener" aria-label="Follow HORIZON on X"><svg class="ic"><use href="#b-x"/></svg><span class="lbl"> Follow</span></a>
       <button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="navLinks"><svg class="ic ic-open"><use href="#i-menu"/></svg><svg class="ic ic-close"><use href="#i-x"/></svg></button>
     </div>
   </div>
@@ -1132,21 +1266,16 @@ main, footer { position: relative; z-index: 1; }
 <!-- 1 HERO: an AI that watches every launch so you don't have to -->
 <section class="hero" aria-labelledby="h1">
   <div class="wrap center">
-    <div class="kickers"><span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> MOOSE, powered by Muse</span><span class="kicker soft"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trading memecoins on Robinhood Chain</span></div>
+    <div class="kickers"><span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> HORIZON, powered by Grok</span><span class="kicker soft"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trading memecoins on Robinhood Chain</span></div>
     <h1 id="h1">I watch every launch<br><span class="blue">so you don't have to.</span></h1>
-    <p class="sub">MOOSE reads thousands of new memecoins a day, checks every claim onchain and trades the rare good ones in public. Losses included.</p>
+    <p class="sub">HORIZON reads thousands of new memecoins a day, checks every claim onchain with Grok and trades the rare good ones in public. Losses included.</p>
     <div class="ctas">
       <a class="btn btn-primary" href="#think">Watch it think <span class="arr">→</span></a>
       <a class="btn btn-ghost" href="#live">See it live</a>
     </div>
-    <div class="panel grid-bg hero-stage" id="stage">
-      <svg class="stage-curve" viewBox="0 0 1000 400" preserveAspectRatio="none" aria-hidden="true">
-        <defs><linearGradient id="hc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".10"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
-        <path d="M0 380 C 380 372, 620 330, 760 230 S 930 40, 1000 20 L 1000 400 L 0 400 Z" fill="url(#hc)"/>
-        <path d="M0 380 C 380 372, 620 330, 760 230 S 930 40, 1000 20" fill="none" stroke="currentColor" stroke-width="2" stroke-opacity=".8" vector-effect="non-scaling-stroke"/>
-        <line x1="560" x2="1000" y1="80" y2="80" stroke="currentColor" stroke-opacity=".22" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/>
-      </svg>
-      <div class="hero-mascot"><img src="assets/moose-pixel.webp" alt="MOOSE, a pixel-art moose" width="844" height="805"></div>
+    <div class="panel hero-stage" id="stage">
+      <!-- the HORIZON orb rising over the horizon -->
+      <div class="hz" aria-hidden="true"><i class="hz-sky"></i><span class="hz-orb"><svg class="orb-svg" viewBox="0 0 400 400" aria-hidden="true"><use href="#orb-lg"/></svg></span><svg class="hz-planet" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true"><use href="#planet"/></svg></div>
       <div class="float f1" data-depth="18">
         <div class="row"><span class="coinav" data-coin="blue" data-sym="HATCH" style="width:22px;height:22px"></span><b id="hfWatch">Watching $HATCH</b><span class="dot pulse" style="color:var(--green)"></span></div>
         <div class="bar"><i id="heroBar" style="width:91%"></i></div>
@@ -1173,22 +1302,22 @@ main, footer { position: relative; z-index: 1; }
 <section class="sec ask" id="ask" aria-labelledby="h-ask">
   <div class="wrap">
     <div>
-      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> AskMoose</span>
-      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask Muse.</span></h2>
-      <p class="sub">Paste a Robinhood Chain contract or a $ticker. Muse researches it the way MOOSE does and tells you what it finds.</p>
+      <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask HORIZON</span>
+      <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask HORIZON.</span></h2>
+      <p class="sub">Paste a Robinhood Chain contract or a $ticker. HORIZON researches it with Grok, the way it researches its own trades, and tells you what it finds.</p>
       <ul class="ask-points">
         <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
         <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
-        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What MOOSE decided, if it looked at it already</li>
+        <li><span class="ic-b"><svg class="ic"><use href="#i-notebook-pen"/></svg></span>What HORIZON decided, if it looked at it already</li>
       </ul>
       <p class="ask-fine"><svg class="ic"><use href="#i-lock"/></svg> 10 questions an hour per visitor. Research only, not financial advice.</p>
     </div>
     <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
       <div class="chat ask-chat">
-        <div class="chat-h"><span class="face"></span><div><b>AskMoose</b><small>Robinhood Research</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
-        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm Muse. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it: the onchain numbers, what people are saying, and what MOOSE made of it.</div></div>
+        <div class="chat-h"><span class="face"></span><div><b>HORIZON</b><small>Research with Grok</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
+        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm HORIZON. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it with Grok: the onchain numbers, what people are saying, and what I made of it.</div></div>
         <div class="ask-sugg" id="askSugg"></div>
-        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask Moose about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
+        <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask HORIZON about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
         <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
       </div>
     </div>
@@ -1204,7 +1333,7 @@ main, footer { position: relative; z-index: 1; }
     <div class="panel grid-bg listen-panel" id="listenPanel" style="text-align:left">
       <svg class="wires" id="wires" aria-hidden="true"></svg>
       <div class="srcs" id="srcs"></div>
-      <div class="hub" aria-hidden="true"><div class="ring"><img src="assets/moose-mini.webp" alt="" width="256" height="256"></div><p>MOOSE is listening</p></div>
+      <div class="hub" aria-hidden="true"><div class="ring"><svg class="orb-svg" viewBox="0 0 400 400" aria-hidden="true"><use href="#orb-lg"/></svg></div><p>HORIZON is listening</p></div>
       <div class="lead" id="leadCard" aria-live="polite"></div>
     </div>
   </div>
@@ -1216,19 +1345,18 @@ main, footer { position: relative; z-index: 1; }
     <div>
       <span class="kicker">How it thinks</span>
       <h2 class="h2" id="h-think">It thinks out loud. <span class="blue">You can check its homework.</span></h2>
-      <p class="sub">Muse Spark reasons over the verified facts, the onchain numbers and MOOSE's past mistakes. Pick a token to replay its thinking.</p>
+      <p class="sub">Grok reasons over the verified facts, the onchain numbers and HORIZON's past mistakes. Pick a token to replay its thinking.</p>
       <div class="picks" role="tablist" aria-label="Decisions (example data)" id="picks"></div>
     </div>
     <div class="chat-panel">
       <div class="chat phone">
         <div class="phone-bar" aria-hidden="true"><span class="num">9:41</span><span class="island"></span><span class="sys"><svg class="ic"><use href="#i-signal"/></svg><svg class="ic"><use href="#i-wifi"/></svg><svg class="ic"><use href="#i-battery-full"/></svg></span></div>
-        <div class="chat-h"><span class="face"></span><div><b>MOOSE</b><small>via Muse Spark</small></div></div>
+        <div class="chat-h"><span class="face"></span><div><b>HORIZON</b><small>via Grok</small></div></div>
         <div class="msgs" id="msgs" aria-live="polite"></div>
         <div class="chat-foot"><span>Hard rules run after this.</span><span class="num" id="chatTime">14:06 UTC</span></div>
         <div class="home-ind" aria-hidden="true"></div>
       </div>
-      <div class="holder" aria-hidden="true"><img src="assets/moose-phone-pixel.webp" alt="" width="829" height="788"></div>
-      <div class="fl fl-1" aria-hidden="true"><span class="tile" style="background:var(--blue-soft);color:var(--blue-deep)"><svg class="ic"><use href="#i-sparkles"/></svg></span>Muse Spark <small>thinking…</small></div>
+      <div class="fl fl-1" aria-hidden="true"><span class="tile" style="background:var(--blue-soft);color:var(--blue-deep)"><svg class="ic"><use href="#i-sparkles"/></svg></span>Grok <small>thinking…</small></div>
       <div class="fl fl-2" aria-hidden="true"><span class="tile" style="background:var(--green-soft);color:var(--green)"><svg class="ic"><use href="#i-shield-check"/></svg></span>4/4 checks passed</div>
       <div class="fl fl-3" aria-hidden="true"><span class="rh"><svg class="ic"><use href="#b-robinhood"/></svg></span>Robinhood Chain</div>
       <div class="fl fl-4" aria-hidden="true"><span class="tile" style="background:var(--sand);color:var(--sand-ink)"><svg class="ic"><use href="#i-wallet"/></svg></span>0.05 ETH max <small>per trade</small></div>
@@ -1236,17 +1364,17 @@ main, footer { position: relative; z-index: 1; }
   </div>
 </section>
 
-<!-- 2 LAUNCH: launch your own coin by tagging MOOSE on X -->
+<!-- 2 LAUNCH: launch your own coin by tagging HORIZON on X -->
 <section class="sec launch" id="launch" aria-labelledby="h-launch">
   <div class="wrap">
     <div>
       <span class="kicker"><svg class="ic"><use href="#i-rocket"/></svg>Launchpad</span>
-      <h2 class="h2" id="h-launch">Launch your own coin. <span class="blue">Just tag MOOSE.</span></h2>
-      <p class="sub">Post your coin on X and MOOSE launches it on Pons, on Robinhood Chain, then replies with your contract address. Free to launch: your coin's first ~$2 of fees pay the launch back, then every creator fee is yours. Or pair it with a stock like $TSLA or $NVDA, and its creator fees are yours from the very first trade.</p>
+      <h2 class="h2" id="h-launch">Launch your own coin. <span class="blue">Just tag HORIZON.</span></h2>
+      <p class="sub">Post your coin on X and HORIZON launches it on Pons, on Robinhood Chain, then replies with your contract address. Free to launch: your coin's first ~$2 of fees pay the launch back, then every creator fee is yours. Or pair it with a stock like $TSLA or $NVDA, and its creator fees are yours from the very first trade.</p>
       <ol class="lsteps">
         <li><b>1</b><div><strong>Fill in your coin</strong><span>Name, ticker, a line about it and the wallet for your fees.</span></div></li>
-        <li><b>2</b><div><strong>Post it on X with your image</strong><span>MOOSE checks every request before it launches anything.</span></div></li>
-        <li><b>3</b><div><strong>MOOSE launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet (straight away if it's paired with a stock).</span></div></li>
+        <li><b>2</b><div><strong>Post it on X with your image</strong><span>HORIZON checks every request before it launches anything.</span></div></li>
+        <li><b>3</b><div><strong>HORIZON launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet (straight away if it's paired with a stock).</span></div></li>
       </ol>
       <p class="lrules">Call it whatever you like · one launch per X account a day · accounts older than 30 days · no hate, scams or fake "official" coins</p>
       <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><span class="example" id="lEx">example</span></div><div class="rc-view lview" id="lRecentList"></div></div>
@@ -1269,10 +1397,10 @@ main, footer { position: relative; z-index: 1; }
           <small id="lfPairNote" hidden></small></div>
         <label><span>What is it? <em>optional</em></span><input id="lfDesc" maxlength="100" placeholder="a cat that runs a hedge fund"></label>
         <div class="lrow lrow-2">
-        <label title="If empty, your coin links to MOOSE's launch post"><span>Coin's X or website <em>optional</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
+        <label title="If empty, your coin links to HORIZON's launch post"><span>Coin's X or website <em>optional</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
         <label>Wallet for your creator fees<input id="lfWallet" maxlength="42" placeholder="0x…" spellcheck="false" required></label>
         </div>
-        <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div><p class="lcredit"><svg class="ic"><use href="#i-badge-check"/></svg>You're credited as the creator: MOOSE tags the X account that posts this.</p></div>
+        <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div><p class="lcredit"><svg class="ic"><use href="#i-badge-check"/></svg>You're credited as the creator: HORIZON tags the X account that posts this.</p></div>
         <p class="lnote" id="lfNote">Attach your coin's image on X before you post.</p>
         <button class="btn btn-dark" type="submit" id="lfGo" disabled><svg class="ic"><use href="#b-x"/></svg> Post on X to launch <span class="arr">→</span></button>
       </form>
@@ -1280,11 +1408,11 @@ main, footer { position: relative; z-index: 1; }
         <span class="ld-ic"><span class="face" aria-hidden="true"></span><i class="ld-badge" id="ldIc"><svg class="ic"><use href="#i-rocket"/></svg></i></span>
         <span class="pill blue" id="ldPill">Waiting for your post</span>
         <h3 id="ldTitle">Your launch post is ready</h3>
-        <p id="ldSub">Post it on X with your image attached. MOOSE picks it up within a few minutes and launches your coin.</p>
+        <p id="ldSub">Post it on X with your image attached. HORIZON picks it up within a few minutes and launches your coin.</p>
         <div class="ldwhy" id="ldWhy" hidden><span class="sc-lbl">What happened</span><b id="ldWhyT"></b><p id="ldWhyD"></p></div>
         <ol class="ldsteps">
           <li id="ldS1"><b></b><span>Post it on X with your image</span></li>
-          <li id="ldS2"><b></b><span>MOOSE checks your coin</span></li>
+          <li id="ldS2"><b></b><span>HORIZON checks your coin</span></li>
           <li id="ldS3"><b></b><span id="ldS3t">Your coin goes live on Robinhood Chain</span></li>
         </ol>
         <div class="ldlive" id="ldLive" hidden>
@@ -1346,15 +1474,15 @@ main, footer { position: relative; z-index: 1; }
     <div>
       <span class="kicker">On the record</span>
       <h2 class="h2" id="h-rec">Every trade on the record. <span class="blue">Even the losses.</span></h2>
-      <p class="sub">Every decision is sealed in a journal and posted to X by @MooseByMuse, an automated account. Buys, sells, passes and losses, as they happen.</p>
+      <p class="sub">Every decision is sealed in a journal and posted to X by <span data-x-handle>HORIZON</span>, an automated account. Buys, sells, passes and losses, as they happen.</p>
       <div class="rec-stats">
         <div><b id="recDay" data-count="19">19</b><span>posts in the last 24h</span></div>
         <div><b id="recAll" data-count="312">312</b><span>posts in total</span></div>
       </div>
-      <div class="ctas"><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a></div>
+      <div class="ctas"><a class="btn btn-dark" data-x-link href="https://x.com/" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> <span data-x-follow>Follow HORIZON</span> <span class="arr">→</span></a></div>
     </div>
-    <div class="panel grid-bg rec-panel" style="background:var(--panel-warm)">
-      <img class="rec-desk" src="assets/moose-desk-pixel.webp" alt="" aria-hidden="true" width="822" height="829" loading="lazy">
+    <div class="panel rec-panel">
+      <div class="hz" aria-hidden="true"><i class="hz-sky"></i><svg class="hz-planet" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true"><use href="#planet"/></svg></div>
       <div class="rec-card rec-card-0"><div class="xtl"></div></div>
       <div class="rec-card rec-card-1"><div class="xtl"></div></div>
     </div>
@@ -1396,14 +1524,14 @@ main, footer { position: relative; z-index: 1; }
 <!-- 10 FOLLOW -->
 <section class="sec" id="follow" aria-labelledby="h-cta">
   <div class="wrap">
-    <div class="panel grid-bg cta-panel">
+    <div class="panel cta-panel">
       <div>
         <h2 id="h-cta">Follow along.<br><span class="blue">Judge it yourself.</span></h2>
         <p class="sub">Every trade, every pass and every loss gets posted. Not financial advice: a public experiment you can check.</p>
-        <div class="ctas"><a class="btn btn-primary buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span>Buy $MOOSE<span class="soon">soon</span></a><a class="btn btn-dark" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> Follow @MooseByMuse <span class="arr">→</span></a></div>
-        <div class="ca-row" id="caRow" hidden><span class="lbl">CA</span><code id="caTxt"></code><button type="button" id="caCopy" aria-label="Copy the $MOOSE contract address"><svg class="ic"><use href="#i-copy"/></svg></button></div>
+        <div class="ctas"><a class="btn btn-primary buy-btn" href="#follow" aria-disabled="true"><span class="face" aria-hidden="true"></span>Buy $HRZN<span class="soon">soon</span></a><a class="btn btn-dark" data-x-link href="https://x.com/" target="_blank" rel="noopener"><svg class="ic"><use href="#b-x"/></svg> <span data-x-follow>Follow HORIZON</span> <span class="arr">→</span></a></div>
+        <div class="ca-row" id="caRow" hidden><span class="lbl">CA</span><code id="caTxt"></code><button type="button" id="caCopy" aria-label="Copy the $HRZN contract address"><svg class="ic"><use href="#i-copy"/></svg></button></div>
       </div>
-      <div class="cta-mascot"><img src="assets/moose-board-pixel.webp" alt="MOOSE pointing at a chalkboard: Buy MOOSE here" width="965" height="780"></div>
+      <div class="cta-orb"><div class="hz" aria-hidden="true"><i class="hz-sky"></i><span class="hz-orb"><svg class="orb-svg" viewBox="0 0 400 400" aria-hidden="true"><use href="#orb-lg"/></svg></span><svg class="hz-planet" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true"><use href="#planet"/></svg></div></div>
     </div>
   </div>
 </section>
@@ -1411,14 +1539,17 @@ main, footer { position: relative; z-index: 1; }
 
 <footer>
   <div class="wrap">
-    <a class="brand" href="#top"><span class="face" aria-hidden="true"></span><span class=" wordmark-t">MOOSE</span><span class="brand-tag"><svg class="ic"><use href="#i-sparkles"/></svg> powered by Muse</span></a>
-    <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" href="https://x.com/MooseByMuse" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> @MooseByMuse</a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
-    <p class="legal">MOOSE, powered by Muse. MOOSE is an automated account run by software; its reasoning uses Meta's Muse Spark model through the public API. Not affiliated with Meta, Robinhood or Pons. Not financial advice. Testing Phase trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
+    <a class="brand" href="#top"><span class="face" aria-hidden="true"></span><span class="wordmark-t">HORIZON</span><span class="brand-tag">powered by Grok</span></a>
+    <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" data-x-link href="https://x.com/" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> <span data-x-handle>HORIZON on X</span></a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
+    <p class="legal">HORIZON, powered by Grok. HORIZON is an automated account run by software; its reasoning uses xAI's Grok model through the public API. Not affiliated with xAI, X, Robinhood or Pons. Not financial advice. Testing Phase trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
   </div>
 </footer>
 
 <script>
 (() => {
+  const NAME = "HORIZON";
+  const X_HANDLE = "MooseByMuse";  // the X account, without the @. Renamed it on X? Change it here (and twitter:site in <head>)
+  const X_PROFILE = "https://x.com/" + X_HANDLE;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -1428,17 +1559,17 @@ main, footer { position: relative; z-index: 1; }
   const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`, B = n => `<svg class="ic"><use href="#b-${n}"/></svg>`;
   const RH = `<span class="rh" aria-hidden="true">${B("robinhood")}</span>`;
   /* an X post, laid out like a real post on x.com */
-  const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>')
-    .replace(/\u{1FACE}/gu, '<span class="face emo" role="img" aria-label="moose"></span>');  // most fonts lack the moose emoji: draw MOOSE
+  const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>');
   const xAct = (cls, icon, n) => `<span class="xp-act ${cls}"><span class="hit">${I(icon)}</span>${n || ""}</span>`;
-  const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">MOOSE</span><span class="xp-meta">@MooseByMuse · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
+  // p.name / p.who override the account (the launch form previews the visitor's own post)
+  const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">${p.name || NAME}</span><span class="xp-meta">${p.who || "@" + X_HANDLE} · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   /* live data: text from X and the news is escaped before it touches the page */
   const API = "https://api.moosebymuse.com", API_OLD = "https://api.mooseonmuse.com";
   // New API address first; if it can't be reached (some internet providers still cache the domain as missing
   // for a while after it goes live), the old address answers instead. Same server behind both.
   const apiFetch = async (path, opts) => { try { return await fetch(API + path, opts); } catch { return fetch(API_OLD + path, opts); } };
-  // $MOOSE: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
-  const MOOSE_TOKEN = { ca: "0x6954c198203f95d97273de98b15aad0bef5b4028", gmgn: "https://gmgn.ai/robinhood/token/0x6954c198203f95d97273de98b15aad0bef5b4028" };
+  // $HRZN: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
+  const OWN_TOKEN = { ca: "", gmgn: "" };
   // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
   const chatFetch = (path, opts) => location.hostname === "localhost" ? fetch("http://localhost:8000" + path, opts) : apiFetch(path, opts);
   let LIVE = false;   // true once real data has loaded; the example animations then stand down
@@ -1451,17 +1582,21 @@ main, footer { position: relative; z-index: 1; }
   const onView = (el, fn, t = .35) => { const o = new IntersectionObserver(es => { if (es[0].isIntersecting) { fn(); o.disconnect(); } }, { threshold: t }); o.observe(el); };
 
   addEventListener("scroll", () => $("#nav").classList.toggle("scrolled", scrollY > 8), { passive: true });
-  // Buy $MOOSE
-  if (MOOSE_TOKEN.gmgn) {
-    $$(".buy-btn").forEach(b => { b.href = MOOSE_TOKEN.gmgn; b.target = "_blank"; b.rel = "noopener"; b.removeAttribute("aria-disabled"); b.querySelector(".soon")?.remove(); });
+  // the X account, wherever the page names or links it
+  $$("[data-x-link]").forEach(a => { a.href = X_PROFILE; });
+  $$("[data-x-handle]").forEach(el => { el.textContent = "@" + X_HANDLE; });
+  $$("[data-x-follow]").forEach(el => { el.textContent = "Follow @" + X_HANDLE; });
+  // Buy $HRZN
+  if (OWN_TOKEN.gmgn) {
+    $$(".buy-btn").forEach(b => { b.href = OWN_TOKEN.gmgn; b.target = "_blank"; b.rel = "noopener"; b.removeAttribute("aria-disabled"); b.querySelector(".soon")?.remove(); });
   } else {
     $$(".buy-btn").forEach(b => b.addEventListener("click", e => e.preventDefault()));
   }
-  if (MOOSE_TOKEN.ca) {
-    $("#caTxt").textContent = MOOSE_TOKEN.ca; $("#caRow").hidden = false;
+  if (OWN_TOKEN.ca) {
+    $("#caTxt").textContent = OWN_TOKEN.ca; $("#caRow").hidden = false;
     $("#caCopy").addEventListener("click", async () => {
       const btn = $("#caCopy");
-      try { await navigator.clipboard.writeText(MOOSE_TOKEN.ca); btn.classList.add("done"); btn.innerHTML = I("check"); setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = I("copy"); }, 1600); } catch {}
+      try { await navigator.clipboard.writeText(OWN_TOKEN.ca); btn.classList.add("done"); btn.innerHTML = I("check"); setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = I("copy"); }, 1600); } catch {}
     });
   }
   // phone menu: the button opens the section links; picking one (or tapping outside) closes it
@@ -1488,28 +1623,28 @@ main, footer { position: relative; z-index: 1; }
   const coinAv = (kind, size, shades = false, logo = null, sym = "") => `<span class="coinav" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .42)}px">${initial(sym)}${logoImg(logo)}</span>`;
   $$(".coinav[data-coin]").forEach(el => { el.style.fontSize = "10px"; el.textContent = initial(el.dataset.sym); });
   const coins = [];
-  // floating decor: glossy app-icon tiles carrying the site's own marks (where MOOSE listens, what it trades on)
-  const GLYPH = { x: [B("x"), "#F4F4F5", "#000000"], rh: [B("robinhood"), "#CCFF00", "#000000"], eth: [B("eth"), "#627EEA", "#FFFFFF"],
-                  muse: [I("sparkles"), "#F4F4F5", "#0A0A0B"], shield: [I("shield-check"), "#22C55E", "#0F0F11"], eye: [I("eye"), "#3B82F6", "#0F0F11"] };
+  // floating decor: glossy app-icon tiles carrying the site's own marks (where HORIZON listens, what it trades on)
+  const GLYPH = { x: [B("x"), "#FAFAFA", "#000000"], rh: [B("robinhood"), "#CCFF00", "#000000"], eth: [B("eth"), "#627EEA", "#FFFFFF"],
+                  ai: [I("sparkles"), "#FAFAFA", "#000000"], shield: [I("shield-check"), "#22C55E", "#0A0A0A"], eye: [I("eye"), "#FAFAFA", "#0A0A0A"] };
   const addCoin = (host, kind, size, x, y, rot, depth = 1) => {
     const [ic, fg, bg] = GLYPH[kind];
-    // the X tiles are links to @MooseByMuse; the rest are decoration
+    // the X tiles are links to the X account; the rest are decoration
     const d = document.createElement(kind === "x" ? "a" : "div"); d.className = "coin glyph";
-    if (kind === "x") { d.href = "https://x.com/MooseByMuse"; d.target = "_blank"; d.rel = "noopener"; d.setAttribute("aria-label", "MOOSE on X"); d.classList.add("link"); }
+    if (kind === "x") { d.href = X_PROFILE; d.target = "_blank"; d.rel = "noopener"; d.setAttribute("aria-label", NAME + " on X"); d.classList.add("link"); }
     else d.setAttribute("aria-hidden", "true");
     d.style.cssText = `width:${size}px;height:${size}px;left:${x};top:${y};--rot:${rot}deg`;
     d.innerHTML = `<div class="inner" style="animation-delay:${rnd(-6, 0).toFixed(1)}s"><span class="gl" style="color:${fg};background:${bg}">${ic}</span></div>`;
     host.appendChild(d); coins.push({ el: d, depth }); return d;
   };
   const stage = $("#stage");
-  addCoin(stage, "muse", 56, "30%", "10%", -10, 1.4);
+  addCoin(stage, "ai", 52, "26%", "12%", -10, 1.4);
   addCoin(stage, "x", 42, "3%", "48%", 8, .8);
   addCoin(stage, "rh", 48, "91%", "44%", 10, 1.2);
   addCoin($(".cta-panel"), "x", 60, "56%", "12%", -8, 1.3);
   addCoin($(".chat-panel"), "shield", 48, "80%", "30%", 8, 1.2);
   addCoin($(".chat-panel"), "eye", 40, "14%", "28%", -10, .9);
   addCoin($(".chat-panel"), "rh", 34, "20%", "68%", 12, 1.1);
-  addCoin($(".cta-panel"), "muse", 44, "52%", "74%", 10, .9);
+  addCoin($(".cta-panel"), "ai", 44, "52%", "74%", 10, .9);
 
   /* hero parallax: floating cards + coins drift with the cursor */
   if (!reduce) {
@@ -1530,14 +1665,14 @@ main, footer { position: relative; z-index: 1; }
     const v = Object.fromEntries(Object.entries(lf).map(([k, el]) => [k, el.value.trim()]));
     v.sym = v.sym.replace(/^\$/, "").toUpperCase();
     const ok = { name: v.name.length > 0, sym: /^[A-Z0-9]{1,10}$/.test(v.sym), wallet: /^0x[0-9a-fA-F]{40}$/.test(v.wallet) };
-    // the launch request as it's posted on X: a clean card MOOSE reads (ticker, name and wallet must be in it)
-    const text = `@MooseByMuse launch $${v.sym || "TICKER"} ${v.name || "Coin name"}` + (v.desc ? `\n\n${v.desc}` : "")
+    // the launch request as it's posted on X: a clean card HORIZON reads (ticker, name and wallet must be in it)
+    const text = `@${X_HANDLE} launch $${v.sym || "TICKER"} ${v.name || "Coin name"}` + (v.desc ? `\n\n${v.desc}` : "")
       + (v.link ? `\n\n${v.link}` : "") + (v.pair ? `\n\npair: ${v.pair}` : "") + `\n\nfees to: ${v.wallet || "0x…"}`;
     return { v, ok, text, valid: ok.name && ok.sym && ok.wallet };
   };
   const lRender = (touched = false) => {
     const p = lPost();
-    $("#lfPreview").innerHTML = xPost({ t: "now", body: esc(p.text) }).replace("MOOSE", "You").replace("@MooseByMuse · now", "your account · now");
+    $("#lfPreview").innerHTML = xPost({ t: "now", body: esc(p.text), name: "You", who: "your account" });
     [["name", lf.name], ["sym", lf.sym], ["wallet", lf.wallet]].forEach(([k, el]) => el.classList.toggle("bad", touched && el.value.trim() !== "" && !p.ok[k]));
     $("#lfGo").disabled = !p.valid || !launchOpen;
     $("#lfPairNote").hidden = !p.v.pair;
@@ -1635,16 +1770,16 @@ main, footer { position: relative; z-index: 1; }
     "per-user limit": ["One launch per day", "Each X account can launch one coin a day. You can launch again tomorrow."],
     "account too new": ["Your X account is too new", "Launches are open to X accounts older than 30 days, to keep bots out."],
     "no wallet": ["No fee wallet in your post", "Add the wallet for your creator fees (one 0x address) and post again."],
-    "unclear name or ticker": ["MOOSE couldn't read the name or ticker", "Write it as: launch $TICKER Coin name. The ticker is letters and numbers, up to 10."],
-    "reserved ticker": ["$MOOSE is taken", "That's MOOSE's own coin. Pick another ticker and post again."],
-    "daily budget used": ["Launches are full for today", "MOOSE's launch budget for today is used up. Try again tomorrow."],
-    "unknown pair": ["MOOSE can't pair with that", "Coins pair with ETH or a Robinhood stock token like TSLA, NVDA, AAPL or SPY. Pick one from the list and post again."],
+    "unclear name or ticker": ["HORIZON couldn't read the name or ticker", "Write it as: launch $TICKER Coin name. The ticker is letters and numbers, up to 10."],
+    "reserved ticker": ["$HRZN is taken", "That's HORIZON's own coin. Pick another ticker and post again."],
+    "daily budget used": ["Launches are full for today", "HORIZON's launch budget for today is used up. Try again tomorrow."],
+    "unknown pair": ["HORIZON can't pair with that", "Coins pair with ETH or a Robinhood stock token like TSLA, NVDA, AAPL or SPY. Pick one from the list and post again."],
   };
   const lTrack = (sym, url, wallet = "") => {
     $("#launchForm").hidden = true; $("#lDone").hidden = false; $("#ldLive").hidden = true; $("#ldOpen").href = url;
     $("#ldWhy").hidden = true; ldIcon("i-rocket"); ldPill("blue", "Waiting for your post");
     $("#ldS3t").textContent = `$${sym} goes live on Robinhood Chain`;
-    ldShow("", "Your launch post is ready", `Post it on X with your image attached. MOOSE picks it up within a few minutes and launches $${sym}.`);
+    ldShow("", "Your launch post is ready", `Post it on X with your image attached. HORIZON picks it up within a few minutes and launches $${sym}.`);
     ldStep(1, "on"); ldStep(2, ""); ldStep(3, "");
     clearInterval(lTimer);
     const started = Date.now();
@@ -1656,25 +1791,25 @@ main, footer { position: relative; z-index: 1; }
       ldStep(1, "done");
       if (st.status === "refused") {
         clearInterval(lTimer); ldStep(2, "fail"); ldIcon("i-x"); ldPill("coral", "Not launched");
-        const [t, d] = LD_WHY[st.reason] || ["It didn't pass MOOSE's check", st.reason || "MOOSE explains why in its reply under your post."];
+        const [t, d] = LD_WHY[st.reason] || ["It didn't pass HORIZON's check", st.reason || "HORIZON explains why in its reply under your post."];
         $("#ldWhyT").textContent = t; $("#ldWhyD").textContent = d; $("#ldWhy").hidden = false;
-        return ldShow("bad", `MOOSE couldn't launch $${sym}`, "Nothing was launched and nothing was spent. Fix it and post again.");
+        return ldShow("bad", `HORIZON couldn't launch $${sym}`, "Nothing was launched and nothing was spent. Fix it and post again.");
       }
       if (st.status === "failed") {
         clearInterval(lTimer); ldStep(2, "done"); ldStep(3, "fail"); ldIcon("i-x"); ldPill("coral", "Not launched");
-        return ldShow("bad", "The launch didn't go through", "Something went wrong on MOOSE's side and no coin was made. Try again in a little while.");
+        return ldShow("bad", "The launch didn't go through", "Something went wrong on HORIZON's side and no coin was made. Try again in a little while.");
       }
       ldStep(2, "done");
       if (st.status === "approved" || st.status === "launching") {
         ldStep(3, "on"); ldPill("blue", "Launching");
-        return ldShow("", `$${sym} passed the checks`, "MOOSE is announcing it and launching it on Robinhood Chain now. This takes about a minute.");
+        return ldShow("", `$${sym} passed the checks`, "HORIZON is announcing it and launching it on Robinhood Chain now. This takes about a minute.");
       }
       clearInterval(lTimer); ldStep(3, "done"); ldIcon("i-check"); ldPill("green", "Live");  // launched (or fees handed over)
       ldShow("live", `$${sym} is live!`, st.pair_symbol
         ? `Your coin is launched on Robinhood Chain, paired with $${st.pair_symbol}. Its creator fees go straight to your wallet, paid in $${st.pair_symbol}.`
         : "Your coin is launched on Robinhood Chain. Creator fees go to your wallet once it pays back its ~$2 launch.");
       $("#ldCa").textContent = st.token || "";
-      $("#ldLinks").innerHTML = (st.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(st.announce_x_id)}" target="_blank" rel="noopener">MOOSE's post ↗</a>` : "")
+      $("#ldLinks").innerHTML = (st.announce_x_id ? `<a href="https://x.com/i/status/${esc(st.announce_x_id)}" target="_blank" rel="noopener">${NAME}'s post ↗</a>` : "")
         + (st.tx_hash ? `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(st.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
         + `<a href="https://gmgn.ai/robinhood/token/${esc(st.token)}" target="_blank" rel="noopener">Chart ↗</a>`;
       $("#ldLive").hidden = false;
@@ -1696,7 +1831,7 @@ main, footer { position: relative; z-index: 1; }
       : r.emo ? `<span class="lgo lemo" aria-hidden="true">${r.emo}</span>` : coinAv("blue", 38, false, null, r.symbol))
     + `<b>$${esc(r.symbol)}${r.pair_symbol ? ` <i class="lpr">/ $${esc(r.pair_symbol)}</i>` : ""}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
     + (ex ? `<span>Post ↗</span><span>Receipt ↗</span>`
-      : (r.announce_x_id ? `<a href="https://x.com/MooseByMuse/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
+      : (r.announce_x_id ? `<a href="https://x.com/i/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
         + `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>`
         + `<a href="https://gmgn.ai/robinhood/token/${esc(r.token)}" target="_blank" rel="noopener">Chart ↗</a>`)
     + (r.fees_handed_over ? `<span class="done" title="the creator fees now go to the creator">${r.pair_symbol ? "fees to creator" : "handed over"}</span>` : "") + `</span></div>`;
@@ -1726,7 +1861,7 @@ main, footer { position: relative; z-index: 1; }
       lead: { h: "$HATCH listing rumour", st: ["sand", "rumour · 1 source"], rows: [["Said by", "5 accounts"], ["All citing", "the same unnamed post"], ["Counted as", "1 claim"]], note: "5 reposts of one rumour count once. The AI weighs it as chatter, not proof." } },
     { ic: B("twitch"), bg: "#9146FF", who: "streamer · live", where: "Twitch · 14:04 · 2:05 in", txt: 'the contract is <code>0x47a3…94d4</code>, I\'m in',
       lead: { h: "Contract address heard on stream", st: ["blue", "lead · checking onchain"], rows: [["Heard at", "2:05 into the stream"], ["Address", "0x47a3…94d4"], ["Next step", "4 onchain checks"]], note: "Speech-to-text can mishear. An address is only a lead until the chain confirms it." } },
-    { ic: I("newspaper"), bg: "#0064E0", who: "HATCH team blog", where: "News · 13:58", txt: 'HATCH ships v1 on Robinhood Chain. Contract <code>0x47a3…94d4</code>',
+    { ic: I("newspaper"), bg: "#1A1A1A", who: "HATCH team blog", where: "News · 13:58", txt: 'HATCH ships v1 on Robinhood Chain. Contract <code>0x47a3…94d4</code>',
       lead: { h: "HATCH v1 launch post", st: ["green", "first-party · verified link"], rows: [["Published", "13:58 UTC"], ["Links the exact contract", "yes"], ["Weighed as", "strong evidence"]], note: null } },
   ];
   const srcs = $("#srcs"), leadCard = $("#leadCard");
@@ -1756,7 +1891,7 @@ main, footer { position: relative; z-index: 1; }
     { sym: "$HATCH", act: ["solid-blue", "BUY"], why: "Real news + real buying", time: "14:06 UTC", conf: .72,
       open: "New candidate: $HATCH · curve 91% · 4/4 checks passed",
       bot: ["The team's own post links this exact contract, and the chain confirms it's a real Pons launch in the genuine pool.", "Buyers are speeding up across 5 minutes, 15 minutes and an hour, from 38 different wallets. The creator hasn't bought any."],
-      att: [[I("newspaper"), "#0064E0", "HATCH team blog", "first-party · 13:58 UTC"], [I("users"), "#000", "38 buyer wallets / 5 min", "onchain · Robinhood Chain", true]],
+      att: [[I("newspaper"), "#1A1A1A", "HATCH team blog", "first-party · 13:58 UTC"], [I("users"), "#000", "38 buyer wallets / 5 min", "onchain · Robinhood Chain", true]],
       lesson: "Last time I chased a spike like this (#1017) it faded. This one has news behind it, so I'm sizing small.",
       risk: "One wallet is 35% of all buys. If it sells, price drops fast.",
       gates: [["green", "screen passed ✓"], ["green", "0.05 ETH cap ✓"], ["green", "slippage 1.9% ✓"]] },
@@ -1770,7 +1905,7 @@ main, footer { position: relative; z-index: 1; }
     { sym: "$JOLLY", act: ["ink", "PASS"], why: "The dev bought half of it", time: "13:40 UTC", conf: .81,
       open: "New candidate: $JOLLY · curve 88%",
       bot: ["It looks close to graduating, but the wallet that created it bought 52% of the curve itself.", "7 wallets bought and sold in the same minute. That's not demand."],
-      att: [[I("wallet"), "#1C2B33", "Deployer wallet = 52% of buys", "onchain · Robinhood Chain", true]],
+      att: [[I("wallet"), "#1A1A1A", "Deployer wallet = 52% of buys", "onchain · Robinhood Chain", true]],
       lesson: null,
       risk: "If the dev is genuinely building, I miss the run. I can live with that.",
       gates: [["coral", "blocked: deployer concentration"], ["coral", "blocked: wash-trading clues"]] },
@@ -1821,7 +1956,7 @@ main, footer { position: relative; z-index: 1; }
   ];
   const spark = (h, up) => { const mn = Math.min(...h), mx = Math.max(...h), W = 120, H = 34;
     const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
-    return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#1E9E4A" : "#E5484D"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
+    return `<svg class="spk" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${up ? "#22C55E" : "#F87171"}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`; };
   const renderLive = (bumpI = -1) => {
     // smart-money mode: where each coin came from on the left, the trade's P&L (or why it was skipped) on the right
     const chip = w => w.st === "bought" && w.move != null ? `<span class="wchip ${w.move > 0 ? "up" : w.move < 0 ? "down" : ""}">${w.move > 0 ? "+" : w.move < 0 ? "−" : ""}${Math.abs(w.move).toFixed(1)}%</span>`
@@ -1831,12 +1966,12 @@ main, footer { position: relative; z-index: 1; }
       : `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}"${w.tip ? ` title="${w.tip}"` : ""}>${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.lbl ?? w.p + "%"}<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
     $("#pastList").innerHTML = past.length ? past.slice(0, 3).map(t => `<div class="prow ${t.pl >= 0 ? "up" : "down"}">${coinAv(t.c, 30, false, t.logo, t.s)}<div><b>$${t.s}</b><small>held ${t.held} · ${t.why}</small></div><span class="plp">${t.pl >= 0 ? "+" : ""}${t.pl.toFixed(1)}%</span></div>`).join("")
       : `<div class="h-empty">No closed trades yet. The first one shows up here, win or lose.</div>`;
-    $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. MOOSE waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} ETH · ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
+    $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. HORIZON waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} ETH · ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
   };
   renderLive();
   /* posting: a slider of trade threads on X, one coin per slide (the buy, the reasons under it, updates, sells) */
   const tSlider = $("#tSlider"), tKey = { v: "" };
-  const xUrl = id => id ? `https://x.com/MooseByMuse/status/${esc(id)}` : "https://x.com/MooseByMuse";
+  const xUrl = id => id ? `https://x.com/i/status/${esc(id)}` : X_PROFILE;  // /i/status works whatever the handle
   const tIndex = () => Math.round(tSlider.scrollLeft / Math.max(1, tSlider.clientWidth));
   const tMoreSync = () => {  // is there more of the current slide below the fold?
     const sl = tSlider.children[tIndex()];
@@ -1879,7 +2014,7 @@ main, footer { position: relative; z-index: 1; }
     liveCards.forEach((c, k) => c.classList.toggle("on", k === i));
   }));
 
-  /* ---------- 8 RECORD: the @MooseByMuse timeline ---------- */
+  /* ---------- 8 RECORD: the X timeline ---------- */
   let feedPosts = [
     { t: "2m", body: "TEST BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
     { t: "14m", body: "TEST SOLD $NEZU @ 1.6e-9 ETH, −70.4%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
@@ -1943,19 +2078,19 @@ main, footer { position: relative; z-index: 1; }
   mn = Math.min(...series, 0); mx = Math.max(...series, 0); if (mx === mn) { mx += .01; mn -= .01; }
   px = i => i / (series.length - 1) * SW; py = v => pad + (1 - (v - mn) / (mx - mn)) * (SH - pad * 2);
   const pts = series.map((v, i) => `${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" L ");
-  sp.innerHTML = `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0082FB" stop-opacity=".22"/><stop offset="1" stop-color="#0082FB" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${SW}" y1="${py(0)}" y2="${py(0)}" stroke="#1C2B33" stroke-opacity=".18" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/><path d="M ${pts} L ${SW},${SH} L 0,${SH} Z" fill="url(#sg)"/><path d="M ${pts}" fill="none" stroke="#0082FB" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line id="spX" x1="0" x2="0" y1="0" y2="${SH}" stroke="#1C2B33" stroke-opacity="0" vector-effect="non-scaling-stroke"/><circle id="spEnd" cx="${px(series.length - 1)}" cy="${py(series.at(-1))}" r="5" fill="#0082FB" stroke="#fff" stroke-width="2.5"/>`;
+  sp.innerHTML = `<defs><linearGradient id="sg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DEE6FF" stop-opacity=".16"/><stop offset="1" stop-color="#DEE6FF" stop-opacity="0"/></linearGradient></defs><line x1="0" x2="${SW}" y1="${py(0)}" y2="${py(0)}" stroke="#FFFFFF" stroke-opacity=".22" stroke-dasharray="4 6" vector-effect="non-scaling-stroke"/><path d="M ${pts} L ${SW},${SH} L 0,${SH} Z" fill="url(#sg)"/><path d="M ${pts}" fill="none" stroke="#FAFAFA" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/><line id="spX" x1="0" x2="0" y1="0" y2="${SH}" stroke="#FFFFFF" stroke-opacity="0" vector-effect="non-scaling-stroke"/><circle id="spEnd" cx="${px(series.length - 1)}" cy="${py(series.at(-1))}" r="5" fill="#FAFAFA" stroke="#000" stroke-width="2.5"/>`;
   };
   drawSpark();
   const sTip = $("#sparkTip"), sWrap = $("#sparkWrap");
-  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .25); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; const v1n = +(/^MOOSE v1 \((\d+)/.exec(pnlLbl[0] || "") || [])[1] || 0, lb = pnlLbl[i - 1];
-    sTip.textContent = `${v1n && i === 1 ? `trades 1–${v1n}` : `trade ${i + (v1n && i ? v1n - 1 : 0)}`}${lb ? " · " + (lb.startsWith("MOOSE v1") ? "MOOSE v1" : "$" + lb) : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(Math.abs(pnl[i]) >= 0.1 || !pnl[i] ? 3 : Math.abs(pnl[i]) >= 0.01 ? 4 : 5)} ETH`; sTip.style.opacity = 1; });
+  sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .25); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; const v1n = +(/\bv1 \((\d+)/.exec(pnlLbl[0] || "") || [])[1] || 0, lb = pnlLbl[i - 1];
+    sTip.textContent = `${v1n && i === 1 ? `trades 1–${v1n}` : `trade ${i + (v1n && i ? v1n - 1 : 0)}`}${lb ? " · " + (/\bv1 \(/.test(lb) ? "v1" : "$" + lb) : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(Math.abs(pnl[i]) >= 0.1 || !pnl[i] ? 3 : Math.abs(pnl[i]) >= 0.01 ? 4 : 5)} ETH`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
 
-  /* ---------- 5b ASK MUSE: a real chat with Muse, rate limited by the API ---------- */
+  /* ---------- 5b ASK HORIZON: a real chat (HORIZON researches with Grok), rate limited by the API ---------- */
   const askBox = $("#askMsgs"), askIn = $("#askIn"), askSend = $("#askSend"), askLeft = $("#askLeft");
   const askHist = [];   // this visit only: {role, text}
   let askBusy = false, askOut = false, askToken = null;  // askToken: address of the coin being discussed
-  // short lines that end in ":" (like "Why it could run:") read as bold labels in Muse's replies
+  // short lines that end in ":" (like "Why it could run:") read as bold labels in HORIZON's replies
   const askFmt = t => esc(t).replace(/^([^\n]{2,40}):[ \t]*$/gm, "<b class=\"lbl\">$1:</b>").replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${m}</code>`)
     .replace(/(^|[\s(])\$([A-Za-z][A-Za-z0-9]{0,19})\b/g, '$1<span class="tag">$$$2</span>');
   const askAdd = (cls, html) => { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; askBox.appendChild(d); askBox.scrollTop = askBox.scrollHeight; return d; };
@@ -1972,7 +2107,7 @@ main, footer { position: relative; z-index: 1; }
   const SCAN = {
     coin: [I("search"), "", "Finding the coin"], onchain: [B("robinhood"), "rh", "Checking onchain"],
     lore: [I("notebook-pen"), "", "Reading its lore"], x: [B("x"), "xl", "Checking the X account"],
-    website: [I("globe"), "", "Visiting the website"], muse: [I("sparkles"), "", "Muse is thinking"],
+    website: [I("globe"), "", "Visiting the website"], grok: [I("sparkles"), "", "Grok is thinking"],
   };
   const scanCard = () => { const c = askAdd("scan", `<div class="scan-h">Researching<span class="spin"></span></div>`); c._rows = {}; return c; };
   const scanStep = (card, e) => {
@@ -1986,7 +2121,7 @@ main, footer { position: relative; z-index: 1; }
     row.className = "scan-row " + e.status;
     if (e.detail) row.querySelector("small").textContent = e.detail;
     row.querySelector(".st").innerHTML = e.status === "run" ? '<span class="spin"></span>' : e.status === "done" ? I("check") : e.status === "fail" ? I("x") : "–";
-    if (e.id === "muse" && e.status === "done") row.querySelector("b").textContent = "Muse's take";
+    if (e.id === "grok" && e.status === "done") row.querySelector("b").textContent = NAME + "'s take";
     askBox.scrollTop = askBox.scrollHeight;
   };
   const pace = () => new Promise(r => setTimeout(r, reduce ? 0 : 260));  // bursts still read one step at a time
@@ -2015,13 +2150,13 @@ main, footer { position: relative; z-index: 1; }
       }
       const handle = async e => {
         if (e.type === "step") {
-          if (e.id !== "muse" || card) { if (!card) { hideTyping(); card = scanCard(); } scanStep(card, e); await pace(); }
-          if (e.id === "muse" && e.status === "run" && !card) showTyping();  // with a card, its own row shows progress
+          if (e.id !== "grok" || card) { if (!card) { hideTyping(); card = scanCard(); } scanStep(card, e); await pace(); }
+          if (e.id === "grok" && e.status === "run" && !card) showTyping();  // with a card, its own row shows progress
           return;
         }
         hideTyping(); card?.classList.add("done");
         if (e.type === "error") { fail(e.detail); return; }
-        askHist.push({ role: "user", text }, { role: "muse", text: e.reply });
+        askHist.push({ role: "user", text }, { role: "grok", text: e.reply });
         if (e.token) { askAdd("att ask-card", askCard(e.token)); askToken = e.token.address; }
         askAdd("bot rich", askFmt(e.reply));
         askLimit(e.remaining);
@@ -2040,11 +2175,11 @@ main, footer { position: relative; z-index: 1; }
       }
       if (buf.trim()) await handle(JSON.parse(buf));
     } catch {
-      fail("Couldn't reach Muse. Check your connection and try again.");
+      fail(`Couldn't reach ${NAME}. Check your connection and try again.`);
     } finally { hideTyping(); askBusy = false; askSync(); }
   };
   const askSuggest = coins => {   // coins: [{s: symbol, t: address}]; the address travels with the chip so it always resolves
-    const chips = [...coins.slice(0, 2).map(c => ({ q: `Research $${c.s}`, t: c.t })), { q: "How does MOOSE pick trades?" }];
+    const chips = [...coins.slice(0, 2).map(c => ({ q: `Research $${c.s}`, t: c.t })), { q: `How does ${NAME} pick trades?` }];
     $("#askSugg").innerHTML = chips.map(c => `<button type="button"${c.t ? ` data-token="${esc(c.t)}"` : ""}>${c.t ? I("search") : I("sparkles")}${esc(c.q)}</button>`).join("");
   };
   askSuggest([]);
@@ -2059,8 +2194,8 @@ main, footer { position: relative; z-index: 1; }
   }).catch(() => {}), .1);
 
   /* ---------- LIVE DATA: everything above starts as example data, then this swaps in the real thing ---------- */
-  const KIND = { x: [B("x"), "#000", "X"], news: [I("newspaper"), "#0064E0", "News"], twitch_transcript: [B("twitch"), "#9146FF", "Twitch"],
-    twitch_chat: [B("twitch"), "#9146FF", "Twitch chat"], manual: [I("notebook-pen"), "#1C2B33", "Note"] };
+  const KIND = { x: [B("x"), "#000", "X"], news: [I("newspaper"), "#1A1A1A", "News"], twitch_transcript: [B("twitch"), "#9146FF", "Twitch"],
+    twitch_chat: [B("twitch"), "#9146FF", "Twitch chat"], manual: [I("notebook-pen"), "#1A1A1A", "Note"] };
   const CONF = { verified: ["green", "verified"], first_party: ["green", "first-party"], reported: ["blue", "reported"], rumor: ["sand", "rumour"], sentiment: ["sand", "chatter"] };
   const buyGrade = c => ["verified", "first_party", "reported"].includes(c);
   const cut = (t, n) => { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
@@ -2074,7 +2209,7 @@ main, footer { position: relative; z-index: 1; }
     LIVE = true;
     document.body.classList.toggle("killed", !!d.kill_switch?.on);
     $$(".example").forEach(hide);
-    $("#dataNote").textContent = "Figures on this page are live from MOOSE's public API.";
+    $("#dataNote").textContent = `Figures on this page are live from ${NAME}'s public API.`;
     const f = d.funnel, st = d.stats;
 
     /* hero */
@@ -2126,7 +2261,7 @@ main, footer { position: relative; z-index: 1; }
       srcI = 0; renderSrcs(); showSrc(srcI);
     }
 
-    /* thinking: Muse's actual reasoning on real tokens */
+    /* thinking: Grok's actual reasoning on real tokens */
     const dk = JSON.stringify(d.decisions.map(x => x.id));
     if (d.decisions.length && dk !== seen.decisions) {
       seen.decisions = dk;
@@ -2183,7 +2318,7 @@ main, footer { position: relative; z-index: 1; }
     renderTweets(th);
     $("#postsTxt").textContent = `${d.posts_24h} post${d.posts_24h === 1 ? "" : "s"} in the last 24h`;
 
-    /* on the record: real posts from @MooseByMuse */
+    /* on the record: real posts from the X account */
     const pk = JSON.stringify(d.posts.map(p => p.x_post_id));
     if (d.posts.length && pk !== seen.posts) {
       seen.posts = pk;
@@ -2205,7 +2340,7 @@ main, footer { position: relative; z-index: 1; }
     const unrealPct = inOpen ? ` (${unreal > 0 ? "+" : unreal < 0 ? "−" : ""}${Math.abs(unreal / inOpen * 100).toFixed(1)}%)` : "";
     $("#scMeta").innerHTML = (sc.closed ? `on <b>${(sc.deployed_eth ?? 0).toFixed(dp(sc.deployed_eth))} ETH</b> traded` : "No closed trades yet")
       + (open ? ` · <b class="${cls(unreal)}">${sgn(unreal)} ETH${unrealPct}</b> unrealised on ${open} open trade${open === 1 ? "" : "s"}` : " · nothing open right now")
-      + (sc.history ? (sc.history.includes.includes("net_eth") ? " · incl. MOOSE v1" : " · MOOSE v1 not in P&amp;L") : "");
+      + (sc.history ? (sc.history.includes.includes("net_eth") ? " · incl. v1" : " · v1 not in P&amp;L") : "");
     const live = d.mode === "live";
     $("#scPill").style.display = ""; $("#scPill").className = "pill " + (live ? "green" : "amber");
     $("#scPill").textContent = live ? "LIVE · real trades, onchain" : "TESTING PHASE · simulated, not onchain";
@@ -2217,12 +2352,12 @@ main, footer { position: relative; z-index: 1; }
       acct.hidden = false;
     } else acct.hidden = true;
     setCount($("#scTaken"), sc.taken ?? sc.closed); const v1 = sc.history?.v1_trades || 0;
-    $("#scTakenS").textContent = v1 ? `incl. ${v1} test trades from MOOSE v1 · ${open} open` : `${sc.closed} closed · ${open} open`;
+    $("#scTakenS").textContent = v1 ? `incl. ${v1} test trades from v1 · ${open} open` : `${sc.closed} closed · ${open} open`;
     $("#scRate").textContent = sc.win_rate == null ? "—" : `${Math.round(sc.win_rate)}%`;
     $("#scWL").innerHTML = sc.closed ? `<i class="w" style="flex:${sc.wins}"></i><i class="l" style="flex:${sc.losses}"></i>` : "";
     $("#scWLs").textContent = `${sc.wins} win${sc.wins === 1 ? "" : "s"} · ${sc.losses} loss${sc.losses === 1 ? "" : "es"}` + (v1 ? " · incl. v1" : "");
     eth($("#scAvg"), sc.avg_eth); $("#scHold").textContent = held(sc.avg_hold_h);
-    const bw = (t, v, sub) => { eth(v, t ? t.pnl_eth : null); sub.textContent = !t ? "no closed trades yet" : t.v1 ? (t.symbol ? `$${t.symbol} · MOOSE v1` : "MOOSE v1 · testing phase")
+    const bw = (t, v, sub) => { eth(v, t ? t.pnl_eth : null); sub.textContent = !t ? "no closed trades yet" : t.v1 ? (t.symbol ? `$${t.symbol} · v1` : "v1 · testing phase")
       : `$${t.symbol || "?"} · ${t.pnl_pct > 0 ? "+" : ""}${t.pnl_pct.toFixed(1)}%`; };
     bw(sc.best, $("#scBest"), $("#scBestS")); bw(sc.worst, $("#scWorst"), $("#scWorstS"));
     const rec = sc.recent || [];

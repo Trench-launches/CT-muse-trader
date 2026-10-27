@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 MAX_ATTEMPTS = 5
 # Trade posts go first, in the order they happened; anything else (watch, pass) is commentary.
 TRADE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "correction", "scorecard"}
-# Follow-ups on a coin MOOSE already posted about go out as quote posts of that post, so they land at the top of
+# Follow-ups on a coin HORIZON already posted about go out as quote posts of that post, so they land at the top of
 # the profile (a reply to its own post only shows inside the thread). The reasons under a buy and a launch
 # receipt come seconds after their post and stay replies, like replies to other people.
 QUOTE_KINDS = {"trade_entry", "update", "take_profit", "trade_exit", "watch", "pass"}

@@ -1,7 +1,7 @@
-"""Call outcomes: what happened to every token MOOSE made a call on.
+"""Call outcomes: what happened to every token HORIZON made a call on.
 
 Each decided token (buy, watch or pass) is recorded once per 24h with the
-variables MOOSE saw at that moment and its spot price. The price is then
+variables HORIZON saw at that moment and its spot price. The price is then
 re-read at fixed checkpoints, so the report can show which variables were
 followed by the token going up, and which by it dying.
 
@@ -58,7 +58,7 @@ def record_call(ctx: Any, a: Any, *, decision_id: int, action: str, confidence: 
         "fee_bps": (a.launch.get("fee_bps") or 0) + (a.record.creator_tax_bps or 0),
         "x_attention_24h": (pack.get("x_attention_24h") or {}).get("count_24h"),
         "evidence_count": len(ev), "evidence_grades": grades,
-        "muse_confidence": confidence, "model": model, "gates": gates,
+        "ai_confidence": confidence, "model": model, "gates": gates,
         "pool_liquidity_usd": a.pool.liquidity_usd if a.pool else None,
         "pool_volume_h1_usd": a.pool.volume_h1_usd if a.pool else None,
     }
@@ -126,7 +126,7 @@ def _groups(r: dict[str, Any]) -> dict[str, str]:
         "X mentions 24h": _band(f.get("x_attention_24h"), [1, 6, 21, 1e12], ["0", "1-5", "6-20", "21+"]),
         "evidence": "buy-grade" if grades & {"verified", "first_party", "reported"}
         else ("rumour/chat only" if grades else "none"),
-        "muse confidence": _band(f.get("muse_confidence"), [0.5, 0.7, 0.85, 2], ["<0.5", "0.5-0.7", "0.7-0.85", "0.85+"]),
+        "AI confidence": _band(f.get("ai_confidence", f.get("muse_confidence")), [0.5, 0.7, 0.85, 2], ["<0.5", "0.5-0.7", "0.7-0.85", "0.85+"]),
         "whale flag": "yes" if "one wallet is" in flags else "no",
         "wash flag": "yes" if ("wash" in flags) else "no",
         "creator tax": "yes" if "creator tax" in flags else "no",

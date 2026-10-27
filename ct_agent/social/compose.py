@@ -130,7 +130,7 @@ def _alts(label: str, text: str, cuts: tuple[int, ...]) -> list[str]:
 def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, catalyst: str, progress: float | None,
                 momentum: str, risk: str, position_id: int, own_token: bool = False, mc: str = "",
                 plan: str = "") -> Draft:
-    """A clean buy post: what, where it was bought, how much, the exit plan and why. Muse's longer read on the
+    """A clean buy post: what, where it was bought, how much, the exit plan and why. Grok's longer read on the
     coin follows as a reply, so the buy itself stays short."""
     head = f"🟢 {'Test buy' if mode == 'paper' else 'Bought'} ${symbol}"
     facts = _block([f"Entry: {mc} MC" if mc else f"Entry: {entry}", f"Size: {size}", f"Plan: {plan}" if plan else ""])
@@ -144,7 +144,7 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
 
 def buy_read(*, symbol: str, token: str, key: str, reply_to: str, why: str = "", reasons: list[str] | None = None,
              risk: str = "") -> Draft:
-    """Muse's reasoning for a buy, as a reply under the BOUGHT post. `why` is the thesis (the story and why it
+    """Grok's reasoning for a buy, as a reply under the BOUGHT post. `why` is the thesis (the story and why it
     can catch on) and leads; `reasons` are bullets of onchain proof; then the biggest risk. To fit one post the
     bullets shrink and drop first, and the thesis is only shortened as a last resort."""
     why = " ".join((why or "").split())
@@ -170,7 +170,7 @@ def buy_read(*, symbol: str, token: str, key: str, reply_to: str, why: str = "",
 
 def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price: str, milestone: float, plan: str,
                     position_id: int, mc: str = "", thesis: str = "") -> Draft:
-    """A milestone update on an open trade. `plan` says where the exits are now; `thesis` is Muse's updated read
+    """A milestone update on an open trade. `plan` says where the exits are now; `thesis` is Grok's updated read
     on the coin (shortened, then dropped, if the post runs long)."""
     head = f"{'📈' if pnl_pct >= 0 else '📉'} ${symbol} {pnl_pct:+.0f}% since entry"
     facts = _block([f"MC now: {mc}" if mc else f"Price now: {price}", f"Plan: {plan.strip().rstrip('.')[:1].lower()}{plan.strip().rstrip('.')[1:]}"])
@@ -185,7 +185,7 @@ def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price
 def take_profit(*, mode: str, symbol: str, token: str, sold_pct: float, at: str, why: str, left_pct: float,
                 realized_eth: float, position_id: int, rung: int, thesis: str = "") -> Draft:
     """A take-profit rung: part of the bag sold, the rest still open. `why` is the plan now (target hit, stop
-    moved); `thesis` is Muse's read on why the rest is still worth holding (shortened, then dropped)."""
+    moved); `thesis` is Grok's read on why the rest is still worth holding (shortened, then dropped)."""
     head = f"💰 Jeeted {sold_pct:.0f}% of my ${symbol} {_bag(mode)}"
     facts = _block([f"Sold at: {at}", f"Realised: {_eth(realized_eth)}", f"Still riding: {left_pct:.0f}%"])
     plan = [f"Plan: {_s(why)}", "Plan: stop moved to entry.", ""] if why else [""]

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from .brain.muse import MuseBrain, openai_completer
+from .brain.grok import GrokBrain, openai_completer
 from .chain.pons import PonsV2
 from .chain.rpc import RpcClient
 from .config import Settings, get_settings
@@ -25,7 +25,7 @@ class Context:
     rpc: RpcClient
     pons: PonsV2
     market: MarketData
-    brain: MuseBrain
+    brain: GrokBrain
     x: XClient
     risk: RiskManager
     live: LiveExecutor
@@ -41,10 +41,10 @@ def build(settings: Settings | None = None, *, rpc_transport: httpx.BaseTranspor
     pons = PonsV2(rpc, s.pons_v2_factory, log_chunk=s.log_chunk_blocks)
     market = MarketData(dexscreener_chain=s.dexscreener_chain, gt_network=s.geckoterminal_network,
                         transport=market_transport)
-    if completer is None and s.muse_api_key:
-        completer = openai_completer(s.muse_api_key, s.muse_base_url, s.muse_model, s.muse_timeout_s,
-                                     fallback_models=s.muse_fallback_models)
-    brain = MuseBrain(completer, s.muse_model)
+    if completer is None and s.grok_api_key:
+        completer = openai_completer(s.grok_api_key, s.grok_base_url, s.grok_model, s.grok_timeout_s,
+                                     fallback_models=s.grok_fallback_models)
+    brain = GrokBrain(completer, s.grok_model)
     oauth = XOAuth2(client_id=s.x_client_id, client_secret=s.x_client_secret, conn=conn,
                     seed_refresh_token=s.x_refresh_token, transport=x_transport) if s.x_client_id else None
     x = XClient(bearer_token=s.x_bearer_token, user_token=s.x_user_access_token, oauth=oauth,

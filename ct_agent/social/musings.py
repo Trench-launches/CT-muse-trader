@@ -1,6 +1,6 @@
 """Original crypto musings on X, one every x_musing_every_min, on top of the trade posts and replies.
 
-Muse writes them: short, lowercase, trader-philosophy lines (the voice is in MUSING_SYSTEM). Each one passes the
+Grok writes them: short, lowercase, trader-philosophy lines (the voice is in MUSING_SYSTEM). Each one passes the
 same hard filter as replies (no links, addresses, tags or bad words), must not repeat a recent one, and is only
 queued while there's room under the daily post cap, so trade posts are never crowded out.
 """
@@ -36,7 +36,7 @@ def musings_once(ctx: Any) -> dict[str, Any]:
 
 
 def write_musing(ctx: Any, now: datetime) -> str:
-    """Ask Muse for one musing and queue it. Returns 'queued', 'duplicate' or 'dropped'."""
+    """Ask Grok for one musing and queue it. Returns 'queued', 'duplicate' or 'dropped'."""
     s, conn = ctx.settings, ctx.conn
     kv_set(conn, "musing_last_at", now.isoformat(timespec="seconds"))
     recent = [r["body"] for r in rows(conn, "SELECT body FROM posts WHERE kind='musing' ORDER BY id DESC LIMIT 80")]

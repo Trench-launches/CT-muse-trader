@@ -1,15 +1,15 @@
 """Auto-replies: the hard filter, the caps, and threading under someone else's post."""
 from types import SimpleNamespace
 
-from ct_agent.brain.muse import MuseReply, MuseResult
+from ct_agent.brain.grok import GrokReply, GrokResult
 from ct_agent.db import kv_set
 from ct_agent.social.outbox import _next_sendable
 from ct_agent.social.replies import clean, replies_once
 
 
 def test_filter_drops_anything_unsafe_and_strips_tags():
-    assert clean("gm fren @someone, MOOSE only buys once a call runs +30%. wagmi") == \
-        "gm fren , MOOSE only buys once a call runs +30%. wagmi"
+    assert clean("gm fren @someone, HORIZON only buys once a call runs +30%. wagmi") == \
+        "gm fren , HORIZON only buys once a call runs +30%. wagmi"
     for bad in ("this is shit", "buy at pump.fun now", "ca is 0x1234abcd99", "guaranteed 10x ser", "x" * 300, ""):
         assert clean(bad) is None, bad
 
@@ -33,7 +33,7 @@ class _Brain:
 
     def reply(self, ctx):
         self.seen.append(ctx)
-        return MuseResult(MuseReply(skip=self.skip, reply=self.text), "", "m", "h")
+        return GrokResult(GrokReply(skip=self.skip, reply=self.text), "", "m", "h")
 
 
 def _ctx(settings, db, mentions, brain):
@@ -43,7 +43,7 @@ def _ctx(settings, db, mentions, brain):
 
 
 def test_replies_respect_caps_and_skip_backlog(settings, db):
-    ms = [{"id": str(i), "author_id": "fan" if i < 4 else f"u{i}", "text": f"gm moose {i}"} for i in range(1, 7)]
+    ms = [{"id": str(i), "author_id": "fan" if i < 4 else f"u{i}", "text": f"gm horizon {i}"} for i in range(1, 7)]
     ms.append({"id": "7", "author_id": "me", "text": "my own post"})
     brain = _Brain("gm fren, LFG")
     ctx = _ctx(settings, db, ms, brain)
@@ -57,7 +57,7 @@ def test_replies_respect_caps_and_skip_backlog(settings, db):
     assert parent == "1"  # posted straight under their post
 
 
-def test_muse_can_decline(settings, db):
+def test_grok_can_decline(settings, db):
     kv_set(db, "mentions_since_id", "0")
     kv_set(db, "x_my_user_id", "me")
     ctx = _ctx(settings, db, [{"id": "9", "author_id": "troll", "text": "you suck"}], _Brain("", skip=True))
@@ -65,21 +65,21 @@ def test_muse_can_decline(settings, db):
     assert db.execute("SELECT COUNT(*) c FROM posts").fetchone()["c"] == 0
 
 
-class _Muser:
+class _Writer:
     def __init__(self, text):
         self.text, self.calls = text, 0
 
     def musing(self, ctx):
-        from ct_agent.brain.muse import MuseMusing
+        from ct_agent.brain.grok import GrokMusing
         self.calls += 1
-        return MuseResult(MuseMusing(tweet=self.text), "", "m", "h")
+        return GrokResult(GrokMusing(tweet=self.text), "", "m", "h")
 
 
 def test_musings_every_half_hour_never_eat_the_trade_posts_room(settings, db):
     from ct_agent.social.musings import musings_once
     s = settings.model_copy(update={"x_musings_enabled": True, "x_posting_enabled": True, "x_daily_post_cap": 40,
                                     "x_cadence_min": 0})  # musings on their own timer
-    brain = _Muser("liquidity leaves quietly and returns loudly.")
+    brain = _Writer("liquidity leaves quietly and returns loudly.")
     ctx = SimpleNamespace(settings=s, conn=db, x=_X([]), brain=brain)
     assert musings_once(ctx) == {"musing": "queued"}
     assert musings_once(ctx) == {} and brain.calls == 1  # not again within 30 min
@@ -114,6 +114,6 @@ def test_a_reply_under_a_trade_post_gets_the_coins_story_and_todays_rules(settin
                         "referenced_tweets": [{"type": "replied_to", "id": "500"}]}], brain)
     assert replies_once(ctx)["replies_queued"] == 1
     sent = brain.seen[-1]
-    assert sent["coin"]["symbol"] == "FRAI" and sent["coin"]["moose_thesis"].startswith("FRAI lets you use AI")
+    assert sent["coin"]["symbol"] == "FRAI" and sent["coin"]["horizon_thesis"].startswith("FRAI lets you use AI")
     assert sent["coin"]["coins_own_lore"]["description"] == "AI models without subscriptions"
     assert "the moment it lands" in sent["rules"] and "Pons scan" in sent["rules"] and "+30%" not in sent["rules"]

@@ -3,7 +3,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
-from ct_agent.brain.muse import MuseMusing, MuseResult
+from ct_agent.brain.grok import GrokMusing, GrokResult
 from ct_agent.db import rows
 from ct_agent.social.cadence import cadence_once
 
@@ -16,7 +16,7 @@ SITE = {"funnel": {"launched_24h": 7847},
 
 class _Brain:
     def musing(self, ctx):
-        return MuseResult(MuseMusing(tweet="patience is also a position."), "", "m", "h")
+        return GrokResult(GrokMusing(tweet="patience is also a position."), "", "m", "h")
 
 
 def _ctx(settings, db, **kw):

@@ -1,12 +1,12 @@
 """A steady timeline: a post at least every x_cadence_min minutes, in a rotation of kinds.
 
 Trades, updates and launches still post the moment they happen, and each one counts as that slot's post. Only
-when x_cadence_min minutes pass with nothing new on the timeline does MOOSE fill the gap with the next kind in
+when x_cadence_min minutes pass with nothing new on the timeline does HORIZON fill the gap with the next kind in
 the rotation that has something to say:
 
   scan     what the scanner looked at in the last hour (launches seen, coins screened, bought/watched/passed)
   holdings the open bags and how each one is doing
-  musing   a short line from Muse (musings.py)
+  musing   a short line from Grok (musings.py)
   score    the running scorecard, losses included
 
 So every hour carries a mix of kinds. Replies to people and thread replies never count toward the timeline.
@@ -64,7 +64,7 @@ def scan_post(conn: Any, site: dict[str, Any], now: datetime) -> str | None:
                         (hour,)).fetchone()
     lines = ["🔎 Scan report, last hour", "",
              f"New coins on Robinhood Chain today: {f.get('launched_24h', 0):,}",
-             f"Screened by Muse this hour: {looked}"]
+             f"Screened by Grok this hour: {looked}"]
     if looked:
         lines.append(f"Bought: {acts.get('buy', 0)} · Watching: {acts.get('watch', 0)} · Passed: {acts.get('pass', 0)}")
     if pick:
@@ -92,7 +92,7 @@ def score_post(site: dict[str, Any]) -> str | None:
     sc = site.get("score") or {}
     if not sc.get("taken"):
         return None
-    lines = ["📈 MOOSE scorecard", "",
+    lines = ["📈 HORIZON scorecard", "",
              f"Trades: {sc['taken']} ({sc.get('closed', 0)} closed, {sc.get('open', 0)} open)",
              f"Win rate: {sc.get('win_rate', 0):.0f}%",
              f"Closed P&L: {sc.get('net_eth', 0):+.4f} ETH"]

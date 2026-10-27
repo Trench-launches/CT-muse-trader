@@ -22,9 +22,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="CT_", extra="ignore")
 
     # --- identity -------------------------------------------------------
-    agent_name: str = "MOOSE"
-    agent_ticker: str = ""  # set once the owner picks one
+    agent_name: str = "HORIZON"
+    agent_ticker: str = "HRZN"  # the project's own coin; the launchpad won't launch a copy of it
     agent_token_address: str = ""  # the project's own token, once launched
+    # Never traded from scanner calls, like our own token: $MOOSE, the coin from before the HORIZON rebrand.
+    skip_tokens: list[str] = ["0x6954c198203f95d97273de98b15aad0bef5b4028"]
     treasury_address: str = ""     # public treasury/creator-fee wallet, for disclosure only
 
     # --- storage --------------------------------------------------------
@@ -59,19 +61,21 @@ class Settings(BaseSettings):
     activity_windows_s: list[int] = Field(default_factory=lambda: [300, 900, 3_600])
     trade_lookback_s: int = 3_600
 
-    # --- Muse Spark -----------------------------------------------------
-    muse_api_key: str = ""
-    muse_base_url: str = "https://api.meta.ai/v1"
-    muse_model: str = "muse-spark-1.3"
+    # --- Grok (xAI API, key from console.x.ai; not the X developer keys) ----
+    grok_api_key: str = ""
+    grok_base_url: str = "https://api.x.ai/v1"
+    grok_model: str = "grok-4.7"
     # tried in order when the main model answers model_not_found
-    muse_fallback_models: list[str] = Field(default_factory=lambda: ["muse-spark-1.2"])
-    muse_timeout_s: float = 60.0
+    grok_fallback_models: list[str] = Field(default_factory=lambda: ["grok-4.3"])
+    grok_timeout_s: float = 90.0  # reasoning models think before they answer
 
     # --- X --------------------------------------------------------------
     x_bearer_token: str = ""        # app-only token for reads
     x_user_access_token: str = ""   # OAuth2 user token for posting
+    # The bot's X handle, without the @: shown in launch credits. Change it when the account is renamed.
+    x_handle: str = "MooseByMuse"
     # OAuth 1.0a keys from the X developer portal (Consumer Key/Secret and the
-    # @MooseByMuse Access Token/Secret). These don't expire, so posting never needs a re-login.
+    # bot account's Access Token/Secret). These don't expire, so posting never needs a re-login.
     x_api_key: str = ""
     x_api_secret: str = ""
     x_access_token: str = ""
@@ -97,7 +101,7 @@ class Settings(BaseSettings):
     # scan report, the open bags, a musing and the scorecard. 0 turns it off (musings then run on their own timer).
     x_cadence_min: float = 17.0
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
-    x_update_step_pct: float = 50.0  # post an update, with Muse's updated thesis, at every +50% (50, 100, 150, ...)
+    x_update_step_pct: float = 50.0  # post an update, with Grok's updated thesis, at every +50% (50, 100, 150, ...)
     x_update_down_pct: list[float] = [-15.0]  # and once when it's down this much
     x_max_reads_per_search: int = 20
     x_monthly_read_budget: int = 6_000
@@ -142,10 +146,10 @@ class Settings(BaseSettings):
     max_deployer_hold_share: float = 0.10
     max_top10_hold_share: float = 0.35
     max_top_buyer_share: float = 0.40
-    # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (MOOSE's own
+    # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (HORIZON's own
     # Pons auto-scan of near-bonded and freshly graduated coins).
     candidate_source: str = "scanner"
-    pons_scan_enabled: bool = False  # with the scanner source, also run the Pons auto-scan (Muse decides those)
+    pons_scan_enabled: bool = False  # with the scanner source, also run the Pons auto-scan (Grok decides those)
     supabase_url: str = ""
     supabase_key: str = ""
     # Fibbot: a second source of calls, in its own Supabase project
@@ -155,9 +159,9 @@ class Settings(BaseSettings):
     scanner_window_hours: float = 6.0   # ...and only within this long of the call
     scanner_main_enabled: bool = True   # the main scanner's calls; off = Fibbot's smart-money calls only
     scanner_buy_on_call: bool = False   # buy every tradeable call the moment it lands (no +trigger wait)
-    decision_cooldown_min: int = 30  # don't re-ask Muse about the same token too often
+    decision_cooldown_min: int = 30  # don't re-ask Grok about the same token too often
     candidates_per_cycle: int = 5
-    # Paper-trading history from MOOSE v1 (before this journal), merged into the site's scorecard and labelled
+    # Paper-trading history from HORIZON v1 (before this journal), merged into the site's scorecard and labelled
     # as such. JSON, e.g. {"trades": 100, "wins": 54, "losses": 46, "best_eth": 0.3}; optional: net_eth,
     # worst_eth, best_symbol, worst_symbol, avg_hold_h. Empty = no v1 history shown.
     score_history_v1: dict = {}
@@ -166,14 +170,14 @@ class Settings(BaseSettings):
     site_origins: list[str] = ["https://www.moosebymuse.com", "https://moosebymuse.com",
                                "https://www.mooseonmuse.com", "https://mooseonmuse.com",
                                "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
-    # Public "Ask Muse" chat on the website. Every request is a paid Muse call, so it is capped per
+    # Public "Ask HORIZON" chat on the website. Every request is a paid Grok call, so it is capped per
     # visitor and overall; the global cap is the hard ceiling on spend.
     chat_enabled: bool = True
     chat_per_ip_hour: int = 10
     chat_per_ip_day: int = 30
     chat_global_day: int = 500
     chat_max_chars: int = 500
-    chat_x_lookups_day: int = 50  # X profile look-ups the chat may make per day (MOOSE's own research is separate)
+    chat_x_lookups_day: int = 50  # X profile look-ups the chat may make per day (HORIZON's own research is separate)
     max_entries_per_day: int = 10  # hard cap on new trades in any rolling 24h
     research_wait_min: int = 10  # wait this long for a token's X research before deciding without it
 
@@ -186,7 +190,7 @@ class Settings(BaseSettings):
     uniswap_v4_quoter: str = "0x8dc178efb8111bb0973dd9d722ebeff267c98f94"
     permit2: str = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
     live_execution_reviewed: bool = False  # flipped only after a human review
-    # Where graduated coins are swapped: "router" (MOOSE signs Uniswap router calls itself) or "gmgn" (GMGN's
+    # Where graduated coins are swapped: "router" (HORIZON signs Uniswap router calls itself) or "gmgn" (GMGN's
     # trading API, from the wallet bound to the API key). Curve (not yet graduated) trades stay on the router.
     live_venue: str = "router"
     gmgn_api_key: str = ""

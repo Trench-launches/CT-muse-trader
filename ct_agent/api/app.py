@@ -49,7 +49,7 @@ class TranscriptIn(BaseModel):
 
 
 class ChatMsg(BaseModel):
-    role: str = Field(pattern="^(user|muse)$")
+    role: str = Field(pattern="^(user|grok|muse)$")  # "muse": pages opened before the Grok switch
     text: str = Field(max_length=2000)
 
 
@@ -58,7 +58,7 @@ class ChatIn(BaseModel):
     history: list[ChatMsg] = Field(default_factory=list, max_length=20)
     # a coin the visitor picked (a suggestion chip): researched with the live card
     token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
-    # the coin discussed earlier: passed to Muse quietly, used only if the new message is about it
+    # the coin discussed earlier: passed to Grok quietly, used only if the new message is about it
     context_token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
 
 
@@ -109,7 +109,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "kill_switch": {"on": killed, "reason": why},
             "journal": {"entries": count("journal"), "chain_intact": ok, "first_bad_id": bad},
             "integrations": {
-                "rpc": s.rpc_url.split("/v2/")[0], "muse": bool(s.muse_api_key), "x_read": bool(s.x_bearer_token),
+                "rpc": s.rpc_url.split("/v2/")[0], "grok": bool(s.grok_api_key), "x_read": bool(s.x_bearer_token),
                 "x_post": bool(s.x_user_access_token or (s.x_client_id and s.x_refresh_token)) and s.x_posting_enabled,
                 "twitch": bool(s.twitch_client_id and s.twitch_eventsub_secret), "news_feeds": len(s.news_feeds),
                 "live_trading_ready": s.trading_mode.value == "live" and s.live_execution_reviewed
@@ -183,7 +183,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/scanner")
     def scanner_calls(limit: int = 50, conn=Depends(db)) -> dict[str, Any]:
-        """The smart-money scanner's Robinhood calls as MOOSE sees them: moved how far, and what it did."""
+        """The smart-money scanner's Robinhood calls as HORIZON sees them: moved how far, and what it did."""
         calls = rows(conn, "SELECT id, token, symbol, called_at, call_price_usd, status, note, last_move_pct, "
                            "peak_move_pct, triggered_at, checked_at, decision_id FROM scanner_calls "
                            "ORDER BY id DESC LIMIT ?", (min(limit, 500),))
@@ -210,8 +210,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return {"status": "not_seen"}
         out = dict(r)
         out.pop("id")
-        if out["status"] == "refused":  # the short public reason MOOSE replied with, not the internal note
-            out["reason"] = (out["reason"] or "").removeprefix("muse declined: ")
+        if out["status"] == "refused":  # the short public reason HORIZON replied with, not the internal note
+            out["reason"] = (out["reason"] or "").removeprefix("grok declined: ").removeprefix("muse declined: ")  # older rows
         return out
 
     @app.get("/positions")
@@ -259,7 +259,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/outcomes")
     def outcomes(hours: float | None = None, conn=Depends(db)) -> dict[str, Any]:
-        """What happened after each call, split by the variables MOOSE saw."""
+        """What happened after each call, split by the variables HORIZON saw."""
         from ..strategy.outcomes import report
         return report(conn, hours)
 
@@ -278,13 +278,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return rows(conn, "SELECT * FROM posts WHERE status=? ORDER BY id DESC LIMIT 200", (status,))
         return rows(conn, "SELECT * FROM posts ORDER BY id DESC LIMIT 200")
 
-    # --- ask muse (public chat) ---------------------------------------------
+    # --- ask HORIZON (public chat, answered by Grok) ---------------------------------------------
 
     import threading
     chat_lock = threading.Lock()
 
     def chat_services() -> dict[str, Any]:
-        """Chain, market and Muse clients for the chat, built once. Tests can preset app.state.chat_services."""
+        """Chain, market and Grok clients for the chat, built once. Tests can preset app.state.chat_services."""
         svc = getattr(app.state, "chat_services", None)
         if svc is None:
             with chat_lock:  # the start-up warm-up and a first visitor must not build it twice
@@ -297,7 +297,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                                                      "brain": ctx.brain, "x": ctx.x, "web": ctx.web}
         return svc
 
-    if s.chat_enabled and s.muse_api_key:  # building the clients takes ~10s: do it at start-up, not on a visitor's first question
+    if s.chat_enabled and s.grok_api_key:  # building the clients takes ~10s: do it at start-up, not on a visitor's first question
         threading.Thread(target=chat_services, name="chat-warmup", daemon=True).start()
 
     def visitor(request: Request, conn: Any) -> str:
@@ -326,23 +326,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(429, str(exc), headers={"Retry-After": str(exc.retry_after_s)})
         svc = chat_services()
         if not svc["brain"].enabled:
-            raise HTTPException(503, "Muse isn't connected right now.")
+            raise HTTPException(503, "HORIZON isn't connected right now.")
         history = [{"role": m.role, "text": m.text[:600]} for m in body.history[-8:]]
         return svc, who, msg, history
 
     @app.post("/chat")
-    def ask_muse(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
-        """Ask Muse about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
+    def ask_horizon(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
+        """Ask HORIZON (Grok) about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
         svc, who, msg, history = chat_start(body, request, conn)
         for e in chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token):
             if e["type"] == "error":
                 raise HTTPException(502, e["detail"])
             if e["type"] == "answer":
                 return {k: v for k, v in e.items() if k != "type"}
-        raise HTTPException(502, "Muse didn't answer that one. Try again in a moment.")
+        raise HTTPException(502, "HORIZON didn't answer that one. Try again in a moment.")
 
     @app.post("/chat/stream")
-    def ask_muse_live(body: ChatIn, request: Request, conn=Depends(db)) -> StreamingResponse:
+    def ask_horizon_live(body: ChatIn, request: Request, conn=Depends(db)) -> StreamingResponse:
         """The same as /chat, but each research step is sent as it happens (one JSON object per line)."""
         svc, who, msg, history = chat_start(body, request, conn)
         events = chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token)

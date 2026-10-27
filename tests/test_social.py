@@ -183,7 +183,7 @@ def test_position_update_fits_the_thesis_in_280():
     assert plain.body.startswith("📉 $NEZU -15% since entry") and plain.body.endswith("\n\nStill holding.")
 
 
-def test_buy_read_fits_muses_long_reasons_in_one_post():
+def test_buy_read_fits_groks_long_reasons_in_one_post():
     reasons = ["51 unique buyers in 1h and 16 in 5m with acceleration 3.28 shows broad speeding buys despite 29% top "
                "buyer share", "holders dispersed 201 holders top10 17.26% and top wallet 3.02% with deployer 0% so no "
                "holder concentration", "X attention only 4 mentions of exact address versus 9.18 ETH buys in 1h and "

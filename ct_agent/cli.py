@@ -8,7 +8,7 @@
   ctagent kill on|off "reason"     stop switch
   ctagent verify-journal           recompute the journal hash chain
   ctagent twitch-subscribe <callback_url> [--bot-user-id ID]
-  ctagent x-login [--no-browser]   authorize posting as @MooseByMuse (one time)
+  ctagent x-login [--no-browser]   authorize posting as the bot's X account (one time)
   ctagent report [--hours 24]      what happened after each call, by variable
   ctagent wallet                   the trading wallet's address and ETH balance (never the key)
   ctagent live-test <coin> [--eth 0.002]   one tiny real buy then sell in the coin's ETH pool
@@ -136,7 +136,7 @@ def _live_test(s, token: str, eth: float) -> int:
 
 
 def _x_login(s, *, open_browser: bool) -> int:
-    """One-time consent as @MooseByMuse. Saves the refresh token to .env (never printed)."""
+    """One-time consent as the bot's X account. Saves the refresh token to .env (never printed)."""
     from pathlib import Path
 
     from .sources.x_oauth import XOAuth2, browser_login
@@ -189,11 +189,11 @@ def _check() -> int:
         report["eth_usd"] = str(ctx.market.eth_usd())
     except Exception as exc:
         report["eth_usd"] = f"FAILED {exc}"
-    if s.muse_api_key:
+    if s.grok_api_key:
         r = ctx.brain.decide({"token": "healthcheck", "note": "Reply with action pass. This is a connectivity test."})
-        report["muse"] = "ok" if r.decision else f"FAILED {r.error}"
+        report["grok"] = "ok" if r.decision else f"FAILED {r.error}"
     else:
-        report["muse"] = "not configured"
+        report["grok"] = "not configured"
     if s.x_bearer_token:
         try:
             ctx.x.mention_counts('"robinhood chain"')

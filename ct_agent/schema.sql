@@ -233,12 +233,12 @@ CREATE TABLE IF NOT EXISTS scanner_calls (
     triggered_at    TEXT,
     checked_at      TEXT,
     first_seen      TEXT NOT NULL,
-    decision_id     INTEGER                 -- Muse's analysis of the call
+    decision_id     INTEGER                 -- Grok's analysis of the call
 );
 CREATE INDEX IF NOT EXISTS ix_scanner_calls_status ON scanner_calls(status, called_at);
 CREATE INDEX IF NOT EXISTS ix_scanner_calls_token ON scanner_calls(token);
 
--- Public "Ask Muse" chat: one row per request, for rate limits. `who` is a salted hash of the IP.
+-- Public "Ask HORIZON" chat: one row per request, for rate limits. `who` is a salted hash of the IP.
 CREATE TABLE IF NOT EXISTS chat_requests (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     ts      TEXT NOT NULL,
@@ -249,11 +249,11 @@ CREATE TABLE IF NOT EXISTS chat_requests (
 CREATE INDEX IF NOT EXISTS ix_chat_requests_who ON chat_requests(who, ts);
 CREATE INDEX IF NOT EXISTS ix_chat_requests_ts ON chat_requests(ts);
 
--- Launchpad: coins MOOSE launches for people who ask on X. One row per request, from the tweet to the hand-over
+-- Launchpad: coins HORIZON launches for people who ask on X. One row per request, from the tweet to the hand-over
 -- of the coin's creator fees to the requester once the launch cost is paid back.
 CREATE TABLE IF NOT EXISTS launch_requests (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    x_post_id     TEXT NOT NULL UNIQUE,   -- the request tweet (MOOSE replies under it)
+    x_post_id     TEXT NOT NULL UNIQUE,   -- the request tweet (HORIZON replies under it)
     author_id     TEXT NOT NULL,
     handle        TEXT,
     created_at    TEXT NOT NULL,
@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS launch_requests (
     curve         TEXT,
     tx_hash       TEXT,
     cost_wei      TEXT,                   -- launch fee + gas, what the fees pay back first
-    earned_wei    TEXT,                   -- creator fees MOOSE has collected for this coin
+    earned_wei    TEXT,                   -- creator fees HORIZON has collected for this coin
     launched_at   TEXT,
     handed_at     TEXT,
     pair_symbol   TEXT,                   -- a stock the coin trades against (TSLA...); NULL for ETH

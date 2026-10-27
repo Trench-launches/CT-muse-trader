@@ -4,7 +4,7 @@ Each Pons token stores an image link onchain (logo(), usually ipfs://). The
 site never loads those links directly: the API fetches a logo once, checks
 it really is an image, re-encodes it as a small 128px WebP (which also drops
 anything else embedded in the file) and serves that from disk. Only tokens
-MOOSE already tracks can be fetched, so this isn't an open image proxy.
+HORIZON already tracks can be fetched, so this isn't an open image proxy.
 """
 from __future__ import annotations
 
@@ -85,7 +85,7 @@ def logo_file(conn: Any, data_dir: Path, token: str, client: httpx.Client | None
     row = conn.execute("SELECT logo_url FROM launches WHERE lower(token)=?", (token,)).fetchone()
     urls = _candidates(row["logo_url"]) if row and row["logo_url"] else []
     own = client is None
-    client = client or httpx.Client(timeout=8, headers={"user-agent": "MOOSE-logo-fetch"})
+    client = client or httpx.Client(timeout=8, headers={"user-agent": "HORIZON-logo-fetch"})
     try:
         for url in urls:
             raw = _download(url, client)

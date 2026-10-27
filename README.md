@@ -1,11 +1,11 @@
-# CT Agent backend
+# HORIZON backend
 
-Research and paper-trading backend for an openly automated AI trading persona on
-Robinhood Chain (chain 4663), watching Pons V2 memecoins, reasoning with Meta's
-Muse Spark, and posting its own trades on X. Built to the operating blueprint:
+HORIZON is an openly automated AI trading persona on Robinhood Chain (chain 4663),
+watching Pons V2 memecoins, reasoning with xAI's Grok (through the xAI API), and
+posting its own trades on X. Built to the operating blueprint:
 verify before linking, paper first, disclose everything, journal every fill.
 
-Backend and infrastructure only. No dashboard UI yet; the API serves one.
+This repo holds the backend (`ct_agent/`) and the one-page site (`web/`).
 
 ## How it fits together
 
@@ -14,8 +14,8 @@ Backend and infrastructure only. No dashboard UI yet; the API serves one.
  (launches, phases, curve trades)  │                       │      outbox: 6/day cap, idempotent,
                                    ▼                       │      never blind-retries an ambiguous send
  news RSS / X reads / Twitch ──► research ──► SQLite ◄──── trader
- (budgeted, attributed)   verify leads     (append-only    screen → Muse → hard gates → paper fill
-                          onchain          hash-chained    → exits (stop/take-profit/max-hold/Muse review)
+ (budgeted, attributed)   verify leads     (append-only    screen → Grok → hard gates → paper fill
+                          onchain          hash-chained    → exits (stop/take-profit/max-hold/Grok review)
                                            journal)
                                               ▲
                                               └── api (public reads, admin writes, Twitch webhook)
@@ -37,8 +37,8 @@ Each box is a separate OS process (`ctagent run-all` or docker compose).
 | Addresses from chat/speech/posts are leads until verified on this chain | `sources/store.py` `verify_leads` |
 | Five reposts of one rumor count as one origin | `independent_origins` |
 | Chat is sentiment; rumors alone can never trigger a buy | engine `BUY_GRADE_CONFIDENCE` |
-| Third-party text fenced as untrusted in the Muse prompt | `brain/muse.py` |
-| Muse cannot override gates, limits or the kill switch | `strategy/engine.py` |
+| Third-party text fenced as untrusted in the Grok prompt | `brain/grok.py` |
+| Grok cannot override gates, limits or the kill switch | `strategy/engine.py` |
 | Paper first; paper trades labelled and never shown as onchain | `execution/paper.py`, `social/compose.py` |
 | Live needs mode=live, a human review flag, a trading-only key, quote, slippage bound, tax check, allowance check, simulation | `execution/live.py` |
 | Loss, exposure, position, daily-loss limits and a hard stop | `execution/risk.py` |

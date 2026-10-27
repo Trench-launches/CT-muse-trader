@@ -1,7 +1,7 @@
-"""Auto-replies to people who mention or reply to @MooseByMuse.
+"""Auto-replies to people who mention or reply to the bot on X.
 
-Only people who engage with MOOSE first get a reply (X's automation rules), under a daily cap and a per-person
-cap. Muse writes each reply, family friendly and in crypto-native language; it can decline (hostile, spam,
+Only people who engage with HORIZON first get a reply (X's automation rules), under a daily cap and a per-person
+cap. Grok writes each reply, family friendly and in crypto-native language; it can decline (hostile, spam,
 politics, anything unsafe), and every reply also passes a hard filter here before it's queued: no links, no
 contract addresses, no tags, no bad words. Replies go through the outbox like every other post.
 """
@@ -19,7 +19,7 @@ from .outbox import enqueue
 
 log = logging.getLogger(__name__)
 
-# A hard floor under Muse's own judgement: a reply containing any of these is dropped, never edited.
+# A hard floor under Grok's own judgement: a reply containing any of these is dropped, never edited.
 BLOCKED = re.compile(
     r"\b(fuck\w*|shit\w*|bitch\w*|cunt\w*|dick\w*|cock\w*|puss(y|ies)|whore\w*|slut\w*|bastard\w*|asshole\w*|"
     r"retard\w*|nigg\w*|fag\w*|porn\w*|nsfw|sex\w*|nude\w*|kill\s+(yourself|urself)|kys|rape\w*|nazi\w*|"
@@ -38,17 +38,17 @@ def clean(reply: str) -> str | None:
 
 
 def rules(s: Any) -> str:
-    """How MOOSE trades, from its live settings, so a reply never quotes an old rule."""
+    """How HORIZON trades, from its live settings, so a reply never quotes an old rule."""
     buy = ("buys every tradeable smart-money call the moment it lands" if s.scanner_buy_on_call
            else f"buys a smart-money call once it runs +{s.scanner_trigger_pct:g}% from the call")
     if s.pons_scan_enabled:
-        buy += ", and also coins its own Pons scan picks when Muse likes the story and the buying"
+        buy += ", and also coins its own Pons scan picks when Grok likes the story and the buying"
     tps = ", ".join(f"{f * 100:g}% at {m:g}x" for m, f in sorted(s.take_profit_ladder))
-    return f"MOOSE {buy}. Exits: a -{s.stop_loss_pct:g}% stop, take-profits ({tps}), and a {s.max_hold_hours:g}h timer."
+    return f"HORIZON {buy}. Exits: a -{s.stop_loss_pct:g}% stop, take-profits ({tps}), and a {s.max_hold_hours:g}h timer."
 
 
 def _coin(ctx: Any, token: str) -> dict[str, Any] | None:
-    """What MOOSE knows about the coin behind the post they replied to: its own story and MOOSE's thesis."""
+    """What HORIZON knows about the coin behind the post they replied to: its own story and HORIZON's thesis."""
     conn = ctx.conn
     row = conn.execute("SELECT symbol, name FROM launches WHERE lower(token)=lower(?)", (token,)).fetchone()
     d = conn.execute("SELECT thesis, raw FROM decisions WHERE lower(token)=lower(?) AND raw IS NOT NULL AND raw!='' "
@@ -64,7 +64,7 @@ def _coin(ctx: Any, token: str) -> dict[str, Any] | None:
         log.warning("lore unavailable for %s: %s", token, exc)
         lore = {}
     return {"symbol": row["symbol"] if row else None, "name": row["name"] if row else None,
-            "moose_thesis": raw.get("public_thesis") or (raw.get("narrative") or {}).get("take") or (d["thesis"] if d else None),
+            "horizon_thesis": raw.get("public_thesis") or (raw.get("narrative") or {}).get("take") or (d["thesis"] if d else None),
             "public_line": raw.get("public_line"), "coins_own_lore": lore}
 
 
@@ -121,12 +121,12 @@ def replies_once(ctx: Any) -> dict[str, Any]:
         res = ctx.brain.reply({"their_post": m.get("text", ""), "our_post_they_replied_to": ours["body"] if ours else None,
                                "coin": coin, "now_utc": datetime.now(timezone.utc).strftime("%A %d %B %Y, %H:%M UTC"),
                                "mode": s.trading_mode.value, "rules": rules(s),
-                               "moose_token_launched": bool(s.agent_token_address)})
+                               "own_token_launched": bool(s.agent_token_address)})
         d = res.decision
         text = clean(d.reply) if d and not d.skip else None
         if not text:
             declined += 1
-            journal_append(conn, "reply_declined", {"x_post_id": m["id"], "muse_skip": bool(d and d.skip),
+            journal_append(conn, "reply_declined", {"x_post_id": m["id"], "grok_skip": bool(d and d.skip),
                                                     "error": res.error, "draft": (d.reply if d else "")[:280]})
             continue
         _, new = enqueue(conn, Draft("reply", text, who, f"reply:{m['id']}", reply_to=f"x:{m['id']}"))
