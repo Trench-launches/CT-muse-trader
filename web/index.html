@@ -79,6 +79,8 @@ p { margin: 0; }
 a { color: inherit; }
 button { font: inherit; color: inherit; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 8px; }
+/* one page width for the nav and every section: 90% of the screen, never wider than 1600px. Nothing inside a
+   section reaches past it (no negative side margins or offsets), so content always lines up with the nav. */
 .wrap { width: 90%; max-width: 1600px; margin-inline: auto; }
 .sec { padding-block: var(--sec-pad); position: relative; }
 .center { text-align: center; }
@@ -360,7 +362,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lrecent { margin-top: clamp(18px, 3vh, 26px); display: grid; gap: 8px; }
 .lrh { display: flex; align-items: center; gap: 10px; }
 .lrh .example { margin-left: auto; }
-.lview { margin-inline: -4px; padding: 4px; }
+.lview { padding-block: 4px; }
 .lcard { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; width: 265px; margin-right: 10px;
   padding: 10px 12px; border-radius: 18px; background: var(--white); box-shadow: 0 1px 0 var(--line), 0 6px 16px -12px rgba(15,20,25,.25); }
 .lcard .lgo, .lcard .coinav { grid-row: span 2; width: 38px !important; height: 38px !important; border-radius: 50%; object-fit: cover; }
@@ -448,7 +450,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .fl .tile { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; }
 .fl .tile .ic { width: 14px; height: 14px; }
 @keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-.fl-1 { left: 0; top: 12%; } .fl-2 { left: -3%; top: 44%; animation-delay: -2s; } .fl-3 { right: 2%; top: 14%; animation-delay: -4s; } .fl-4 { left: 5%; bottom: 10%; animation-delay: -1s; }
+.fl-1 { left: 0; top: 12%; } .fl-2 { left: 2%; top: 44%; animation-delay: -2s; } .fl-3 { right: 2%; top: 14%; animation-delay: -4s; } .fl-4 { left: 5%; bottom: 10%; animation-delay: -1s; }
 @media (max-width: 1000px) { .fl { display: none; } }  /* the floating labels would cover the phone on narrower screens */
 @media (max-width: 1000px) { .chat.phone { transform: rotate(-2deg); } }
 .chat { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; background: rgba(255,255,255,.9); border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
