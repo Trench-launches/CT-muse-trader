@@ -76,6 +76,9 @@ TOTAL_BPS = 10_000
 
 # Flip to True only after the first real launch has shown these instructions are right on mainnet (simulate from
 # the journal, then check the sharing_config on Solscan). Settings can also turn it on: launch_fee_split_verified.
+# scripts/check_fee_split.py simulates the whole split on live mainnet coins without sending anything: on 2026-10-28
+# it came out active, locked and 90/10 on every normal coin tried, once create_fee_sharing_config passed its optional
+# accounts. A real launch is still the last check.
 FEE_PROGRAM_VERIFIED = False
 
 PUMPPORTAL_SLIPPAGE = 10           # percent, as in PumpPortal's own example
@@ -243,13 +246,16 @@ def sweep_creator_fee_ix(payer: Pubkey, mint: Pubkey, creator: Pubkey) -> Instru
 
 
 def create_fee_sharing_config_ix(payer: Pubkey, mint: Pubkey) -> Instruction:
-    """pump_fees `create_fee_sharing_config` (no args). Payer must be the coin's creator. The three trailing optional
-    accounts (pool, pump_amm_program, pump_amm_event_authority) are for graduated coins and are omitted here, as the
-    docs say ("omit otherwise"): we only split coins still on their curve."""
+    """pump_fees `create_fee_sharing_config` (no args). Payer must be the coin's creator. The three trailing accounts
+    (pool, pump_amm_program, pump_amm_event_authority) are Anchor *optional* accounts, for graduated coins. Optional
+    accounts can't be left out: an absent one is passed as the program's own id in its slot. Leaving them out fails
+    with AccountNotEnoughKeys (3005) on `pool`, as a mainnet simulation showed on 2026-10-28. We only split coins still
+    on their curve, so all three are placeholders."""
+    absent = _ro(PUMP_FEES_PROGRAM)
     return Instruction(PUMP_FEES_PROGRAM, DISC_CREATE_FEE_SHARING_CONFIG, [
         _ro(event_authority(PUMP_FEES_PROGRAM)), _ro(PUMP_FEES_PROGRAM), _signer(payer), _ro(pump_global()), _ro(mint),
         _rw(sharing_config_pda(mint)), _ro(SYSTEM_PROGRAM), _rw(bonding_curve_pda(mint)), _ro(PUMP_PROGRAM),
-        _ro(event_authority(PUMP_PROGRAM))])
+        _ro(event_authority(PUMP_PROGRAM)), absent, absent, absent])
 
 
 def update_fee_shares_v2_ix(authority: Pubkey, mint: Pubkey, current: list[Pubkey], shares: list[Share]) -> Instruction:
