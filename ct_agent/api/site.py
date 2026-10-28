@@ -157,7 +157,8 @@ def recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
     """Coins the launchpad launched, newest first: who made it, and the proof (VIGIL's announcement, the
     transaction, the creator-fee split set on chain)."""
     out = []
-    for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, r.logo, r.tx_hash, r.fee_shares, "
+    for r in rows(conn, "SELECT r.id, r.symbol, r.name, r.handle, r.token, COALESCE(r.image_uri, r.logo) AS logo, "
+                        "r.tx_hash, r.fee_shares, "
                         "r.launched_at, p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
                         "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
                         "WHERE r.status='launched' ORDER BY r.launched_at DESC LIMIT ?", (n,)):
@@ -370,8 +371,9 @@ def launch_board(conn: Any, s: Settings, curves: Any = None, prices_usd: Any = N
     price, and the latest creator-fee payouts. curves([mints]) -> {mint: curve account bytes} and
     prices_usd([mints]) -> {mint: usd} are passed in (one chain read and one market read for all coins), so a
     missing or failing one just leaves those fields empty."""
-    coins = [dict(r) for r in rows(conn, "SELECT symbol, name, handle, token, logo, tx_hash, fee_shares, recipient, "
-                                         "launched_at FROM launch_requests WHERE status='launched' "
+    coins = [dict(r) for r in rows(conn, "SELECT symbol, name, handle, token, COALESCE(image_uri, logo) AS logo, "
+                                         "tx_hash, fee_shares, recipient, launched_at FROM launch_requests "
+                                         "WHERE status='launched' "
                                          "ORDER BY launched_at DESC LIMIT 200")]
     mints = [c["token"] for c in coins]
     prices, curve_bytes = _try(prices_usd, mints), _try(curves, mints)

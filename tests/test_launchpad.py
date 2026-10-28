@@ -148,6 +148,7 @@ class _Launcher:
     def upload_metadata(self, name, symbol, description, image_url, socials=None):
         self.calls.append(("upload", symbol))
         self.last.update(description=description, socials=dict(socials or {}), image=image_url)
+        self.last_image_uri = "https://ipfs.io/ipfs/bafyimage"
         return "https://ipfs.io/ipfs/bafymeta"
 
     def launch(self, name, symbol, uri, dev_buy_sol, on_signed=None):
@@ -193,6 +194,9 @@ def test_announce_then_launch_then_split_90_10(settings, db):
         ("launched", MINT, "SIG1", "23400000", "SPLITSIG")
     assert json.loads(r["fee_shares"]) == [{"address": WALLET, "bps": 9000}, {"address": LAUNCHER, "bps": 1000}]
     assert r["metadata_uri"] == "https://ipfs.io/ipfs/bafymeta"
+    # the site shows the coin's own image, the copy pinned on IPFS (what pump.fun shows), not the tweet's attachment
+    from ct_agent.api.site import recent_launches
+    assert r["image_uri"] == "https://ipfs.io/ipfs/bafyimage" and recent_launches(db)[0]["logo"] == r["image_uri"]
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"]
     body = receipt["body"]
@@ -325,6 +329,7 @@ def test_metadata_goes_to_pinata_as_image_then_json(settings, db):
     assert web.pins[1]["json"] == {"name": "Cat Coin", "symbol": "CAT", "description": "a cat",
                                    "image": "https://ipfs.io/ipfs/bafyimage1", "twitter": "https://x.com/catcoin",
                                    "telegram": "", "website": "https://cat.example", "showName": True}
+    assert lp.last_image_uri == "https://ipfs.io/ipfs/bafyimage1"  # kept for the site
     with pytest.raises(LaunchBlocked, match="attached on X"):  # a post can't make the server fetch other hosts
         lp.upload_metadata("Cat Coin", "CAT", "a cat", "http://169.254.169.254/latest", {})
 

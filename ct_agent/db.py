@@ -50,6 +50,8 @@ def migrate(conn: sqlite3.Connection) -> None:
                      ("tp_hits", "INTEGER NOT NULL DEFAULT 0")):
         if col not in pcols:
             conn.execute(f"ALTER TABLE positions ADD COLUMN {col} {ddl}")
+    if "image_uri" not in {r["name"] for r in conn.execute("PRAGMA table_info(launch_requests)")}:
+        conn.execute("ALTER TABLE launch_requests ADD COLUMN image_uri TEXT")
 
 
 def open_db(path: str) -> sqlite3.Connection:

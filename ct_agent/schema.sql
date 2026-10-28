@@ -221,6 +221,7 @@ CREATE TABLE IF NOT EXISTS launch_requests (
     recipient       TEXT,                   -- the requester's Solana wallet: gets their share of the creator fees
     token           TEXT,                   -- the new coin's mint
     metadata_uri    TEXT,                   -- IPFS metadata the coin points to
+    image_uri       TEXT,                   -- the coin's image as pinned on IPFS (what pump.fun shows)
     tx_hash         TEXT,                   -- the create transaction signature
     cost_lamports   TEXT,                   -- what the launch cost VIGIL (fees, rent, dev buy)
     fee_share_tx    TEXT,                   -- the transaction that set the creator-fee split

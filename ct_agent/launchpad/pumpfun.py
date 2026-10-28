@@ -337,6 +337,7 @@ class PumpLauncher:
     transport: httpx.BaseTransport | None = None   # tests: an httpx.MockTransport for Pinata, PumpPortal and images
     fee_split_verified: bool | None = None          # None: FEE_PROGRAM_VERIFIED or settings.launch_fee_split_verified
     new_mint: Callable[[], Keypair] = field(default=Keypair)
+    last_image_uri: str | None = None              # the image the last upload pinned (its IPFS URL)
 
     def __post_init__(self) -> None:
         if self.http is None or self.transport is not None:
@@ -423,7 +424,7 @@ class PumpLauncher:
         if len(data) > MAX_IMAGE_BYTES:
             raise LaunchBlocked("the coin image is too big")
         mime, ext = image_type(data)
-        image = self._pin(f"{symbol.lower()}.{ext}", data, mime)
+        image = self.last_image_uri = self._pin(f"{symbol.lower()}.{ext}", data, mime)  # the site shows this copy
         meta = {"name": name, "symbol": symbol, "description": description, "image": image,
                 "twitter": socials.get("twitter", ""), "telegram": socials.get("telegram", ""),
                 "website": socials.get("website", ""), "showName": True}

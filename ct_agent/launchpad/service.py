@@ -219,8 +219,8 @@ def _launch(ctx: Any, launcher: PumpLauncher, r: dict[str, Any]) -> int:
         uri = r.get("metadata_uri")
         if not uri:
             uri = launcher.upload_metadata(r["name"], r["symbol"], desc, r["logo"], socials)
-            conn.execute("UPDATE launch_requests SET metadata_uri=?, socials=? WHERE id=?",
-                         (uri, json.dumps(socials), r["id"]))
+            conn.execute("UPDATE launch_requests SET metadata_uri=?, image_uri=?, socials=? WHERE id=?",
+                         (uri, getattr(launcher, "last_image_uri", None), json.dumps(socials), r["id"]))
         out = launcher.launch(r["name"], r["symbol"], uri, s.launch_dev_buy_sol, on_signed=signed)
     except LaunchUnconfirmed as exc:
         log.warning("launch %s sent but not confirmed yet: %s", r["id"], exc)
