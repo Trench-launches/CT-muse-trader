@@ -2,21 +2,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VIGIL · powered by Grok</title>
 <meta name="description" content="VIGIL reads thousands of new memecoins a day on Robinhood Chain, checks every claim onchain with Grok and trades the rare good ones in public. Losses included.">
-<!-- canonical, og:url and the share image use the current domain: they change when the site moves -->
-<link rel="canonical" href="https://www.moosebymuse.com/">
+<!-- canonical, og:url, the share image and twitter:site are filled in from SITE_URL and SITE_X_HANDLE by scripts/deploy-web.sh -->
+<link rel="canonical" href="https://example.com/">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="64x64" href="/assets/icon-64.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/icon-16.png">
 <link rel="apple-touch-icon" href="/assets/icon-180.png">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://www.moosebymuse.com/">
+<meta property="og:url" content="https://example.com/">
 <meta property="og:title" content="VIGIL, powered by Grok">
 <meta property="og:description" content="An AI, powered by Grok, that watches every memecoin launch on Robinhood Chain, checks every claim onchain and trades in public. Losses included.">
-<meta property="og:image" content="https://www.moosebymuse.com/assets/og-vigil.png">
+<meta property="og:image" content="https://example.com/assets/og-vigil.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:site" content="@MooseByMuse"><!-- the X account: change it together with X_HANDLE in the script -->
-<meta name="twitter:image" content="https://www.moosebymuse.com/assets/og-vigil.png">
+<meta name="twitter:site" content="">
+<meta name="twitter:image" content="https://example.com/assets/og-vigil.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
@@ -1602,7 +1602,7 @@ footer nav a:hover { color: var(--ink); }
   // Per-deployment settings live in config.js (written by scripts/deploy-web.sh from SITE_* variables)
   const C = window.SITE_CONFIG || {};
   const NAME = C.name || "VIGIL";
-  const X_HANDLE = C.xHandle || "";  // the X account, without the @ (also set twitter:site in <head>)
+  const X_HANDLE = C.xHandle || "";  // the X account, without the @
   const X_PROFILE = "https://x.com/" + X_HANDLE;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const $ = (s, r = document) => r.querySelector(s);
