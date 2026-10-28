@@ -1080,6 +1080,18 @@ h1 .blue, h2 .blue { color: var(--ink-3); }               /* two-tone headlines:
   -webkit-mask-image: linear-gradient(#000 0 17%, transparent 17% 31%, #000 31% 62%, transparent 62% 69%, #000 69%);
   mask-image: linear-gradient(#000 0 17%, transparent 17% 31%, #000 31% 62%, transparent 62% 69%, #000 69%); }
 @media (max-width: 1000px) { .chat.phone { transform: none; } }
+/* The phone keeps one size: its width comes from its height and the aspect ratio, never from what's on screen.
+   (A flex item won't shrink below its content's widest line, so the decision card used to widen the whole phone.)
+   The card is tightened to fit, and long words wrap. */
+.chat.phone { min-width: 0; }
+.phone .msgs { min-width: 0; overflow-x: hidden; }
+.phone .msg { overflow-wrap: anywhere; }
+.phone .vd-head { gap: 10px; padding: 12px; }
+.phone .vd-act { padding: 7px 11px; font-size: 13.5px; }
+.phone .vd-label { flex-wrap: wrap; column-gap: 6px; letter-spacing: .06em; }
+.phone .vd-label b { font-size: 19px; }
+.phone .vd-body { padding: 12px; }
+.phone .vd-risk { padding: 10px 12px; gap: 10px; }
 .chat-panel::before { background: radial-gradient(closest-side, rgba(var(--glow), .10), transparent); }
 .msg.bot { background: var(--card-2); }
 .msg.sys { background: #FAFAFA; color: #000; }
