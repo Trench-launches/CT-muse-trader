@@ -196,7 +196,7 @@ def test_announce_then_launch_then_split_90_10(settings, db):
     assert r["metadata_uri"] == "https://ipfs.io/ipfs/bafymeta"
     # the site shows the coin's own image, the copy pinned on IPFS (what pump.fun shows), not the tweet's attachment
     from ct_agent.api.site import recent_launches
-    assert r["image_uri"] == "https://ipfs.io/ipfs/bafyimage" and recent_launches(db)[0]["logo"] == r["image_uri"]
+    assert r["image_uri"] == "https://ipfs.io/ipfs/bafyimage" and recent_launches(db)[0]["logo"] == "https://gateway.pinata.cloud/ipfs/bafyimage"
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"]
     body = receipt["body"]
@@ -640,7 +640,7 @@ def test_a_launch_test_coin_is_imported_from_the_chain(settings, db):
     assert json.loads(r["fee_shares"]) == [{"address": WALLET, "bps": 9000}, {"address": LAUNCHER, "bps": 1000}]
     assert r["launched_at"].startswith("2027-01-15")  # the launch transaction's block time
     coin = site.launch_board(db, lp.settings)["coins"][0]
-    assert coin["symbol"] == "VTEST" and coin["creator_share_bps"] == 9000 and coin["logo"] == "https://ipfs.io/ipfs/bafyimg"
+    assert coin["symbol"] == "VTEST" and coin["creator_share_bps"] == 9000 and coin["logo"] == "https://gateway.pinata.cloud/ipfs/bafyimg"
     assert import_launch(db, lp.settings, lp, MINT)["status"] == "exists"  # a second import changes nothing
     assert len(rows(db, "SELECT * FROM launch_requests")) == 1
     assert rows(db, "SELECT * FROM posts") == []  # nothing is posted on X for an imported coin

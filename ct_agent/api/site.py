@@ -153,6 +153,21 @@ def _with_v1(sc: dict[str, Any], v1: dict[str, Any]) -> dict[str, Any]:
     return sc
 
 
+# Coin images are pinned on Pinata (where the launcher uploads them). The public ipfs.io gateway rate-limits
+# browsers (HTTP 429), so the site is given the same file through Pinata's gateway instead. The metadata on
+# chain is left as it is.
+PUBLIC_IPFS = ("https://ipfs.io/ipfs/", "https://dweb.link/ipfs/", "https://cloudflare-ipfs.com/ipfs/")
+SHOW_IPFS = "https://gateway.pinata.cloud/ipfs/"
+
+
+def shown_image(url: str | None) -> str | None:
+    """The URL the site should load a coin image from."""
+    for gw in PUBLIC_IPFS:
+        if url and url.startswith(gw):
+            return SHOW_IPFS + url[len(gw):]
+    return url
+
+
 def recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
     """Coins the launchpad launched, newest first: who made it, and the proof (VIGIL's announcement, the
     transaction, the creator-fee split set on chain)."""
@@ -165,6 +180,7 @@ def recent_launches(conn: Any, n: int = 8) -> list[dict[str, Any]]:
         item = {k: r[k] for k in ("symbol", "name", "handle", "token", "logo", "tx_hash", "launched_at",
                                   "announce_x_id")}
         item["fee_shares"] = _j(r["fee_shares"], None)
+        item["logo"] = shown_image(item["logo"])
         out.append(item)
     return out
 
@@ -381,6 +397,7 @@ def launch_board(conn: Any, s: Settings, curves: Any = None, prices_usd: Any = N
     for c in coins:
         shares = _j(c.pop("fee_shares"), None)
         c["creator_share_bps"] = _requester_bps(shares, c.pop("recipient"))
+        c["logo"] = shown_image(c["logo"])
         c["fee_split_locked"] = shares is not None
         c.update(curve_progress(curve_bytes.get(c["token"])) or {"progress_pct": None, "graduated": None, "curve_sol": None})
         px = prices.get(c["token"])

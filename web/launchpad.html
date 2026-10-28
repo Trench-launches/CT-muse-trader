@@ -493,10 +493,14 @@ a.lrow:hover { background: var(--panel); }
       return;
     }
     $("#wallEmpty").hidden = true;
-    let list = coins.slice(0, 16);
-    while (list.length < 12) list = list.concat(coins);
-    const html = list.slice(0, 16).map(wallTile).join("");
-    wall.innerHTML = html + (list.length >= 12 ? html : "");  // twice, so the slow scroll loops seamlessly
+    const ghost = `<div class="wt ghost"><div class="img"></div><b>$ — — —</b></div>`;
+    if (coins.length < 12) {  // each coin once, then quiet placeholders; no scroll until the wall is full
+      wall.classList.remove("moving");
+      wall.innerHTML = coins.map(wallTile).join("") + ghost.repeat(12 - coins.length);
+      return;
+    }
+    const html = coins.slice(0, 16).map(wallTile).join("");
+    wall.innerHTML = html + html;  // twice, so the slow scroll loops seamlessly
     wall.classList.toggle("moving", !matchMedia("(prefers-reduced-motion: reduce)").matches);
   };
 

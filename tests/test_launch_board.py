@@ -87,3 +87,14 @@ def test_board_endpoint_reads_every_curve_in_one_call(settings, db):
     assert d["coins"][0]["progress_pct"] == 50.0 and d["coins"][0]["market_cap_usd"] == 10000.0
     assert calls == [([str(pf.bonding_curve_pda(MINT_A))], "base64")]
     site._BOARD.clear()
+
+
+def test_coin_images_come_through_pinatas_gateway(settings, db):
+    """ipfs.io rate-limits browsers (429); the same pinned file is served through Pinata's gateway."""
+    assert site.shown_image("https://ipfs.io/ipfs/bafyimg") == "https://gateway.pinata.cloud/ipfs/bafyimg"
+    assert site.shown_image("https://pbs.twimg.com/media/x.jpg") == "https://pbs.twimg.com/media/x.jpg"
+    assert site.shown_image(None) is None
+    _launched(db, 1, MINT_A, "CAT")
+    db.execute("UPDATE launch_requests SET image_uri='https://ipfs.io/ipfs/bafycat'")
+    assert site.launch_board(db, settings)["coins"][0]["logo"] == "https://gateway.pinata.cloud/ipfs/bafycat"
+    assert site.recent_launches(db)[0]["logo"] == "https://gateway.pinata.cloud/ipfs/bafycat"
