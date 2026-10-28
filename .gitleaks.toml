@@ -59,4 +59,4 @@ regexes = ['''^0x[0-9a-fA-F]{40}$''']
 [[allowlists]]
 description = "Code after the word token: snake_case names such as quote_symbol or is_pons_v2_launch_on_robinhood_chain"
 targetRules = ["generic-api-key"]
-regexes = ['''^[a-z][a-z0-9]*(_[a-z0-9]+)+$''']
+regexes = ['''^[a-z][a-z0-9]*(_[a-z0-9]+)+=?$''']  # "quote_symbol=" when a keyword argument follows
