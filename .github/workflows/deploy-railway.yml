@@ -12,7 +12,6 @@ on:
       - "tests/**"
       - "pyproject.toml"
       - "Dockerfile"
-      - "railway.json"
       - ".railwayignore"
       - ".github/workflows/deploy-railway.yml"
   workflow_dispatch:
