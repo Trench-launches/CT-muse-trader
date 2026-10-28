@@ -263,6 +263,21 @@ a.lrow:hover { background: var(--panel); }
 }
 @media (max-width: 520px) { .hide-sm { display: none !important; } .hero h1 { font-size: 36px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* background: the home page's grid that lights up around the cursor, only over the bare black page */
+.app { position: relative; z-index: 1; }
+.bg-fx { --mx: -999px; --my: -999px; position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0; transition: opacity .45s ease; }
+.bg-fx.lit { opacity: 1; }  /* not .on: that's this page's green "ON" pill */
+.bg-fx i { position: absolute; inset: 0; }
+.bg-grid, .bg-hot { background-size: 44px 44px; background-position: 0 var(--gy, 0); }
+.bg-grid { background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
+  -webkit-mask-image: radial-gradient(300px circle at var(--mx) var(--my), #000 0%, rgba(0,0,0,.5) 45%, transparent 75%);
+          mask-image: radial-gradient(300px circle at var(--mx) var(--my), #000 0%, rgba(0,0,0,.5) 45%, transparent 75%); }
+.bg-hot { background-image: linear-gradient(rgba(255,255,255,.28) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.28) 1px, transparent 1px);
+  -webkit-mask-image: radial-gradient(120px circle at var(--mx) var(--my), #000 0%, transparent 80%);
+          mask-image: radial-gradient(120px circle at var(--mx) var(--my), #000 0%, transparent 80%); }
+.bg-glow { background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.055), transparent 70%); }
+@media (hover: none), (prefers-reduced-motion: reduce) { .bg-fx { display: none; } }
 </style>
 </head>
 <body>
@@ -288,6 +303,7 @@ a.lrow:hover { background: var(--panel); }
   <symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7h16v13H3z"/><path d="M3 7V5h13v2"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/></symbol>
 </svg>
 
+<div class="bg-fx" id="bgFx" aria-hidden="true"><i class="bg-grid"></i><i class="bg-hot"></i><i class="bg-glow"></i></div>
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <a class="logo" href="/" aria-label="VIGIL home"><span class="face" aria-hidden="true"></span><span><span class="word">VIGIL</span><span class="tag">powered by Grok</span></span></a>
@@ -592,6 +608,36 @@ a.lrow:hover { background: var(--panel); }
   };
   renderWall([]); renderBars([]); renderTokens();
   load(); setInterval(load, 60000);
+})();
+</script>
+<script>
+// background grid: follows the cursor, and only shows while it's over the bare page (not a panel, the sidebar or the top bar)
+(() => {
+  const fx = document.getElementById("bgFx");
+  if (!fx || matchMedia("(hover: none)").matches) return;
+  const bare = new WeakMap();
+  const isBare = el => {
+    for (let n = el; n && n !== document.body; n = n.parentElement) {
+      if (bare.has(n)) { if (!bare.get(n)) return false; continue; }
+      const cs = getComputedStyle(n);
+      const solid = (cs.backgroundColor !== "rgba(0, 0, 0, 0)" && cs.backgroundColor !== "transparent") || cs.backgroundImage !== "none"
+        || n.matches("a, button, input, textarea, img, svg, video");
+      bare.set(n, !solid);
+      if (solid) return false;
+    }
+    return true;
+  };
+  let x = -999, y = -999, target = null, raf = 0;
+  const paint = () => {
+    raf = 0;
+    fx.style.setProperty("--mx", x + "px"); fx.style.setProperty("--my", y + "px");
+    fx.style.setProperty("--gy", -(scrollY % 44) + "px");  // the grid moves with the page as it scrolls
+    fx.classList.toggle("lit", !!target && isBare(target));
+  };
+  const queue = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  addEventListener("pointermove", e => { if (e.pointerType !== "mouse") return; x = e.clientX; y = e.clientY; target = e.target; queue(); }, { passive: true });
+  addEventListener("scroll", () => { if (x > -999) { target = document.elementFromPoint(x, y); queue(); } }, { passive: true });
+  document.documentElement.addEventListener("pointerleave", () => { target = null; queue(); });
 })();
 </script>
 </body>
