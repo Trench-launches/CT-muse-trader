@@ -226,6 +226,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from .site import recent_launches
         return recent_launches(conn, min(limit, 50))
 
+    @app.get("/launchpad/board")
+    def launch_board(conn=Depends(db)) -> dict[str, Any]:
+        """The launchpad dashboard: stats, every launched coin with its curve progress and price, and the latest
+        creator-fee payouts. Chain and market reads are cached for a minute and never fail the request."""
+        import base64
+        from ..launchpad.pumpfun import bonding_curve_pda
+        from .site import launch_board_cached
+
+        def curves(mints: list[str]) -> dict[str, bytes]:  # one getMultipleAccounts read for every coin's curve
+            accs = chat_services()["rpc"].multiple_accounts([str(bonding_curve_pda(m)) for m in mints], encoding="base64")
+            return {m: base64.b64decode(a["data"][0]) for m, a in zip(mints, accs) if a}
+
+        return launch_board_cached(conn, s, curves, lambda mints: chat_services()["market"].prices_usd(mints))
+
     @app.get("/positions")
     def positions(status: str | None = None, mode: str | None = None, conn=Depends(db)) -> list[dict[str, Any]]:
         q, a = "SELECT p.*, t.symbol FROM positions p LEFT JOIN tokens t ON t.mint=p.token WHERE 1=1", []

@@ -327,3 +327,100 @@ def _build(conn: Any, s: Settings) -> dict[str, Any]:
         "posts": posts, "trade_threads": trade_threads,
         "score": score,
     }
+
+
+# --- the launchpad dashboard (/launchpad on the site) -------------------------------------------------------------
+
+# pump.fun's standard curve starts with 793.1M tokens for sale (6 decimals); a coin graduates when they're all sold
+CURVE_START_TOKENS = 793_100_000 * 10**6
+LAMPORTS = 10**9
+_BOARD: dict[str, Any] = {}
+BOARD_CACHE_S = 60
+
+
+def curve_progress(data: bytes | None) -> dict[str, Any] | None:
+    """How far a pump.fun bonding curve is to graduating, from its account data: BondingCurve is 8 bytes of
+    discriminator, then virtual token, virtual SOL, real token and real SOL reserves (u64 each), supply, complete.
+    Only for standard SOL curves (the kind VIGIL launches): pump.fun also runs curves quoted in other coins or
+    starting with more tokens, and for those this formula would be wrong, so they get no progress (None)."""
+    if not data or len(data) < 49:
+        return None
+    real_tokens, real_sol = (int.from_bytes(data[o:o + 8], "little") for o in (24, 32))
+    done = data[48] == 1
+    try:
+        from ..launchpad.pumpfun import WSOL_MINT, parse_bonding_curve
+        quote = parse_bonding_curve(data)["quote_mint"]
+    except Exception:
+        quote = None
+    if quote not in (None, str(WSOL_MINT)) or (not done and real_tokens > CURVE_START_TOKENS):
+        return None
+    pct = 100.0 if done else max(0.0, min(100.0, (1 - real_tokens / CURVE_START_TOKENS) * 100))
+    return {"progress_pct": round(pct, 1), "graduated": done, "curve_sol": round(real_sol / LAMPORTS, 3)}
+
+
+def _requester_bps(fee_shares: Any, recipient: str | None) -> int:
+    for sh in fee_shares or []:
+        if recipient and sh.get("address") == recipient:
+            return int(sh.get("bps") or 0)
+    return 0
+
+
+def launch_board(conn: Any, s: Settings, curves: Any = None, prices_usd: Any = None) -> dict[str, Any]:
+    """Everything the launchpad dashboard shows: launch stats, every launched coin with its curve progress and
+    price, and the latest creator-fee payouts. curves([mints]) -> {mint: curve account bytes} and
+    prices_usd([mints]) -> {mint: usd} are passed in (one chain read and one market read for all coins), so a
+    missing or failing one just leaves those fields empty."""
+    coins = [dict(r) for r in rows(conn, "SELECT symbol, name, handle, token, logo, tx_hash, fee_shares, recipient, "
+                                         "launched_at FROM launch_requests WHERE status='launched' "
+                                         "ORDER BY launched_at DESC LIMIT 200")]
+    mints = [c["token"] for c in coins]
+    prices, curve_bytes = _try(prices_usd, mints), _try(curves, mints)
+    by_mint = {}
+    for c in coins:
+        shares = _j(c.pop("fee_shares"), None)
+        c["creator_share_bps"] = _requester_bps(shares, c.pop("recipient"))
+        c["fee_split_locked"] = shares is not None
+        c.update(curve_progress(curve_bytes.get(c["token"])) or {"progress_pct": None, "graduated": None, "curve_sol": None})
+        px = prices.get(c["token"])
+        c["price_usd"] = px
+        c["market_cap_usd"] = round(px * 1_000_000_000, 2) if px else None  # pump.fun coins have 1B supply
+        by_mint[c["token"]] = c
+    payouts = []
+    for j in rows(conn, "SELECT ts, payload FROM journal WHERE kind='launchpad_distributed' ORDER BY id DESC LIMIT 12"):
+        p = _j(j["payload"], {})
+        c = by_mint.get(p.get("mint"), {})
+        total = int(p.get("lamports") or 0)
+        payouts.append({"at": j["ts"], "token": p.get("mint"), "symbol": c.get("symbol"), "signature": p.get("signature"),
+                        "total_sol": round(total / LAMPORTS, 6),
+                        "creator_sol": round(total * (c.get("creator_share_bps") or 0) / 10_000 / LAMPORTS, 6)})
+    paid = sum(p["creator_sol"] for p in payouts)
+    day = _since(24)
+    n = lambda q, *a: conn.execute(q, a).fetchone()[0]  # noqa: E731
+    stats = {
+        "enabled": s.launchpad_enabled, "creator_share_bps": s.launch_creator_share_bps,
+        "launched": len(coins), "launched_24h": sum(1 for c in coins if (c["launched_at"] or "") >= day),
+        "requests_24h": n("SELECT COUNT(*) FROM launch_requests WHERE created_at>=?", day),
+        "refused_24h": n("SELECT COUNT(*) FROM launch_requests WHERE status='refused' AND created_at>=?", day),
+        "per_user_day": s.launch_per_user_day, "min_account_days": s.launch_min_account_days,
+        "creator_fees_paid_sol": round(paid, 6),
+    }
+    return {"stats": stats, "coins": coins, "payouts": payouts, "generated_at": datetime.now(timezone.utc).isoformat()}
+
+
+def _try(read: Any, mints: list[str]) -> dict[str, Any]:
+    """A chain or market read for the board: decoration, so a failure leaves the fields empty instead of failing."""
+    if not read or not mints:
+        return {}
+    try:
+        return read(mints) or {}
+    except Exception:
+        return {}
+
+
+def launch_board_cached(conn: Any, s: Settings, curves: Any = None, prices_usd: Any = None) -> dict[str, Any]:
+    hit = _BOARD.get("v")
+    if hit and time.time() - hit[0] < BOARD_CACHE_S:
+        return hit[1]
+    out = launch_board(conn, s, curves, prices_usd)
+    _BOARD["v"] = (time.time(), out)
+    return out
