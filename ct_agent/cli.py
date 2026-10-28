@@ -12,6 +12,7 @@
   ctagent report [--hours 24]      what happened after each call, by variable
   ctagent wallet                   the trading wallet's address and SOL balance (never the key)
   ctagent live-test <mint> [--sol 0.01]    one tiny real buy then sell through Jupiter
+  ctagent launch-test <image> --name N --symbol S --fees-to W   one real pump.fun launch, then its fee split
 """
 from __future__ import annotations
 
@@ -53,12 +54,20 @@ def main(argv: list[str] | None = None) -> int:
     lt = sub.add_parser("live-test")
     lt.add_argument("token")
     lt.add_argument("--sol", type=float, default=0.01)
+    ln = sub.add_parser("launch-test")
+    ln.add_argument("image", help="the coin's image file (PNG, JPEG, GIF or WebP)")
+    ln.add_argument("--name", required=True)
+    ln.add_argument("--symbol", required=True)
+    ln.add_argument("--fees-to", required=True, help="the wallet that gets the requester's share of creator fees")
+    ln.add_argument("--description", default="A test launch by VIGIL.")
+    ln.add_argument("--dev-buy", type=float, default=0.0, help="SOL the launcher buys at creation (max 0.05)")
+    ln.add_argument("--yes", action="store_true", help="don't ask before sending")
     t = sub.add_parser("twitch-subscribe")
     t.add_argument("callback")
     t.add_argument("--bot-user-id")
     args = p.parse_args(argv)
     s = get_settings()
-    if args.cmd in ("run", "run-all", "api", "live-test"):
+    if args.cmd in ("run", "run-all", "api", "live-test", "launch-test"):
         from .safety import CHECKED_ENV, UnsafeSettings, enforce
         try:
             enforce(s)
@@ -110,6 +119,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"trading wallet {ctx.live.wallet}: {sol(ctx.rpc.get_balance(ctx.live.wallet)):.6f} SOL")
     elif args.cmd == "live-test":
         return _live_test(s, args.token, args.sol)
+    elif args.cmd == "launch-test":
+        return _launch_test(s, args.image, args.name, args.symbol, args.fees_to, description=args.description,
+                            dev_buy=args.dev_buy, yes=args.yes)
     elif args.cmd == "twitch-subscribe":
         from .sources.twitch import TwitchApi
         api = TwitchApi(s.twitch_client_id, s.twitch_client_secret)
@@ -153,6 +165,69 @@ def _live_test(s, token: str, size_sol: float) -> int:
     after = sol(ctx.rpc.get_balance(ctx.live.wallet))
     print(f"round trip cost {bal - after:.6f} SOL incl. fees and token-account rent; wallet now {after:.6f} SOL")
     return 0
+
+
+def _launch_test(s, image: str, name: str, symbol: str, fees_to: str, *, description: str = "", dev_buy: float = 0.0,
+                 yes: bool = False, rpc=None, conn=None, transport=None, ask=input) -> int:
+    """One real launch from the launcher wallet, then its creator-fee split, read back from the chain. This is the
+    check the launchpad waits for before it sends fee splits on its own (CT_LAUNCH_FEE_SPLIT_VERIFIED). It spends SOL:
+    about 0.03 for the launch and the split, plus the dev buy."""
+    from pathlib import Path
+    from .chain.keys import is_pubkey
+    from .launchpad.pumpfun import LaunchBlocked, PumpLauncher, split_for
+    from .units import lamports, sol
+    symbol = symbol.strip().lstrip("$").upper()
+    if dev_buy < 0 or dev_buy > 0.05:
+        print("launch-test's dev buy is capped at 0.05 SOL")
+        return 1
+    if not is_pubkey(fees_to):
+        print(f"--fees-to {fees_to!r} isn't a Solana address")
+        return 1
+    try:
+        data = Path(image).read_bytes()
+    except OSError as exc:
+        print(f"can't read the image: {exc}")
+        return 1
+    if rpc is None or conn is None:
+        from .context import build
+        ctx = build(s)
+        rpc, conn = rpc or ctx.rpc, conn or ctx.conn
+    s = s.model_copy(update={"launchpad_enabled": True})  # this one launch only; the server's setting is untouched
+    lp = PumpLauncher(s, rpc, conn, transport=transport, fee_split_verified=True)
+    if not lp.wallet:
+        print("no launcher wallet key set (CT_LAUNCHER_WALLET_PRIVATE_KEY)")
+        return 1
+    if fees_to == lp.wallet:
+        print("--fees-to must be another wallet than the launcher, or the split has nothing to check")
+        return 1
+    shares = split_for(fees_to, lp.wallet, s.launch_creator_share_bps)
+    before = rpc.get_balance(lp.wallet)
+    print(f"launcher {lp.wallet}: {sol(before):.4f} SOL")
+    print(f"launch ${symbol} \"{name}\" on pump.fun, dev buy {dev_buy:g} SOL, then lock the creator fees: "
+          + ", ".join(f"{sh.bps / 100:g}% to {sh.address}" for sh in shares))
+    print(f"this spends about {0.03 + dev_buy:.3f} SOL and can't be undone")
+    if not yes and ask(f"type {symbol} to go ahead: ").strip().upper() != symbol:
+        print("stopped, nothing sent")
+        return 1
+    try:
+        uri = lp.upload_metadata_image(name, symbol, description, data)
+        out = lp.launch(name, symbol, uri, dev_buy)
+        print(f"launched {out.mint}  {s.explorer_url}/tx/{out.signature}  https://pump.fun/coin/{out.mint}")
+        sig = lp.set_fee_split(out.mint, shares)
+    except LaunchBlocked as exc:
+        print(f"blocked: {exc}")
+        return 1
+    cfg = lp.sharing_config(out.mint) or {}
+    got = [(sh.address, sh.bps) for sh in cfg.get("shareholders", [])]
+    print(f"fee split {s.explorer_url}/tx/{sig}" if sig else "fee split already locked")
+    print(f"on chain: {'locked' if cfg.get('admin_revoked') else 'NOT locked'}, "
+          + ", ".join(f"{b / 100:g}% to {a}" for a, b in got))
+    print(f"spent {sol(before - rpc.get_balance(lp.wallet)):.4f} SOL")
+    if cfg.get("admin_revoked") and got == [(sh.address, sh.bps) for sh in shares]:
+        print("the split is right: set CT_LAUNCH_FEE_SPLIT_VERIFIED=true on the server to let the launchpad send splits")
+        return 0
+    print("the split on chain isn't what was asked: keep CT_LAUNCH_FEE_SPLIT_VERIFIED off and look into it")
+    return 1
 
 
 def _x_login(s, *, open_browser: bool) -> int:

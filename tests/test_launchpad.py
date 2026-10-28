@@ -558,3 +558,42 @@ def test_end_to_end_launch_with_the_guard_on_then_off(settings, db):
     assert r["fee_share_tx"] == str(node.sent[1].signatures[0])
     upd = node.sent[1].message.instructions[-1]
     assert base64.b64encode(bytes(upd.data)[:8]) == base64.b64encode(pf.DISC_UPDATE_FEE_SHARES_V2)
+
+
+# --- ctagent launch-test -----------------------------------------------------------------------------------------------
+
+def _launch_test(settings, db, node, tmp_path, answer="TST", **kw):
+    from ct_agent import cli
+    img = tmp_path / "coin.png"
+    img.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 64)
+    s = settings.model_copy(update={"launcher_wallet_private_key": LAUNCHER_SECRET, "pinata_jwt": "test-jwt"})
+    asked = []
+    args = {"rpc": node.rpc, "conn": db, "transport": FakeWeb().transport, "ask": lambda q: asked.append(q) or answer}
+    code = cli._launch_test(s, str(img), "Test Coin", kw.pop("symbol", "tst"), kw.pop("fees_to", WALLET), **args, **kw)
+    return code, asked
+
+
+def test_launch_test_launches_then_locks_the_split_and_reads_it_back(settings, db, tmp_path, capsys):
+    node = _funded()
+    code, asked = _launch_test(settings, db, node, tmp_path)
+    out = capsys.readouterr().out
+    assert code == 0 and "type TST to go ahead" in asked[0]  # the ticker, upper-cased, is the confirmation
+    assert len(node.sent) == 2  # the launch, then the split
+    assert "on chain: locked, 90% to " + WALLET + ", 10% to " + LAUNCHER in out
+    assert "set CT_LAUNCH_FEE_SPLIT_VERIFIED=true" in out
+
+
+def test_launch_test_sends_nothing_without_the_ticker_typed(settings, db, tmp_path, capsys):
+    node = _funded()
+    code, _ = _launch_test(settings, db, node, tmp_path, answer="yes")
+    assert code == 1 and node.sent == [] and "nothing sent" in capsys.readouterr().out
+
+
+def test_launch_test_refuses_a_big_dev_buy_or_the_launcher_as_fee_wallet(settings, db, tmp_path, capsys):
+    node = _funded()
+    assert _launch_test(settings, db, node, tmp_path, dev_buy=0.5)[0] == 1
+    assert _launch_test(settings, db, node, tmp_path, fees_to=LAUNCHER)[0] == 1
+    assert _launch_test(settings, db, node, tmp_path, fees_to="not-a-wallet")[0] == 1
+    assert node.sent == []
+    out = capsys.readouterr().out
+    assert "capped at 0.05 SOL" in out and "another wallet than the launcher" in out and "isn't a Solana address" in out

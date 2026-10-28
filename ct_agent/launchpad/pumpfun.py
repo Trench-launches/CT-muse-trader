@@ -103,6 +103,16 @@ CREATE_TX_PROGRAMS = {COMPUTE_BUDGET_PROGRAM, SYSTEM_PROGRAM, PUMP_PROGRAM, PUMP
                       TOKEN_PROGRAM, TOKEN_2022_PROGRAM, MPL_TOKEN_METADATA}
 
 
+def image_type(data: bytes) -> tuple[str, str]:
+    """(mime, extension) of a coin image, from its first bytes: PNG, JPEG, GIF or WebP only."""
+    for magic, (mime, ext) in IMAGE_TYPES.items():
+        if data.startswith(magic):
+            return mime, ext
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp", "webp"
+    raise LaunchBlocked("the coin image isn't a PNG, JPEG, GIF or WebP")
+
+
 class LaunchBlocked(RuntimeError):
     """Nothing was sent (or what was sent failed): safe to report as not launched."""
 
@@ -378,12 +388,7 @@ class PumpLauncher:
         except httpx.HTTPError as exc:
             raise LaunchBlocked(f"couldn't fetch the coin image: {type(exc).__name__}") from exc
         data = bytes(buf)
-        for magic, (mime, ext) in IMAGE_TYPES.items():
-            if data.startswith(magic):
-                return data, mime, ext
-        if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-            return data, "image/webp", "webp"
-        raise LaunchBlocked("the coin image isn't a PNG, JPEG, GIF or WebP")
+        return (data, *image_type(data))
 
     def _pin(self, name: str, content: bytes, mime: str) -> str:
         jwt = getattr(self.settings, "pinata_jwt", "")
@@ -406,9 +411,16 @@ class PumpLauncher:
 
     def upload_metadata(self, name: str, symbol: str, description: str, image_url: str,
                         socials: dict[str, str] | None = None) -> str:
-        """Pin the request's image, then the metadata JSON pump.fun reads; returns the metadata URI."""
+        """Pin the request's image (attached on X), then the metadata JSON pump.fun reads; returns the metadata URI."""
+        return self.upload_metadata_image(name, symbol, description, self._image(image_url)[0], socials)
+
+    def upload_metadata_image(self, name: str, symbol: str, description: str, data: bytes,
+                              socials: dict[str, str] | None = None) -> str:
+        """The same from image bytes already in hand (ctagent launch-test reads a local file)."""
         socials = socials or {}
-        data, mime, ext = self._image(image_url)
+        if len(data) > MAX_IMAGE_BYTES:
+            raise LaunchBlocked("the coin image is too big")
+        mime, ext = image_type(data)
         image = self._pin(f"{symbol.lower()}.{ext}", data, mime)
         meta = {"name": name, "symbol": symbol, "description": description, "image": image,
                 "twitter": socials.get("twitter", ""), "telegram": socials.get("telegram", ""),
