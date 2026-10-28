@@ -395,6 +395,24 @@ def test_discriminators_are_anchors_global_hashes():
     assert pf.DISC_BONDING_CURVE == hashlib.sha256(b"account:BondingCurve").digest()[:8]
 
 
+def test_create_fee_sharing_config_passes_every_idl_account():
+    """pump_fees idl: 13 accounts, the last 3 optional. Anchor wants an absent optional account passed as the program id
+    in its slot; leaving them out fails on mainnet with AccountNotEnoughKeys on `pool` (seen in simulation 2026-10-28)."""
+    idl_order = ["event_authority", "program", "payer", "global", "mint", "sharing_config", "system_program",
+                 "bonding_curve", "pump_program", "pump_event_authority", "pool", "pump_amm_program",
+                 "pump_amm_event_authority"]
+    payer, mint = Pubkey.new_unique(), Pubkey.new_unique()
+    ix = pf.create_fee_sharing_config_ix(payer, mint)
+    assert len(ix.accounts) == len(idl_order)
+    got = dict(zip(idl_order, ix.accounts))
+    assert got["payer"].pubkey == payer and got["payer"].is_signer and got["payer"].is_writable
+    assert got["sharing_config"].pubkey == pf.sharing_config_pda(mint) and got["sharing_config"].is_writable
+    assert got["bonding_curve"].pubkey == pf.bonding_curve_pda(mint) and got["bonding_curve"].is_writable
+    for name in ("pool", "pump_amm_program", "pump_amm_event_authority"):
+        a = got[name]
+        assert (a.pubkey, a.is_signer, a.is_writable) == (pf.PUMP_FEES_PROGRAM, False, False), name
+
+
 def test_split_for_and_the_share_rules():
     assert pf.split_for(WALLET, LAUNCHER, 9000) == [Share(WALLET, 9000), Share(LAUNCHER, 1000)]
     assert pf.split_for(LAUNCHER, LAUNCHER, 9000) == [Share(LAUNCHER, 10_000)]  # VIGIL's own coin: one shareholder
@@ -436,8 +454,9 @@ def test_update_fee_shares_v2_encodes_requester_9000_then_launcher_1000(settings
     assert acc[17] == pf.amm_creator_vault_pda(pf.sharing_config_pda(MINT))
     assert acc[19] == LAUNCHER_KP.pubkey() and acc[20] == pf.canonical_pool_pda(MINT)
     create = [keys[i] for i in bytes(msg.instructions[3].accounts)]
-    assert len(create) == 10 and create[2] == LAUNCHER_KP.pubkey() and create[5] == pf.sharing_config_pda(MINT)
+    assert len(create) == 13 and create[2] == LAUNCHER_KP.pubkey() and create[5] == pf.sharing_config_pda(MINT)
     assert create[7] == pf.bonding_curve_pda(MINT) and create[8] == pf.PUMP_PROGRAM
+    assert create[10:] == [pf.PUMP_FEES_PROGRAM] * 3  # the optional pool, amm program and amm event authority
     sweep = [keys[i] for i in bytes(msg.instructions[2].accounts)]
     assert len(sweep) == 13 and sweep[9] == pf.creator_vault_pda(LAUNCHER_KP.pubkey())  # the creator before the split
 
