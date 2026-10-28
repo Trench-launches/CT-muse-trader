@@ -92,10 +92,12 @@ def score_post(site: dict[str, Any]) -> str | None:
     sc = site.get("score") or {}
     if not sc.get("taken"):
         return None
+    # The site sends null (not 0) for numbers that don't exist yet, such as a win rate before any trade closes.
+    closed, win = sc.get("closed") or 0, sc.get("win_rate")
     lines = ["📈 VIGIL scorecard", "",
-             f"Trades: {sc['taken']} ({sc.get('closed', 0)} closed, {sc.get('open', 0)} open)",
-             f"Win rate: {sc.get('win_rate', 0):.0f}%",
-             f"Closed P&L: {sc.get('net_sol', 0):+.4f} SOL"]
+             f"Trades: {sc['taken']} ({closed} closed, {sc.get('open') or 0} open)",
+             f"Win rate: {win:.0f}%" if closed and win is not None else "Win rate: none closed yet",
+             f"Closed P&L: {sc.get('net_sol') or 0:+.4f} SOL"]
     best, worst = sc.get("best") or {}, sc.get("worst") or {}
     if best.get("symbol") and worst.get("symbol"):
         lines.append(f"Best: {best['symbol']} {_pct(best.get('pnl_pct') or 0)} · Worst: {worst['symbol']} "
@@ -131,8 +133,12 @@ def cadence_once(ctx: Any, site: dict[str, Any] | None = None, now: datetime | N
                 continue
             kv_set(conn, "cadence_next", (start + i + 1) % len(ROTATION))
             return {"cadence": "musing"}
-        body = scan_post(conn, site, now) if kind == "scan" else holdings_post(site) if kind == "holdings" \
-            else score_post(site)
+        try:
+            body = scan_post(conn, site, now) if kind == "scan" else holdings_post(site) if kind == "holdings" \
+                else score_post(site)
+        except Exception as e:  # one broken kind must not stall the rotation: the next kind still posts
+            log.warning("cadence %s post failed: %s", kind, e)
+            continue
         pkind = {"scan": "scan_report", "holdings": "holdings", "score": "scorecard_hourly"}[kind]
         if not body:
             continue
