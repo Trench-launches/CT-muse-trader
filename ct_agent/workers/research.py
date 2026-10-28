@@ -37,7 +37,7 @@ def research_once(ctx: Context) -> dict[str, Any]:
     if s.x_bearer_token:
         for c in (kv_get(conn, "candidates") or [])[: s.candidates_per_cycle]:
             token = c["token"]
-            key = f"x_attention:{token.lower()}"
+            key = f"x_attention:{token}"
             prev = kv_get(conn, key)
             if prev and prev.get("measured_at", "") > _minutes_ago(60):
                 continue
@@ -53,7 +53,7 @@ def research_once(ctx: Context) -> dict[str, Any]:
                 out["errors"].append(f"x: {exc}")
                 break
 
-    out["leads"] = len(verify_leads(conn, ctx.pons))
+    out["leads"] = len(verify_leads(conn, ctx.rpc))
     return out
 
 

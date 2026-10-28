@@ -2,7 +2,7 @@
 
 Keeps the first-party link and publication time. Feeds are configured as
 "url" or "url|first_party". Items from a feed flagged first_party (e.g. a
-project's own blog, Robinhood's newsroom) get confidence first_party;
+project's own blog, an exchange's newsroom) get confidence first_party;
 everything else is "reported".
 """
 from __future__ import annotations

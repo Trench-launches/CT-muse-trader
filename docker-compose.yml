@@ -15,9 +15,6 @@ services:
   caller:
     <<: *agent
     command: ["ctagent", "run", "caller"]
-  indexer:
-    <<: *agent
-    command: ["ctagent", "run", "indexer"]
   research:
     <<: *agent
     command: ["ctagent", "run", "research"]

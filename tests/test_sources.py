@@ -6,10 +6,9 @@ from datetime import datetime, timezone
 import httpx
 import pytest
 
-from ct_agent.chain.pons import PonsV2
-from ct_agent.chain.rpc import RpcClient
+from ct_agent.chain.solana import SolanaRpc
 from ct_agent.db import journal_recent, rows
-from ct_agent.sources.addresses import chain_hint, extract_evm_addresses
+from ct_agent.sources.addresses import chain_hint, extract_addresses
 from ct_agent.sources.news import ingest_feed
 from ct_agent.sources.store import (SourceIn, add_source, evidence_for_token, independent_origins,
                                     verify_leads)
@@ -17,20 +16,19 @@ from ct_agent.sources.twitch import (TwitchSignatureError, handle_eventsub, inge
                                      parse_twitch_ts, verify_signature)
 from ct_agent.sources.x_api import XBudgetExceeded, XClient
 
-from .fakes import FACTORY, FakeChain, FakeToken, addr
+from .fakes import Coin, FakeSolana, mint
 
-A = "0x47a360fc5e39aaea67056f380b22428d69c794d4"
+A = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"  # BONK's mint: mixed case, kept exactly
 
 
-def test_extracts_typed_and_spoken_addresses():
-    assert extract_evm_addresses(f"ape {A} now, also {A.upper().replace('0X', '0x')}") == [A]
-    spoken = "the ca is zero x " + " ".join("four seven a three six zero f c five e three nine a a e a "
-                                             "six seven zero five six f three eight zero b two two four "
-                                             "two eight d six nine c seven nine four d four".split())
-    assert extract_evm_addresses(spoken) == [A]
-    assert extract_evm_addresses("0x123 too short") == []
+def test_extracts_base58_mints_exactly_as_written():
+    assert extract_addresses(f"ape {A} now, also {A} and {A.lower()}") == [A]  # lowercased: not an address
+    assert extract_addresses(f"ca: {A}pump") == []  # glued to more base58: not a clean address
+    assert extract_addresses("0x47a360fc5e39aaea67056f380b22428d69c794d4 is evm") == []
+    assert extract_addresses("short 9xQeWvG816bUx9EP") == []
     assert chain_hint("new pons launch on robinhood") == "robinhood"
-    assert chain_hint("this is on solana") == "solana"
+    assert chain_hint("this is on solana") == "solana" and chain_hint("live on pump.fun") == "solana"
+    assert chain_hint("so based, wen moon") is None  # "based" is not Base
 
 
 def test_five_reposts_of_one_rumor_is_one_origin(db):
@@ -47,19 +45,16 @@ def test_five_reposts_of_one_rumor_is_one_origin(db):
 
 
 def test_leads_only_link_after_onchain_verification(db):
-    ch = FakeChain()
-    t = FakeToken(token=addr(0xA1), curve=addr(0xC1), deployer=addr(0xD1))
-    ch.launch(t, 10)
-    pons = PonsV2(RpcClient("http://fake", transport=ch.transport(), retries=0), FACTORY)
-    add_source(db, SourceIn(kind="twitch_chat", origin_id="m1", excerpt=f"CA {t.token.lower()} on pons",
+    t = Coin(mint(1))
+    rpc = SolanaRpc("https://rpc.test", transport=FakeSolana([t]).transport(), retries=0)
+    add_source(db, SourceIn(kind="twitch_chat", origin_id="m1", excerpt=f"CA {t.mint} on pump.fun",
                             confidence="sentiment"))
-    add_source(db, SourceIn(kind="twitch_chat", origin_id="m2", excerpt=f"fake {addr(0xBEEF).lower()}",
-                            confidence="sentiment"))
-    add_source(db, SourceIn(kind="x", origin_id="m3", excerpt=f"{t.token.lower()} on solana", confidence="rumor"))
-    assert evidence_for_token(db, t.token) == []  # nothing linked before verification
-    res = {r["id"]: r["status"] for r in verify_leads(db, pons)}
+    add_source(db, SourceIn(kind="twitch_chat", origin_id="m2", excerpt=f"fake {mint(2)}", confidence="sentiment"))
+    add_source(db, SourceIn(kind="x", origin_id="m3", excerpt=f"{t.mint} on base chain", confidence="rumor"))
+    assert evidence_for_token(db, t.mint) == []  # nothing linked before verification
+    res = {r["id"]: r["status"] for r in verify_leads(db, rpc)}
     assert list(res.values()) == ["verified", "rejected", "rejected"]
-    assert len(evidence_for_token(db, t.token)) == 1
+    assert len(evidence_for_token(db, t.mint)) == 1 and evidence_for_token(db, t.mint.lower()) == []
     assert any(j["kind"] == "lead_rejected" for j in journal_recent(db))
 
 

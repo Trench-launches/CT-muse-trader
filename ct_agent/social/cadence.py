@@ -4,7 +4,7 @@ Trades, updates and launches still post the moment they happen, and each one cou
 when x_cadence_min minutes pass with nothing new on the timeline does VIGIL fill the gap with the next kind in
 the rotation that has something to say:
 
-  scan     what the scanner looked at in the last hour (launches seen, coins screened, bought/watched/passed)
+  scan     what the scanner looked at (smart-money calls today, coins Grok read this hour, what was bought)
   holdings the open bags and how each one is doing
   musing   a short line from Grok (musings.py)
   score    the running scorecard, losses included
@@ -57,13 +57,13 @@ def scan_post(conn: Any, site: dict[str, Any], now: datetime) -> str | None:
                                               (hour,))}
     looked = sum(acts.values())
     f = site.get("funnel") or {}
-    if not looked and not f.get("launched_24h"):
+    if not looked and not f.get("calls_24h"):
         return None
-    pick = conn.execute("SELECT l.symbol FROM decisions d LEFT JOIN launches l ON l.token=d.token WHERE d.ts>=? AND "
-                        "d.action IN ('buy','watch') AND l.symbol IS NOT NULL ORDER BY d.confidence DESC LIMIT 1",
+    pick = conn.execute("SELECT t.symbol FROM decisions d LEFT JOIN tokens t ON t.mint=d.token WHERE d.ts>=? AND "
+                        "d.action IN ('buy','watch') AND t.symbol IS NOT NULL ORDER BY d.confidence DESC LIMIT 1",
                         (hour,)).fetchone()
     lines = ["🔎 Scan report, last hour", "",
-             f"New coins on Robinhood Chain today: {f.get('launched_24h', 0):,}",
+             f"Smart-money calls on Solana today: {f.get('calls_24h', 0):,}",
              f"Screened by Grok this hour: {looked}"]
     if looked:
         lines.append(f"Bought: {acts.get('buy', 0)} · Watching: {acts.get('watch', 0)} · Passed: {acts.get('pass', 0)}")
@@ -82,8 +82,8 @@ def holdings_post(site: dict[str, Any]) -> str | None:
     lines = ["📊 My open bags", ""] + [f"{p['symbol']} {_pct(p.get('pnl_pct') or 0)}" for p in pos[:6]]
     if len(pos) > 6:
         lines.append(f"+{len(pos) - 6} more")
-    u = sc.get("unrealized_eth")
-    lines += ["", f"{len(pos)} open" + (f" · {u:+.4f} ETH unrealised" if u is not None else ""),
+    u = sc.get("unrealized_sol")
+    lines += ["", f"{len(pos)} open" + (f" · {u:+.4f} SOL unrealised" if u is not None else ""),
               "Stops and targets are live on every one."]
     return "\n".join(lines)
 
@@ -95,7 +95,7 @@ def score_post(site: dict[str, Any]) -> str | None:
     lines = ["📈 VIGIL scorecard", "",
              f"Trades: {sc['taken']} ({sc.get('closed', 0)} closed, {sc.get('open', 0)} open)",
              f"Win rate: {sc.get('win_rate', 0):.0f}%",
-             f"Closed P&L: {sc.get('net_eth', 0):+.4f} ETH"]
+             f"Closed P&L: {sc.get('net_sol', 0):+.4f} SOL"]
     best, worst = sc.get("best") or {}, sc.get("worst") or {}
     if best.get("symbol") and worst.get("symbol"):
         lines.append(f"Best: {best['symbol']} {_pct(best.get('pnl_pct') or 0)} · Worst: {worst['symbol']} "

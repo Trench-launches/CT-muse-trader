@@ -14,9 +14,10 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
-from ..chain.pons import PonsV2
+from ..chain import token as tok
+from ..chain.solana import SolanaRpc
 from ..db import journal_append, rows, utcnow
-from .addresses import chain_hint, extract_evm_addresses
+from .addresses import chain_hint, extract_addresses
 
 CONFIDENCE = ("verified", "first_party", "reported", "rumor", "sentiment")
 
@@ -73,7 +74,7 @@ def add_source(conn: sqlite3.Connection, s: SourceIn) -> tuple[int, bool]:
     )
     sid = int(cur.lastrowid)
     hint = chain_hint(s.excerpt)
-    for a in extract_evm_addresses(s.excerpt):
+    for a in extract_addresses(s.excerpt):
         conn.execute("INSERT OR IGNORE INTO leads(source_id,address,chain_hint,created_at) VALUES(?,?,?,?)",
                      (sid, a, hint, now))
     return sid, True
@@ -88,19 +89,17 @@ def independent_origins(conn: sqlite3.Connection, claim_key: str) -> int:
     return len(roots)
 
 
-def verify_leads(conn: sqlite3.Connection, pons: PonsV2, limit: int = 50) -> list[dict[str, Any]]:
-    """Check every unverified lead against Robinhood Chain + the Pons V2
-    factory. A lead whose text points at another chain is rejected even if
-    an address happens to exist here, because the same address can be a
-    different contract on a different chain."""
+def verify_leads(conn: sqlite3.Connection, rpc: SolanaRpc, limit: int = 50) -> list[dict[str, Any]]:
+    """Check every unverified lead against Solana: it must be a real token mint. A lead whose text points at
+    another chain is rejected even if the address happens to exist here."""
     results = []
     for lead in rows(conn, "SELECT * FROM leads WHERE status='unverified' ORDER BY id LIMIT ?", (limit,)):
         hint = lead["chain_hint"]
-        if hint and hint != "robinhood":
-            status, note, token = "rejected", f"source refers to {hint}, not Robinhood Chain", None
+        if hint and hint != "solana":
+            status, note, token = "rejected", f"source refers to {hint}, not Solana", None
         else:
-            ok, note, rec = pons.verify_token(lead["address"])
-            status, token = ("verified", rec.token) if ok and rec else ("rejected", None)
+            ok, note = tok.verify(rpc, lead["address"])
+            status, token = ("verified", lead["address"]) if ok else ("rejected", None)
         conn.execute("UPDATE leads SET status=?, verified_token=?, verify_note=?, verified_at=? WHERE id=?",
                      (status, token, note, utcnow(), lead["id"]))
         journal_append(conn, "lead_verified" if status == "verified" else "lead_rejected",
@@ -114,5 +113,5 @@ def evidence_for_token(conn: sqlite3.Connection, token: str, limit: int = 20) ->
     """Sources tied to a token only through a verified lead."""
     return rows(conn, """
         SELECT s.* FROM sources s JOIN leads l ON l.source_id = s.id
-        WHERE l.status='verified' AND lower(l.verified_token)=lower(?)
+        WHERE l.status='verified' AND l.verified_token=?
         ORDER BY s.id DESC LIMIT ?""", (token, limit))

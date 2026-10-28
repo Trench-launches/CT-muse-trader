@@ -13,6 +13,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from ..chain.keys import is_pubkey
 from ..db import journal_append, kv_get, kv_set
 from .compose import Draft
 from .outbox import enqueue
@@ -25,7 +26,8 @@ BLOCKED = re.compile(
     r"retard\w*|nigg\w*|fag\w*|porn\w*|nsfw|sex\w*|nude\w*|kill\s+(yourself|urself)|kys|rape\w*|nazi\w*|"
     r"guarantee\w*|risk[- ]free|100x\s+guaranteed|financial advice)\b", re.I)
 LINK = re.compile(r"(https?://|www\.|\b[a-z0-9-]+\.(com|io|xyz|net|org|fun|app)\b)", re.I)
-ADDRESS = re.compile(r"0x[0-9a-fA-F]{6,}")
+# contract addresses of any chain: EVM hex, and base58 runs of Solana address length (mints, wallets)
+ADDRESS = re.compile(r"0x[0-9a-fA-F]{6,}|(?<![1-9A-HJ-NP-Za-km-z])[1-9A-HJ-NP-Za-km-z]{32,44}(?![1-9A-HJ-NP-Za-km-z])")
 
 
 def clean(reply: str) -> str | None:
@@ -41,8 +43,6 @@ def rules(s: Any) -> str:
     """How VIGIL trades, from its live settings, so a reply never quotes an old rule."""
     buy = ("buys every tradeable smart-money call the moment it lands" if s.scanner_buy_on_call
            else f"buys a smart-money call once it runs +{s.scanner_trigger_pct:g}% from the call")
-    if s.pons_scan_enabled:
-        buy += ", and also coins its own Pons scan picks when Grok likes the story and the buying"
     tps = ", ".join(f"{f * 100:g}% at {m:g}x" for m, f in sorted(s.take_profit_ladder))
     return f"VIGIL {buy}. Exits: a -{s.stop_loss_pct:g}% stop, take-profits ({tps}), and a {s.max_hold_hours:g}h timer."
 
@@ -50,8 +50,8 @@ def rules(s: Any) -> str:
 def _coin(ctx: Any, token: str) -> dict[str, Any] | None:
     """What VIGIL knows about the coin behind the post they replied to: its own story and VIGIL's thesis."""
     conn = ctx.conn
-    row = conn.execute("SELECT symbol, name FROM launches WHERE lower(token)=lower(?)", (token,)).fetchone()
-    d = conn.execute("SELECT thesis, raw FROM decisions WHERE lower(token)=lower(?) AND raw IS NOT NULL AND raw!='' "
+    row = conn.execute("SELECT symbol, name FROM tokens WHERE mint=?", (token,)).fetchone()
+    d = conn.execute("SELECT thesis, raw FROM decisions WHERE token=? AND raw IS NOT NULL AND raw!='' "
                      "ORDER BY id DESC LIMIT 1", (token,)).fetchone()
     try:
         raw = json.loads(d["raw"]) if d else {}
@@ -117,7 +117,7 @@ def replies_once(ctx: Any) -> dict[str, Any]:
             continue
         parent = next((r["id"] for r in m.get("referenced_tweets") or [] if r.get("type") == "replied_to"), None)
         ours = conn.execute("SELECT body, ref FROM posts WHERE x_post_id=?", (parent,)).fetchone() if parent else None
-        coin = _coin(ctx, ours["ref"]) if ours and re.fullmatch(r"0x[0-9a-fA-F]{40}", ours["ref"] or "") else None
+        coin = _coin(ctx, ours["ref"]) if ours and is_pubkey(ours["ref"] or "") else None
         res = ctx.brain.reply({"their_post": m.get("text", ""), "our_post_they_replied_to": ours["body"] if ours else None,
                                "coin": coin, "now_utc": datetime.now(timezone.utc).strftime("%A %d %B %Y, %H:%M UTC"),
                                "mode": s.trading_mode.value, "rules": rules(s),

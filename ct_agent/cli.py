@@ -2,7 +2,7 @@
 
   ctagent init-db                  create/upgrade the database
   ctagent check                    test every configured connection (read-only)
-  ctagent run <worker> [--once]    indexer | research | trader | social
+  ctagent run <worker> [--once]    caller | research | exits | trader | social | launchpad
   ctagent run-all                  every worker + API, each in its own process
   ctagent api [--port 8000]        HTTP API
   ctagent kill on|off "reason"     stop switch
@@ -10,8 +10,8 @@
   ctagent twitch-subscribe <callback_url> [--bot-user-id ID]
   ctagent x-login [--no-browser]   authorize posting as the bot's X account (one time)
   ctagent report [--hours 24]      what happened after each call, by variable
-  ctagent wallet                   the trading wallet's address and ETH balance (never the key)
-  ctagent live-test <coin> [--eth 0.002]   one tiny real buy then sell in the coin's ETH pool
+  ctagent wallet                   the trading wallet's address and SOL balance (never the key)
+  ctagent live-test <mint> [--sol 0.01]    one tiny real buy then sell through Jupiter
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("wallet")
     lt = sub.add_parser("live-test")
     lt.add_argument("token")
-    lt.add_argument("--eth", type=float, default=0.002)
+    lt.add_argument("--sol", type=float, default=0.01)
     t = sub.add_parser("twitch-subscribe")
     t.add_argument("callback")
     t.add_argument("--bot-user-id")
@@ -106,9 +106,10 @@ def main(argv: list[str] | None = None) -> int:
         if not ctx.live.wallet:
             print("no trading wallet key set (CT_TRADING_WALLET_PRIVATE_KEY)")
             return 1
-        print(f"trading wallet {ctx.live.wallet}: {ctx.rpc.get_balance(ctx.live.wallet) / 10**18:.6f} ETH")
+        from .units import sol
+        print(f"trading wallet {ctx.live.wallet}: {sol(ctx.rpc.get_balance(ctx.live.wallet)):.6f} SOL")
     elif args.cmd == "live-test":
-        return _live_test(s, args.token, args.eth)
+        return _live_test(s, args.token, args.sol)
     elif args.cmd == "twitch-subscribe":
         from .sources.twitch import TwitchApi
         api = TwitchApi(s.twitch_client_id, s.twitch_client_secret)
@@ -117,31 +118,40 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _live_test(s, token: str, eth: float) -> int:
-    """Prove the live path with real money before switching the bot to live: buy `eth` of a graduated
-    coin in its ETH pool, then sell everything bought. Uses every live gate except the mode switch."""
+def _live_test(s, token: str, size_sol: float) -> int:
+    """Prove the live path with real money before switching the bot to live: buy `size_sol` of a coin through
+    Jupiter, then sell everything bought. Uses every live gate except the mode switch."""
     from .config import TradingMode
     from .context import build
     from .execution.live import LiveTradingBlocked
-    if eth > 0.01:
-        print("live-test is capped at 0.01 ETH")
+    from .market import tokens
+    from .units import from_base, lamports, sol
+    if size_sol > 0.05:
+        print("live-test is capped at 0.05 SOL")
         return 1
     ctx = build(s.model_copy(update={"trading_mode": TradingMode.LIVE, "live_execution_reviewed": True}))
     if not ctx.live.wallet:
-        print("no trading wallet key set (CT_TRADING_WALLET_PRIVATE_KEY)")
+        print("no valid trading wallet key set (CT_TRADING_WALLET_PRIVATE_KEY)")
         return 1
-    bal = ctx.rpc.get_balance(ctx.live.wallet) / 10**18
-    print(f"wallet {ctx.live.wallet}: {bal:.6f} ETH")
+    row = tokens.ensure(ctx, token)
+    if not row:
+        print(f"{token} is not a Solana token mint")
+        return 1
+    dec = int(row["decimals"])
+    bal = sol(ctx.rpc.get_balance(ctx.live.wallet))
+    print(f"wallet {ctx.live.wallet}: {bal:.6f} SOL")
     try:
-        buy = ctx.live.swap_on_pool(token=token, side="buy", amount_in_wei=int(eth * 10**18))
-        print(f"bought {buy.token_amount / 10**18:,.2f} tokens for {buy.quote_amount / 10**18:.6f} ETH  tx {buy.tx_hash}")
-        sell = ctx.live.swap_on_pool(token=token, side="sell", amount_in_wei=buy.token_amount)
-        print(f"sold {sell.token_amount / 10**18:,.2f} tokens for {sell.quote_amount / 10**18:.6f} ETH  tx {sell.tx_hash}")
+        buy = ctx.live.swap(token, "buy", lamports(size_sol))
+        print(f"bought {from_base(buy.token_amount, dec):,.2f} ${row['symbol'] or '?'} for {sol(buy.quote_amount):.6f} SOL"
+              f"  {s.explorer_url}/tx/{buy.tx_hash}")
+        sell = ctx.live.swap(token, "sell", buy.token_amount)
+        print(f"sold {from_base(sell.token_amount, dec):,.2f} for {sol(sell.quote_amount):.6f} SOL"
+              f"  {s.explorer_url}/tx/{sell.tx_hash}")
     except LiveTradingBlocked as exc:
         print(f"blocked: {exc}")
         return 1
-    after = ctx.rpc.get_balance(ctx.live.wallet) / 10**18
-    print(f"round trip cost {bal - after:.6f} ETH incl. gas and approvals; wallet now {after:.6f} ETH")
+    after = sol(ctx.rpc.get_balance(ctx.live.wallet))
+    print(f"round trip cost {bal - after:.6f} SOL incl. fees and token-account rent; wallet now {after:.6f} SOL")
     return 0
 
 
@@ -181,32 +191,51 @@ def _print_report(r: dict) -> None:
 
 def _check() -> int:
     """Read-only connectivity check. Never posts, never trades."""
+    from .chain.keys import MAINNET_GENESIS, SOL_MINT, USDC_MINT
+    from .chain.rpc import redact
     from .context import build
+    from .units import lamports
     ctx = build()
     s = ctx.settings
     report: dict[str, str] = {}
     try:
-        cid = ctx.rpc.chain_id()
-        report["rpc"] = f"ok chain {cid}" + ("" if cid == s.chain_id else f" (EXPECTED {s.chain_id})")
-        report["pons_factory"] = "ok" if ctx.rpc.get_code(s.pons_v2_factory) not in ("0x", "") else "NO CODE"
-        report["pons_hook"] = ctx.pons.meme_hook()
-        bps, secs = ctx.pons.snipe_tax()
-        report["snipe_tax"] = f"{bps / 100:.0f}% decaying over {secs}s"
-        report["launch_fee_eth"] = str(ctx.pons.launch_fee() / 1e18)
+        g = ctx.rpc.genesis_hash()
+        report["solana_rpc"] = (f"ok mainnet (slot {ctx.rpc.slot()})" if g == MAINNET_GENESIS
+                                else f"NOT MAINNET (genesis {g})") + f" via {redact(s.solana_rpc_url)}"
     except Exception as exc:
-        report["rpc"] = f"FAILED {exc}"
+        report["solana_rpc"] = f"FAILED {redact(str(exc))}"
     try:
-        report["eth_usd"] = str(ctx.market.eth_usd())
+        q = ctx.jupiter.order(SOL_MINT, USDC_MINT, lamports(0.01))
+        report["jupiter"] = f"ok: 0.01 SOL -> {int(q['outAmount']) / 1e6:.4f} USDC" + \
+            ("" if s.jupiter_api_key else " (no API key: slow lane)")
     except Exception as exc:
-        report["eth_usd"] = f"FAILED {exc}"
+        report["jupiter"] = f"FAILED {exc}"
+    try:
+        report["sol_usd"] = str(ctx.market.sol_usd())
+    except Exception as exc:
+        report["sol_usd"] = f"FAILED {exc}"
     if s.grok_api_key:
         r = ctx.brain.decide({"token": "healthcheck", "note": "Reply with action pass. This is a connectivity test."})
         report["grok"] = "ok" if r.decision else f"FAILED {r.error}"
     else:
         report["grok"] = "not configured"
+    if s.supabase_url and s.supabase_key:
+        try:
+            r = ctx.web.get(f"{s.supabase_url.rstrip('/')}/rest/v1/alert_performance", timeout=20,
+                            params={"chain": "eq.solana", "select": "id,token_symbol,alert_timestamp",
+                                    "order": "id.desc", "limit": "3"},
+                            headers={"apikey": s.supabase_key, "Authorization": f"Bearer {s.supabase_key}"})
+            r.raise_for_status()
+            latest = r.json()
+            report["scanner"] = "ok, latest Solana calls: " + (", ".join(
+                f"${c.get('token_symbol') or '?'}" for c in latest) or "none yet")
+        except Exception as exc:
+            report["scanner"] = f"FAILED {exc}"
+    else:
+        report["scanner"] = "not configured"
     if s.x_bearer_token:
         try:
-            ctx.x.mention_counts('"robinhood chain"')
+            ctx.x.mention_counts('"solana"')
             report["x_read"] = "ok"
         except Exception as exc:
             report["x_read"] = f"FAILED {exc}"
@@ -217,13 +246,15 @@ def _check() -> int:
         ("configured (disabled)" if can_post else "not configured: run ctagent x-login")
     report["twitch"] = "configured" if s.twitch_client_id and s.twitch_eventsub_secret else "not configured"
     report["live_trading"] = "BLOCKED: " + "; ".join(ctx.live.blockers()) if ctx.live.blockers() else "READY"
+    if ctx.live.wallet:
+        report["trading_wallet"] = ctx.live.wallet
     killed, why = ctx.risk.kill_active()
     report["kill_switch"] = why if killed else "off"
     from .safety import review
     errors, warnings = review(s)
     report["safety"] = "; ".join([f"ERROR {e}" for e in errors] + [f"warning {w}" for w in warnings]) or "ok"
     print(json.dumps(report, indent=2))
-    return 0 if not report["rpc"].startswith("FAILED") else 1
+    return 0 if report["solana_rpc"].startswith("ok") else 1
 
 
 if __name__ == "__main__":

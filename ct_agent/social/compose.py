@@ -70,8 +70,8 @@ def _cap(text: str) -> str:
     return text[:1].upper() + text[1:]
 
 
-def _eth(v: float) -> str:
-    return f"{'+' if v >= 0 else '-'}{abs(v):.4f} ETH"
+def _sol(v: float) -> str:
+    return f"{'+' if v >= 0 else '-'}{abs(v):.4f} SOL"
 
 
 def _bag(mode: str) -> str:
@@ -134,7 +134,7 @@ def trade_entry(*, mode: str, symbol: str, token: str, size: str, entry: str, ca
     coin follows as a reply, so the buy itself stays short."""
     head = f"🟢 {'Test buy' if mode == 'paper' else 'Bought'} ${symbol}"
     facts = _block([f"Entry: {mc} MC" if mc else f"Entry: {entry}", f"Size: {size}", f"Plan: {plan}" if plan else ""])
-    why = ["Why: smart-money call on Robinhood Chain."] if catalyst.startswith("a smart-money call") \
+    why = ["Why: smart-money call on Solana."] if catalyst.startswith("a smart-money call") \
         else _alts("Why: ", catalyst, (140, 100, 60))
     tail = _block(["Testing phase, simulated fill, not onchain." if mode == "paper" else "",
                    disclosure(holds=False, mode=mode, own_token=True) if own_token else ""])
@@ -183,25 +183,25 @@ def position_update(*, mode: str, symbol: str, token: str, pnl_pct: float, price
 
 
 def take_profit(*, mode: str, symbol: str, token: str, sold_pct: float, at: str, why: str, left_pct: float,
-                realized_eth: float, position_id: int, rung: int, thesis: str = "") -> Draft:
+                realized_sol: float, position_id: int, rung: int, thesis: str = "") -> Draft:
     """A take-profit rung: part of the bag sold, the rest still open. `why` is the plan now (target hit, stop
     moved); `thesis` is Grok's read on why the rest is still worth holding (shortened, then dropped)."""
     head = f"💰 Jeeted {sold_pct:.0f}% of my ${symbol} {_bag(mode)}"
-    facts = _block([f"Sold at: {at}", f"Realised: {_eth(realized_eth)}", f"Still riding: {left_pct:.0f}%"])
+    facts = _block([f"Sold at: {at}", f"Realised: {_sol(realized_sol)}", f"Still riding: {left_pct:.0f}%"])
     plan = [f"Plan: {_s(why)}", "Plan: stop moved to entry.", ""] if why else [""]
     hold = _alts("Why I'm holding the rest: ", thesis, (120, 80)) if thesis else [""]
     body = _post([([head], None), ([facts], None), (plan, 0), (hold, 1)])
     return Draft("take_profit", body, token, f"tp:{mode}:{position_id}:{rung}", reply_to=f"entry:{mode}:{position_id}")
 
 
-def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, pnl_eth: float, sold_pct: float, at: str,
+def trade_exit(*, mode: str, symbol: str, token: str, pnl_pct: float, pnl_sol: float, sold_pct: float, at: str,
                why: str, position_id: int, last_bit: bool = False, bought: str = "", underestimated: str = "",
                lesson: str = "") -> Draft:
     """Closing the rest of a position. In profit: Jeeted. At a loss: Top blasted, with the honest post-mortem.
     `why` is a clause that reads after "because", e.g. "it hit my -25% stop"."""
     test = " (testing)" if mode == "paper" else ""
-    pnl = f"Realised P&L: {_eth(pnl_eth)} ({pnl_pct:+.0f}%)"
-    if pnl_eth >= 0:
+    pnl = f"Realised P&L: {_sol(pnl_sol)} ({pnl_pct:+.0f}%)"
+    if pnl_sol >= 0:
         what = "the rest of" if last_bit else "all of" if sold_pct >= 99 else f"{sold_pct:.0f}% of"
         head = f"✅ Jeeted {what} ${symbol}{test} · {pnl_pct:+.0f}%"
         facts = [_block([f"Sold at: {at}", f"Why: {_phrase(why, 90)}" if why else "", pnl]),

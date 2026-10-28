@@ -15,12 +15,16 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from ..chain.keys import is_pubkey
+from ..chain.rpc import redact
 from ..config import Settings, get_settings
 from ..db import journal_append, journal_recent, journal_verify, kv_get, open_db, rows, utcnow
 from ..execution.risk import RiskManager
 from ..sources.store import SourceIn, add_source, independent_origins
 from ..sources.twitch import TwitchSignatureError, handle_eventsub, ingest_transcript
 from . import chat
+
+BASE58_MINT = "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
 
 
 class KillIn(BaseModel):
@@ -57,9 +61,9 @@ class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     history: list[ChatMsg] = Field(default_factory=list, max_length=20)
     # a coin the visitor picked (a suggestion chip): researched with the live card
-    token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
+    token: str | None = Field(default=None, pattern=BASE58_MINT)
     # the coin discussed earlier: passed to Grok quietly, used only if the new message is about it
-    context_token: str | None = Field(default=None, pattern="^0x[0-9a-fA-F]{40}$")
+    context_token: str | None = Field(default=None, pattern=BASE58_MINT)
 
 
 class PostIn(BaseModel):
@@ -75,7 +79,7 @@ class ResolveIn(BaseModel):
 def create_app(settings: Settings | None = None) -> FastAPI:
     s = settings or get_settings()
     app = FastAPI(title="CT Agent API", version="0.1.0",
-                  description="Robinhood Chain research and paper-trading agent. Automated account; not financial advice.")
+                  description="Solana memecoin research and trading agent. Automated account; not financial advice.")
     open_db(s.database_path).close()  # run migrations once at startup
     # The public website reads the API from the browser, and posts to /chat. No cookies, and no
     # Authorization header allowed cross-origin, so admin calls can't come from a browser page.
@@ -109,15 +113,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "kill_switch": {"on": killed, "reason": why},
             "journal": {"entries": count("journal"), "chain_intact": ok, "first_bad_id": bad},
             "integrations": {
-                "rpc": s.rpc_url.split("/v2/")[0], "grok": bool(s.grok_api_key), "x_read": bool(s.x_bearer_token),
+                "rpc": redact(s.solana_rpc_url), "jupiter": bool(s.jupiter_api_key), "grok": bool(s.grok_api_key),
+                "x_read": bool(s.x_bearer_token),
                 "x_post": bool(s.x_user_access_token or (s.x_client_id and s.x_refresh_token)) and s.x_posting_enabled,
                 "twitch": bool(s.twitch_client_id and s.twitch_eventsub_secret), "news_feeds": len(s.news_feeds),
                 "live_trading_ready": s.trading_mode.value == "live" and s.live_execution_reviewed
                 and bool(s.trading_wallet_private_key),
             },
-            "counts": {t: count(t) for t in ("launches", "curve_trades", "sources", "leads", "decisions",
+            "counts": {t: count(t) for t in ("tokens", "scanner_calls", "sources", "leads", "decisions",
                                              "positions", "posts")},
-            "cursors": {"launch": kv_get(conn, "launch_cursor"), "trade": kv_get(conn, "trade_cursor")},
+            "cursors": {"scanner": kv_get(conn, "scanner_cursor"), "fibbot": kv_get(conn, "fibbot_cursor")},
         }
 
     # --- market & research --------------------------------------------------
@@ -126,33 +131,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def candidates(conn=Depends(db)) -> list[dict[str, Any]]:
         return kv_get(conn, "candidates") or []
 
-    @app.get("/launches")
-    def launches(stage: str | None = None, limit: int = 50, conn=Depends(db)) -> list[dict[str, Any]]:
+    @app.get("/tokens")
+    @app.get("/launches")  # the old name, kept for existing links
+    def token_list(stage: str | None = None, limit: int = 50, conn=Depends(db)) -> list[dict[str, Any]]:
+        """Coins VIGIL has looked at (the token cache), newest first. stage: curve | pool."""
         limit = min(limit, 500)
-        if stage == "almost_bonded":
-            return rows(conn, "SELECT * FROM launches WHERE last_phase=0 AND last_progress>=? "
-                              "ORDER BY last_progress DESC LIMIT ?", (s.almost_bonded_ratio, limit))
-        if stage == "migrated":
-            return rows(conn, "SELECT * FROM launches WHERE last_phase=2 ORDER BY block_number DESC LIMIT ?", (limit,))
-        return rows(conn, "SELECT * FROM launches ORDER BY block_number DESC LIMIT ?", (limit,))
+        if stage in ("curve", "pool"):
+            return rows(conn, "SELECT * FROM tokens WHERE stage=? ORDER BY first_seen DESC LIMIT ?", (stage, limit))
+        return rows(conn, "SELECT * FROM tokens ORDER BY first_seen DESC LIMIT ?", (limit,))
 
     @app.get("/tokens/{token}")
     def token_detail(token: str, conn=Depends(db)) -> dict[str, Any]:
-        launch = rows(conn, "SELECT * FROM launches WHERE lower(token)=lower(?)", (token,))
-        if not launch:
+        row = rows(conn, "SELECT * FROM tokens WHERE mint=?", (token,))
+        if not row:
             raise HTTPException(404, "unknown token")
-        t = launch[0]["token"]
+        t = row[0]["mint"]
         return {
-            "launch": launch[0],
+            "token": row[0],
             "explorer": f"{s.explorer_url}/token/{t}",
-            "snapshots": rows(conn, "SELECT * FROM token_snapshots WHERE token=? ORDER BY id DESC LIMIT 50", (t,)),
             "market": rows(conn, "SELECT id,ts,source,pool_address,price_usd,volume_h1_usd,volume_h24_usd,liquidity_usd,"
                                  "txns_h1 FROM market_snapshots WHERE token=? ORDER BY id DESC LIMIT 50", (t,)),
+            "calls": rows(conn, "SELECT id, called_at, call_price_usd, status, note, last_move_pct, peak_move_pct "
+                                "FROM scanner_calls WHERE token=? ORDER BY id DESC LIMIT 20", (t,)),
             "decisions": _decode(rows(conn, "SELECT * FROM decisions WHERE token=? ORDER BY id DESC LIMIT 20", (t,))),
             "positions": rows(conn, "SELECT * FROM positions WHERE token=? ORDER BY id DESC", (t,)),
             "evidence": rows(conn, "SELECT s.id,s.kind,s.origin_url,s.author,s.channel,s.published_at,s.confidence,"
                                    "s.excerpt,l.status lead_status FROM sources s JOIN leads l ON l.source_id=s.id "
-                                   "WHERE lower(l.address)=lower(?) ORDER BY s.id DESC LIMIT 50", (t,)),
+                                   "WHERE l.address=? ORDER BY s.id DESC LIMIT 50", (t,)),
             "journal": journal_recent(conn, ref=t, limit=50),
         }
 
@@ -183,40 +188,47 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/scanner")
     def scanner_calls(limit: int = 50, conn=Depends(db)) -> dict[str, Any]:
-        """The smart-money scanner's Robinhood calls as VIGIL sees them: moved how far, and what it did."""
+        """The smart-money scanner's Solana calls as VIGIL sees them: moved how far, and what it did."""
         calls = rows(conn, "SELECT id, token, symbol, called_at, call_price_usd, status, note, last_move_pct, "
                            "peak_move_pct, triggered_at, checked_at, decision_id FROM scanner_calls "
                            "ORDER BY id DESC LIMIT ?", (min(limit, 500),))
-        return {"source": s.candidate_source, "cursor": kv_get(conn, "scanner_cursor"),
+        return {"source": "scanner", "cursor": kv_get(conn, "scanner_cursor"),
                 "trigger_pct": s.scanner_trigger_pct, "window_hours": s.scanner_window_hours, "calls": calls}
 
     @app.get("/launchpad/status")
     def launch_status(symbol: str, wallet: str = "", conn=Depends(db)) -> dict[str, Any]:
         """Where a launch request for this ticker is, for the website's confirmation screen: the newest request in
-        the last 2 hours (not seen yet, refused and why, approved, launched with its CA). Tickers can repeat, so the
-        fee wallet from the form picks out the visitor's own request. All of it is public on X."""
+        the last 2 hours (not seen yet, refused and why, approved, launched with its mint). Tickers can repeat, so
+        the fee wallet from the form picks out the visitor's own request. All of it is public on X."""
         from datetime import datetime, timedelta, timezone
         since = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(timespec="seconds")
-        q = ("SELECT r.id, r.status, r.reason, r.symbol, r.name, r.handle, r.token, r.tx_hash, r.pair_symbol, "
-             "p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
+        q = ("SELECT r.id, r.status, r.reason, r.symbol, r.name, r.handle, r.token, r.tx_hash, r.fee_shares, "
+             "r.launched_at, p.x_post_id AS announce_x_id FROM launch_requests r LEFT JOIN posts p "
              "ON p.idempotency_key='launch_announce:' || r.id AND p.status='sent' "
              "WHERE upper(r.symbol)=? AND r.created_at>=?")
         args: list[Any] = [symbol.strip().lstrip("$").upper()[:10], since]
         if wallet:  # refused requests have no wallet on record: they still match on the ticker
-            q += " AND (lower(r.recipient)=? OR r.recipient IS NULL)"
-            args.append(wallet.strip().lower())
+            q += " AND (r.recipient=? OR r.recipient IS NULL)"  # base58: matched exactly, never lowercased
+            args.append(wallet.strip())
         r = conn.execute(q + " ORDER BY r.id DESC LIMIT 1", args).fetchone()
         if not r:
             return {"status": "not_seen"}
         out = dict(r)
         out.pop("id")
+        out["fee_shares"] = _json(out["fee_shares"])
         if out["status"] == "refused":  # the short public reason VIGIL replied with, not the internal note
-            out["reason"] = (out["reason"] or "").removeprefix("grok declined: ").removeprefix("muse declined: ")  # older rows
+            out["reason"] = (out["reason"] or "").removeprefix("grok declined: ")
         return out
+
+    @app.get("/launchpad/recent")
+    def launch_recent(limit: int = 8, conn=Depends(db)) -> list[dict[str, Any]]:
+        """Coins the launchpad launched, newest first (the same list /site carries)."""
+        from .site import recent_launches
+        return recent_launches(conn, min(limit, 50))
 
     @app.get("/positions")
     def positions(status: str | None = None, mode: str | None = None, conn=Depends(db)) -> list[dict[str, Any]]:
-        q, a = "SELECT p.*, l.symbol FROM positions p LEFT JOIN launches l ON l.token=p.token WHERE 1=1", []
+        q, a = "SELECT p.*, t.symbol FROM positions p LEFT JOIN tokens t ON t.mint=p.token WHERE 1=1", []
         if status:
             q += " AND p.status=?"
             a.append(status)
@@ -232,9 +244,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         risk = RiskManager(s, conn)
         return {"mode": mode, "label": "PAPER (simulated, not onchain)" if mode == "paper" else "LIVE",
                 "closed": len(closed), "wins": wins, "losses": len(closed) - wins,
-                "net_pnl_eth": round(sum(c["pnl_quote"] or 0 for c in closed), 6),
-                "open_exposure_eth": round(risk.exposure_eth(mode), 6),
-                "paper_cash_eth": round(risk.paper_cash_eth(), 6) if mode == "paper" else None}
+                "net_pnl_sol": round(sum(c["pnl_quote"] or 0 for c in closed), 6),
+                "open_exposure_sol": round(risk.exposure_sol(mode), 6),
+                "paper_cash_sol": round(risk.paper_cash_sol(), 6) if mode == "paper" else None}
 
     @app.get("/site")
     def site(response: Response, conn=Depends(db)) -> dict[str, Any]:
@@ -246,10 +258,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/logo/{token}")
     def logo(token: str, conn=Depends(db)) -> Response:
         """A tracked token's own logo, re-encoded as a small WebP. 404 if it has none."""
-        import re
         from pathlib import Path
         from .logos import logo_file
-        if not re.fullmatch(r"0x[0-9a-fA-F]{40}", token):
+        if not is_pubkey(token):
             raise HTTPException(404, "not a token address")
         path = logo_file(conn, Path(s.database_path).parent, token)
         if path is None:
@@ -293,7 +304,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     from ..context import build
                     ctx = build(s)
                     ctx.conn.close()  # each request brings its own connection
-                    svc = app.state.chat_services = {"rpc": ctx.rpc, "pons": ctx.pons, "market": ctx.market,
+                    svc = app.state.chat_services = {"rpc": ctx.rpc, "market": ctx.market, "jupiter": ctx.jupiter,
                                                      "brain": ctx.brain, "x": ctx.x, "web": ctx.web}
         return svc
 
@@ -332,7 +343,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/chat")
     def ask_vigil(body: ChatIn, request: Request, conn=Depends(db)) -> dict[str, Any]:
-        """Ask VIGIL (Grok) about a Robinhood Chain coin. Rate limited per visitor and per day overall."""
+        """Ask VIGIL (Grok) about a Solana coin. Rate limited per visitor and per day overall."""
         svc, who, msg, history = chat_start(body, request, conn)
         for e in chat.answer_events(svc, s, s.database_path, who, msg, history, body.token, body.context_token):
             if e["type"] == "error":
@@ -417,6 +428,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return Response(content=text, status_code=status, media_type="text/plain")
 
     return app
+
+
+def _json(v: Any) -> Any:
+    try:
+        return json.loads(v) if isinstance(v, str) and v else v
+    except json.JSONDecodeError:
+        return v
 
 
 def _decode(rs: list[dict[str, Any]]) -> list[dict[str, Any]]:

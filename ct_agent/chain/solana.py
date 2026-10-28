@@ -13,7 +13,7 @@ class SolanaRpc(RpcClient):
     """`backup_url` answers when the main provider is out of retries (e.g. a free-tier rate limit)."""
 
     def __init__(self, url: str, *, backup_url: str | None = None, **kw: Any):
-        super().__init__(url, logs_url=backup_url, **kw)
+        super().__init__(url, backup_url=backup_url, **kw)
 
     def genesis_hash(self) -> str:
         return self.request("getGenesisHash", [])

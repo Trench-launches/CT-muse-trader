@@ -146,8 +146,8 @@ class Settings(BaseSettings):
     decision_cooldown_min: int = 30  # don't re-ask Grok about the same token too often
     candidates_per_cycle: int = 5
     # Paper-trading history from VIGIL v1 (before this journal), merged into the site's scorecard and labelled
-    # as such. JSON, e.g. {"trades": 100, "wins": 54, "losses": 46, "best_eth": 0.3}; optional: net_eth,
-    # worst_eth, best_symbol, worst_symbol, avg_hold_h. Empty = no v1 history shown.
+    # as such. JSON, amounts in SOL, e.g. {"trades": 100, "wins": 54, "losses": 46, "best_sol": 0.3}; optional:
+    # net_sol, deployed_sol, worst_sol, best_symbol, worst_symbol, avg_hold_h. Empty = no v1 history shown.
     score_history_v1: dict = {}
     # The site's scorecard counts trades opened from this time on (ISO, UTC). A reset keeps the history.
     score_since: str = ""

@@ -1,8 +1,9 @@
 """The website's "Ask VIGIL" chat, answered by Grok.
 
-A visitor sends a message, usually a contract address or a $ticker. VIGIL
-researches that token live (the same onchain checks and screen the trader
-uses, plus what it has heard and decided), and Grok answers from those facts.
+A visitor sends a message, usually a Solana mint address or a $ticker. VIGIL
+researches that coin live (the same mint-safety checks, holder read and screen
+the trader uses, plus what it has heard and decided), and Grok answers from
+those facts.
 
 Every request is a paid Grok call, so it is rate limited per visitor (salted
 IP hash, never the raw IP) and capped overall per day. The global cap is the
@@ -11,18 +12,20 @@ hard ceiling on spend.
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import time
-from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..chain.pons import Phase
+from ..chain import token as tok
+from ..chain.keys import SOL_MINT, find_pubkeys
 from ..db import kv_get, kv_set, rows, utcnow
 from ..sources.store import evidence_for_token
-from ..strategy.screen import activity_for, screen_almost_bonded, screen_migrated
+from ..strategy.screen import screen_token
 
-ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
+log = logging.getLogger(__name__)
+DEXSCREENER_SEARCH = "https://api.dexscreener.com/latest/dex/search"
 TICKER = re.compile(r"\$([A-Za-z][A-Za-z0-9]{0,19})\b")
 _RESEARCH: dict[str, tuple[dict[str, Any], float]] = {}
 RESEARCH_TTL_S = 60
@@ -73,121 +76,131 @@ def log_request(conn: Any, who: str, token: str | None, status: str) -> None:
     conn.execute("INSERT INTO chat_requests(ts,who,token,status) VALUES(?,?,?,?)", (utcnow(), who, token, status))
 
 
-def find_token(conn: Any, text: str) -> tuple[str | None, str | None]:
-    """(address, how) for the token the message is about: a pasted contract wins, else a $ticker
-    VIGIL has indexed (the most recent launch with that symbol)."""
-    m = ADDRESS.search(text)
+def _mint_in(text: str) -> str | None:
+    """The first Solana address in the text that isn't SOL itself."""
+    return next((m for m in find_pubkeys(text or "") if m != SOL_MINT), None)
+
+
+def _search_ticker(market: Any, ticker: str) -> str | None:
+    """DexScreener search: the most liquid Solana coin with exactly this ticker."""
+    try:
+        r = market._http.get(DEXSCREENER_SEARCH, params={"q": ticker}, timeout=8)
+        r.raise_for_status()
+        pairs = [p for p in (r.json() or {}).get("pairs") or [] if p.get("chainId") == "solana"
+                 and str((p.get("baseToken") or {}).get("symbol") or "").upper() == ticker.upper()]
+    except Exception as exc:  # the visitor just gets "not found"
+        log.info("ticker search for %s failed: %s", ticker, exc)
+        return None
+    if not pairs:
+        return None
+    best = max(pairs, key=lambda p: float((p.get("liquidity") or {}).get("usd") or 0))
+    return (best.get("baseToken") or {}).get("address")
+
+
+def find_token(conn: Any, text: str, market: Any = None) -> tuple[str | None, str | None]:
+    """(mint, how) for the coin the message is about: a pasted mint wins, else a $ticker from the scanner's
+    recent calls or VIGIL's token cache, else DexScreener's search."""
+    m = _mint_in(text)
     if m:
-        return m.group(0), "address"
+        return m, "address"
     t = TICKER.search(text)
     if t:
-        r = conn.execute("SELECT token FROM launches WHERE lower(symbol)=lower(?) ORDER BY block_number DESC LIMIT 1",
-                         (t.group(1),)).fetchone()
+        sym = t.group(1)
+        r = conn.execute("SELECT token FROM scanner_calls WHERE upper(trim(replace(symbol, '\U0001f331', '')))=upper(?) "
+                         "ORDER BY id DESC LIMIT 1", (sym,)).fetchone() \
+            or conn.execute("SELECT mint AS token FROM tokens WHERE upper(symbol)=upper(?) ORDER BY last_checked DESC "
+                            "LIMIT 1", (sym,)).fetchone()
         if r:
             return r["token"], "ticker"
-        return None, f"no Robinhood Chain launch with the ticker ${t.group(1)} in VIGIL's index"
+        found = _search_ticker(market, sym) if market is not None else None
+        if found:
+            return found, "ticker"
+        return None, f"no Solana coin with the ticker ${sym} found"
     return None, None
 
 
 def research(ctx: Any, token: str) -> dict[str, Any]:
-    """Live facts about one token for Grok. Cached briefly so a burst of questions about the
+    """Live facts about one coin for Grok. Cached briefly so a burst of questions about the
     same coin doesn't repeat the chain reads."""
-    key = token.lower()
-    hit = _RESEARCH.get(key)
+    hit = _RESEARCH.get(token)
     if hit and time.time() - hit[1] < RESEARCH_TTL_S:
         return hit[0]
     facts = _research(ctx, token)
-    _RESEARCH[key] = (facts, time.time())
+    _RESEARCH[token] = (facts, time.time())
     return facts
 
 
+STAGE_WORDS = {"curve": "on its launchpad bonding curve (e.g. pump.fun)", "pool": "graduated to a pool"}
+
+
 def _research(ctx: Any, token: str) -> dict[str, Any]:
-    from ..strategy.engine import _market_cap
-    from ..strategy.outcomes import spot_price
+    from ..market import tokens
     s, conn = ctx.settings, ctx.conn
-    ok, why, rec = ctx.pons.verify_token(token)
-    if not ok or rec is None:
-        return {"address": token, "is_pons_v2_launch_on_robinhood_chain": False, "why_not": why}
-    token = rec.token
-    meta = ctx.pons.token_meta(token)
-    launch = (rows(conn, "SELECT * FROM launches WHERE lower(token)=lower(?)", (token,)) or [None])[0]
-    if launch and not launch.get("symbol") and meta.symbol:  # so a later $ticker question finds it
-        conn.execute("UPDATE launches SET name=?, symbol=?, decimals=? WHERE token=?",
-                     (meta.name, meta.symbol, meta.decimals, launch["token"]))
-    quote = (launch or {}).get("quote_symbol") or ("ETH" if rec.pair_token.lower() == "0x" + "0" * 40 else "other")
-    f: dict[str, Any] = {"address": token, "is_pons_v2_launch_on_robinhood_chain": True, "name": meta.name,
-                         "symbol": meta.symbol, "priced_in": quote, "creator_tax_pct": rec.creator_tax_bps / 100,
-                         "explorer": f"{s.explorer_url}/token/{token}",
-                         "logo": f"/logo/{token}" if (launch or {}).get("logo_url") else None}
-    stage = {Phase.NOT_GRADUATED: "on the bonding curve", Phase.POOL_CREATED: "graduated to its Pons V4 pool"}
-    f["stage"] = stage.get(rec.phase, f"{rec.phase.name.lower().replace('_', ' ')} (not tradable by VIGIL)")
     try:
-        price, _ = spot_price(ctx, token)
-        f["market_cap_usd"] = _market_cap(ctx, token, price) or "unknown"
+        info = tok.mint_info(ctx.rpc, token)
+    except Exception as exc:
+        return {"address": token, "is_solana_token": False, "why_not": f"couldn't read the chain ({type(exc).__name__})"}
+    if not info.exists:
+        return {"address": token, "is_solana_token": False, "why_not": "not a Solana token mint"}
+    try:
+        pool = ctx.market.pool_stats(token)
     except Exception:
-        f["market_cap_usd"] = "unknown"
+        pool = None
+    row = tokens.ensure(ctx, token, info=info, pool=pool) or {}
+    if pool is None:
+        row = {**row, "stage": None, "dex_id": None}
+    safety = tok.safety_blockers(info, s.max_transfer_fee_bps)
+    f: dict[str, Any] = {
+        "address": token, "is_solana_token": True, "name": row.get("name"), "symbol": row.get("symbol"),
+        "token_program": "Token-2022" if info.is_token_2022 else "SPL Token",
+        "explorer": f"{s.explorer_url}/token/{token}",
+        "logo": f"/logo/{token}" if row.get("logo_url") else None,
+        "stage": row.get("stage"), "where_it_trades": STAGE_WORDS.get(row.get("stage") or "", "no pool found yet"),
+        "dex": row.get("dex_id"),
+        "liquidity_usd": round(pool.liquidity_usd) if pool and pool.liquidity_usd else None,
+        "mcap_usd": round(pool.market_cap_usd) if pool and pool.market_cap_usd else None,
+        "mint_safety": {"red_flags": safety, "creator_can_mint_more": bool(info.mint_authority),
+                        "creator_can_freeze_coins": bool(info.freeze_authority)},
+    }
+    hs = None
     try:
-        if rec.phase == Phase.NOT_GRADUATED:
-            st = ctx.pons.curve_state(rec.curve)
-            f["curve_progress_pct"] = round(st.progress * 100, 1)
-            f["curve_fee_pct"] = st.fee_bps / 100
-            if launch:
-                head = ctx.rpc.block_number()
-                bt = float((kv_get(conn, "block_time_s") or {}).get("value", 0.1))
-                act = activity_for(conn, token, launch["deployer"], head, bt, s.activity_windows_s)
-                c = screen_almost_bonded(s, token=token, progress=st.progress, phase=int(rec.phase),
-                                         launch_age_s=(head - launch["block_number"]) * bt, snipe_window_s=0,
-                                         fee_bps=st.fee_bps, creator_tax_bps=st.creator_tax_bps, activity=act,
-                                         quote_symbol=quote)
-                f["onchain_activity"] = {"windows": [asdict(w) for w in act.windows],
-                                         "top_buyer_share": round(act.top_buyer_share, 3),
-                                         "deployer_buy_share": round(act.deployer_buy_share, 3),
-                                         "wallets_that_bought_and_sold_fast": act.roundtrip_traders,
-                                         "accelerating": act.accelerating}
-                f["vigil_screen"] = {"flags": c.flags, "red_flags": c.blockers}
-            else:
-                f["onchain_activity"] = "not indexed by VIGIL yet"
-        elif rec.phase == Phase.POOL_CREATED:
-            pid = (launch or {}).get("pool_id") or ctx.pons.genuine_pool_id(rec)
-            pool = ctx.market.genuine_pool_stats(token, pid)
-            if pool:
-                f["pool"] = {"volume_1h_usd": pool.volume_h1_usd, "volume_24h_usd": pool.volume_h24_usd,
-                             "liquidity_usd": pool.liquidity_usd, "trades_1h": pool.txns_h1}
-                c = screen_migrated(s, token=token, phase=int(rec.phase), pool_found=True,
-                                    volume_h1_usd=pool.volume_h1_usd, liquidity_usd=pool.liquidity_usd,
-                                    volume_h24_usd=pool.volume_h24_usd, fee_bps=(launch or {}).get("fee_bps") or 100,
-                                    creator_tax_bps=rec.creator_tax_bps, activity=None, quote_symbol=quote)
-                f["vigil_screen"] = {"flags": c.flags, "red_flags": c.blockers}
-            else:
-                f["pool"] = "no market data for the genuine pool yet"
+        hs = tok.holder_facts(ctx.rpc, token, supply=info.supply, creator=row.get("creator"))
+        if hs.get("error"):
+            hs = None
     except Exception as exc:  # a missing figure must never break the answer
-        f["data_gap"] = f"some live numbers could not be read ({type(exc).__name__})"
-    if launch:
-        from ..strategy.engine import fees_paid_eth, holder_facts
-        paid = fees_paid_eth(ctx, launch)
-        if paid is not None:
-            f["trading_fees_paid_eth"] = round(paid, 4)
-        hs = holder_facts(ctx, launch)
-        if hs:
-            f["holders"] = hs
-    att = kv_get(conn, f"x_attention:{token.lower()}")
+        f["data_gap"] = f"holders could not be read ({type(exc).__name__})"
+    if hs:
+        f["holders"] = hs
+    if pool:
+        f["pool"] = {"volume_1h_usd": pool.volume_h1_usd, "volume_24h_usd": pool.volume_h24_usd,
+                     "liquidity_usd": pool.liquidity_usd, "trades_1h": pool.txns_h1, "price_usd": pool.price_usd}
+    c = screen_token(s, token=token, stage=row.get("stage"), pool_found=pool is not None,
+                     volume_h1_usd=pool.volume_h1_usd if pool else None,
+                     liquidity_usd=pool.liquidity_usd if pool else None,
+                     volume_h24_usd=pool.volume_h24_usd if pool else None, safety=safety, holders=hs)
+    f["vigil_screen"] = {"flags": c.flags, "red_flags": c.blockers}
+    att = kv_get(conn, f"x_attention:{token}")
     if att:
         f["x_mentions_24h"] = att.get("count_24h")
+    call = conn.execute("SELECT called_at, last_move_pct, status, note FROM scanner_calls WHERE token=? "
+                        "ORDER BY id DESC LIMIT 1", (token,)).fetchone()
+    if call:
+        f["smart_money_call"] = dict(call)
     f["vigil_decisions"] = [{"when": d["ts"], "action": d["action"], "confidence": d["confidence"],
                              "thesis": (d["thesis"] or "")[:300]}
                             for d in rows(conn, "SELECT ts, action, confidence, thesis FROM decisions WHERE "
-                                                "lower(token)=lower(?) AND model!='rule' ORDER BY id DESC LIMIT 3", (token,))]
-    f["vigil_trades"] = rows(conn, "SELECT mode, status, opened_at, closed_at, entry_quote AS entry_eth, "
-                                   "pnl_quote AS pnl_eth, exit_reason FROM positions WHERE lower(token)=lower(?) "
+                                                "token=? AND model!='rule' ORDER BY id DESC LIMIT 3", (token,))]
+    f["vigil_trades"] = rows(conn, "SELECT mode, status, opened_at, closed_at, entry_quote AS entry_sol, "
+                                   "pnl_quote AS pnl_sol, exit_reason FROM positions WHERE token=? "
                                    "ORDER BY id DESC LIMIT 3", (token,))
     return f
 
 
 def token_card(facts: dict[str, Any]) -> dict[str, Any] | None:
     """What the website shows above Grok's reply."""
-    if not facts.get("is_pons_v2_launch_on_robinhood_chain"):
+    if not facts.get("is_solana_token"):
         return None
-    return {k: facts.get(k) for k in ("address", "name", "symbol", "stage", "curve_progress_pct", "market_cap_usd",
+    return {k: facts.get(k) for k in ("address", "name", "symbol", "stage", "dex", "liquidity_usd", "mcap_usd",
                                       "explorer", "logo")}
 
 
@@ -219,17 +232,14 @@ def _age(iso: str | None) -> str:
 
 
 def onchain_detail(f: dict[str, Any]) -> str:
-    """One line for the chat's research card, e.g. 'graduated · $48.2K MC · $16K liquidity · 3% fees'."""
-    bits = [f"curve {f['curve_progress_pct']:.0f}%" if f.get("curve_progress_pct") is not None else
-            "graduated" if "graduated" in str(f.get("stage", "")) else str(f.get("stage") or "")]
-    if f.get("market_cap_usd") not in (None, "", "unknown"):
-        bits.append(f"{f['market_cap_usd']} MC")
-    pool = f.get("pool") if isinstance(f.get("pool"), dict) else {}
-    if pool.get("liquidity_usd"):
-        bits.append(f"{_usd(pool['liquidity_usd'])} liquidity")
-    fee = (f.get("curve_fee_pct") or 0) + (f.get("creator_tax_pct") or 0)
-    if fee:
-        bits.append(f"{fee:g}% fees")
+    """One line for the chat's research card, e.g. 'pool on pumpswap · $48.2K MC · $16K liquidity · top 10 hold 20%'."""
+    stage = f.get("stage")
+    bits = ["on the bonding curve" if stage == "curve" else (f"pool on {f['dex']}" if f.get("dex") else "graduated")
+            if stage == "pool" else "no pool yet"]
+    if f.get("mcap_usd"):
+        bits.append(f"{_usd(f['mcap_usd'])} MC")
+    if f.get("liquidity_usd"):
+        bits.append(f"{_usd(f['liquidity_usd'])} liquidity")
     hs = f.get("holders") or {}
     if hs.get("top10_share") is not None:
         bits.append(f"top 10 hold {hs['top10_share']:.0%}")
@@ -276,10 +286,11 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
         # A coin gets researched (with the live card) only when this message names one: a pasted contract, a
         # $ticker, or a suggestion chip. Otherwise the coin from earlier rides along quietly, so a real follow-up
         # ("and the fees?") still works, but an unrelated question isn't answered with that coin's research.
-        if hint and not ADDRESS.search(msg):
+        market = svc.get("market")
+        if hint and not _mint_in(msg):
             token, how = hint, "chip"
         else:
-            token, how = find_token(conn, msg)
+            token, how = find_token(conn, msg, market)
         earlier = None
         if not token and not how:
             earlier = context
@@ -287,7 +298,7 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
                 if earlier:
                     break
                 if m["role"] == "user":
-                    earlier = find_token(conn, m["text"])[0]
+                    earlier = find_token(conn, m["text"])[0]  # no web search for old messages
         facts: dict[str, Any] = {}
         ev: list[dict[str, Any]] = []
         story: dict[str, Any] = {}
@@ -295,8 +306,8 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
             yield step("coin", "run")
         if token:
             facts = research(ctx, token)
-            if not facts.get("is_pons_v2_launch_on_robinhood_chain"):
-                yield step("coin", "fail", "not a Pons launch on Robinhood Chain")
+            if not facts.get("is_solana_token"):
+                yield step("coin", "fail", "not a Solana token")
             else:
                 yield step("coin", "done", f"${facts.get('symbol') or '?'} · {_clip(facts.get('name') or '', 40)}")
                 yield step("onchain", "done", onchain_detail(facts))
@@ -306,7 +317,7 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
                 if story is None:
                     story, looked = lore_mod.read_onchain(ctx, facts["address"]), False
                 desc = story.get("description") or ""
-                yield step("lore", "done" if desc else "skip", f"\u201c{_clip(desc, 110)}\u201d" if desc else "no description stored")
+                yield step("lore", "done" if desc else "skip", f"\u201c{_clip(desc, 110)}\u201d" if desc else "no description published")
                 links = story.get("links") or {}
                 handle = links.get("x")
                 if not handle:
@@ -344,7 +355,7 @@ def answer_events(svc: dict[str, Any], s: Any, db_path: str, who: str, msg: str,
             facts = {"lookup": how}
         elif earlier:  # quietly, from the caches: no research card, no coin card
             facts = research(ctx, earlier)
-            if facts.get("is_pons_v2_launch_on_robinhood_chain"):
+            if facts.get("is_solana_token"):
                 facts["context_only"] = True
                 ev = evidence(conn, facts["address"])
                 story = lore_mod.cached(ctx, facts["address"])[0] or lore_mod.read_onchain(ctx, facts["address"])

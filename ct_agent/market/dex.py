@@ -83,11 +83,19 @@ class MarketData:
         return [p for p in (r.json() or []) if (p.get("baseToken") or {}).get("address") == mint]
 
     def pool_stats(self, mint: str) -> PoolStats | None:
-        """The coin's deepest SOL-quoted pool. None when there is none (or the feeds are down)."""
+        """The coin's market across all its pools: price (and pool id, DEX) from the deepest SOL-quoted pool,
+        liquidity, volume and trades summed over every pool, since Jupiter routes through all of them.
+        None when it has no SOL pool (or the feeds are down)."""
         try:
-            sol_pairs = [p for p in self.pairs(mint) if (p.get("quoteToken") or {}).get("address") == SOL_MINT]
+            pairs = self.pairs(mint)
+            sol_pairs = [p for p in pairs if (p.get("quoteToken") or {}).get("address") == SOL_MINT]
             if sol_pairs:
-                return _from_dexscreener(max(sol_pairs, key=lambda p: _f((p.get("liquidity") or {}).get("usd")) or 0))
+                st = _from_dexscreener(max(sol_pairs, key=lambda p: _f((p.get("liquidity") or {}).get("usd")) or 0))
+                total = lambda key, sub: sum(_f((p.get(key) or {}).get(sub)) or 0 for p in pairs)  # noqa: E731
+                txns = sum(int(((p.get("txns") or {}).get("h1") or {}).get(k) or 0) for p in pairs for k in ("buys", "sells"))
+                return PoolStats(st.source, st.pool_id, st.price_usd, st.price_native, total("volume", "h1"),
+                                 total("volume", "h24"), total("liquidity", "usd"), txns, st.raw, st.dex_id,
+                                 st.market_cap_usd)
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:  # bad data skips this token only
             log.warning("dexscreener failed for %s: %s", mint, exc)
         try:

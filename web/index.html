@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VIGIL · powered by Grok</title>
-<meta name="description" content="VIGIL reads thousands of new memecoins a day on Robinhood Chain, checks every claim onchain with Grok and trades the rare good ones in public. Losses included.">
+<meta name="description" content="VIGIL reads thousands of new memecoins a day on Solana, checks every claim onchain with Grok and trades the rare good ones in public. Losses included.">
 <!-- canonical, og:url and the share image use the current domain: they change when the site moves -->
 <link rel="canonical" href="https://www.moosebymuse.com/">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -12,7 +12,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://www.moosebymuse.com/">
 <meta property="og:title" content="VIGIL, powered by Grok">
-<meta property="og:description" content="An AI, powered by Grok, that watches every memecoin launch on Robinhood Chain, checks every claim onchain and trades in public. Losses included.">
+<meta property="og:description" content="An AI, powered by Grok, that watches every memecoin launch on Solana, checks every claim onchain and trades in public. Losses included.">
 <meta property="og:image" content="https://www.moosebymuse.com/assets/og-vigil.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@MooseByMuse"><!-- the X account: change it together with X_HANDLE in the script -->
@@ -123,12 +123,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .card-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 16px 18px 12px; }
 .card-h h4 { font-size: var(--t-md); font-family: var(--f-body); font-weight: 700; letter-spacing: -0.01em; }
 .ic { width: 1em; height: 1em; flex: none; display: inline-block; vertical-align: -0.14em; }
-.rh { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 30%; background: #000; color: #CCFF00; flex: none; vertical-align: -0.35em; }
-.rh .ic { width: .95em; height: .95em; vertical-align: 0; }
+.sol { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 30%; background: #000; color: #FFFFFF; flex: none; vertical-align: -0.35em; }
+.sol .ic { width: .9em; height: .9em; vertical-align: 0; }
 .xl { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border-radius: 30%; background: #000; color: #fff; flex: none; vertical-align: -0.35em; }
 .xl .ic { width: .8em; height: .8em; vertical-align: 0; }
-.eth { width: .95em; height: .95em; color: var(--ink-2); vertical-align: -0.12em; }
-.onchain .rh { vertical-align: 0; }
+.solu { width: .9em; height: .9em; color: var(--ink-2); vertical-align: -0.1em; }
+.onchain .sol { vertical-align: 0; }
 .chip-ic { display: inline-grid; place-items: center; border-radius: 10px; color: var(--white); flex: none; }
 .chip-ic .ic { width: 55%; height: 55%; vertical-align: 0; }
 /* coin avatar: the token's own logo, or a quiet monogram of its ticker when it has none */
@@ -473,7 +473,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .msg.att .chip-ic { width: 36px; height: 36px; }
 .msg .note-ic { color: var(--amber); margin-right: 6px; }
 .msg.att small { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12px; font-family: var(--f-mono); margin-top: 2px; }
-.msg.att small .rh { font-size: 10px; }
+.msg.att small .sol { font-size: 10px; }
 .msg.verdict-msg { align-self: stretch; max-width: none; padding: 0; overflow: hidden; background: var(--white); border: 1px solid #D6E6FA; border-radius: 22px; box-shadow: 0 16px 36px -22px rgba(0,100,224,.45); }
 .vd-head { display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: linear-gradient(115deg, var(--blue-soft) 0%, #F5F9FF 55%, var(--sand) 100%); border-bottom: 1px solid #E3ECF7; }
 .vd-act { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: var(--r-pill); font-family: var(--f-display); font-weight: 600; font-size: 15px; letter-spacing: .03em; color: var(--white); box-shadow: 0 6px 14px -8px rgba(28,43,51,.5); flex: none; }
@@ -698,7 +698,7 @@ body.killed .paused-note { display: block; }
 .scan-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 18px; align-items: center; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--line); animation: pop .3s var(--spring); }
 .scan-row .si { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue-deep); }
 .scan-row .si .ic { width: 14px; height: 14px; vertical-align: 0; }
-.scan-row .si.rh { background: #000; color: #CCFF00; font-size: 14px; width: 26px; height: 26px; border-radius: 8px; vertical-align: 0; }
+.scan-row .si.sol { background: #000; color: #FFFFFF; font-size: 14px; width: 26px; height: 26px; border-radius: 8px; vertical-align: 0; }
 .scan-row .si.xl { background: #000; color: #fff; }
 .scan-row b { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; }
 .scan-row small { display: block; font-size: 12px; color: var(--ink-2); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -966,7 +966,7 @@ footer .wordmark-t { color: var(--ink); }
 .chip-ic, .src-ic { color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
 .coinav { background: linear-gradient(160deg, #26262B, #18181B); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
 .coin-logo { background: var(--card-2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
-.rh, .xl, .scan-row .si.rh, .scan-row .si.xl { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.sol, .xl, .scan-row .si.sol, .scan-row .si.xl { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
 .xp-meta, .xp-more, .xp-actions { color: #8B98A5; }
 .ask-send:disabled { background: var(--card-2); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
 .lform .btn:disabled { opacity: 1; background: var(--card-2); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--line); }
@@ -991,56 +991,8 @@ main, footer { position: relative; z-index: 1; }
 .bg-glow { background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.055), transparent 70%); }
 @media (hover: none), (prefers-reduced-motion: reduce) { .bg-fx { display: none; } }
 .lcard .lemo { display: grid; place-items: center; font-size: 21px; line-height: 1; background: linear-gradient(160deg, #26262B, #18181B); box-shadow: inset 0 0 0 1px var(--line); }
-.lform select { font: inherit; font-size: 15px; font-weight: 500; color: var(--ink); background: var(--white); border: 1px solid var(--line);
-  border-radius: 12px; padding: 12px 40px 12px 14px; width: 100%; cursor: pointer; appearance: none; -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
-  background-position: calc(100% - 20px) 52%, calc(100% - 14px) 52%; background-size: 6px 6px; background-repeat: no-repeat; }
-.lform select:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
-.lform select option, .lform select optgroup { background: #111113; color: var(--ink); }
-.lpair small { font-size: 12.5px; font-weight: 500; color: var(--green); }
-.lpair small[hidden] { display: none; }
-.lcard b .lpr { font-style: normal; font-weight: 500; color: var(--ink-3); }
 .lrow-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 @media (max-width: 760px) { .lrow-2 { grid-template-columns: minmax(0, 1fr); } }
-.lpair { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
-.lpair em { font-style: normal; font-weight: 500; color: var(--ink-3); }
-.pk-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.pk { position: relative; }
-.pk-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 12px; cursor: pointer; text-align: left;
-  font: inherit; color: var(--ink); background: var(--white); border: 1px solid var(--line); transition: border-color .2s, box-shadow .2s; }
-.pk-btn:hover { border-color: var(--ink-3); }
-.pk-btn:focus-visible, .pk.open .pk-btn { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(255,255,255,.10); }
-.pk-cur { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
-.pk-cur b { font-family: var(--f-mono); font-size: 14.5px; font-weight: 600; letter-spacing: .01em; }
-.pk-cur span { font-size: 13.5px; font-weight: 500; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pk-btn.set .pk-cur span { color: var(--ink-2); }
-.pk-chev { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
-.pk.open .pk-chev { transform: rotate(180deg); stroke: var(--ink); }
-.pk-pop { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 6px); background: var(--card); border: 1px solid var(--line);
-  border-radius: 12px; box-shadow: 0 24px 48px -16px rgba(0,0,0,.9); overflow: hidden; animation: pkIn .14s ease-out; }
-.pk-pop[hidden] { display: none; }
-@keyframes pkIn { from { opacity: 0; transform: translateY(-4px); } }
-.pk-q { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--line); }
-.pk-q .ic { width: 15px; height: 15px; color: var(--ink-3); flex: none; }
-.pk-q input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; padding: 12px 0; font: inherit; font-size: 14px; font-weight: 500; color: var(--ink); }
-.pk-q input::placeholder { color: #6E6E77; }
-.lform .pk-q input, .lform .pk-q input:focus { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 13px 0; }
-.pk-list { max-height: 292px; overflow-y: auto; padding: 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
-.pk-g { padding: 10px 10px 6px; font-family: var(--f-mono); font-size: 10.5px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
-.pk-o { display: grid; grid-template-columns: 26px 64px minmax(0, 1fr) 16px; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
-.pk-ic { width: 26px; height: 26px; flex: none; border-radius: 50%; overflow: hidden; display: grid; place-items: center;
-  background: var(--card-2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
-.pk-ic img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pk-ic.eth { background: #627EEA; color: #FFFFFF; } .pk-ic.eth .ic { width: 15px; height: 15px; vertical-align: 0; }
-.pk-ic.mono { font-family: var(--f-mono); font-size: 10px; font-weight: 600; color: var(--ink-2); }
-.pk-cur .pk-ic { width: 24px; height: 24px; }
-.pk-o.hi { background: var(--card-2); box-shadow: inset 0 0 0 1px var(--line); }
-.pk-t { font-family: var(--f-mono); font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.pk-n { font-size: 13.5px; font-weight: 500; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pk-ok { width: 15px; height: 15px; color: var(--accent); visibility: hidden; }
-.pk-o.on .pk-ok { visibility: visible; }
-.pk-o.on .pk-t { color: var(--accent); }
-.pk-none { padding: 18px 12px; font-size: 13.5px; color: var(--ink-3); text-align: center; }
 
 /* ================= VIGIL: Grok-style black and white ================= */
 /* Last in the sheet, so it wins. Pure black, white type, neutral greys and thin borders; the only light is the
@@ -1217,8 +1169,9 @@ footer nav a:hover { color: var(--ink); }
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
 <symbol id="b-x" viewBox="0 0 24 24" fill="currentColor"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></symbol>
 <symbol id="b-twitch" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/></symbol>
-<symbol id="b-robinhood" viewBox="0 0 24 24" fill="currentColor"><path d="M2.84 24h.53c.096 0 .192-.048.224-.128C7.591 13.696 11.94 8.656 14.67 5.638c.112-.128.064-.225-.096-.225h-4.88a.55.55 0 0 0-.45.225L5.746 9.972c-.514.642-.642 1.236-.642 2.086v4.43c-1.14 3.194-1.862 5.361-2.392 7.32-.032.125.016.192.129.192M20.447.646c-.754-.802-4.157-.834-5.73-.224a3 3 0 0 0-.786.465 41 41 0 0 0-3.323 3.178c-.112.113-.064.225.097.225h5.409c.497 0 .786.289.786.786v6.1c0 .16.128.208.225.064l3.258-4.254c.53-.69.69-.898.835-1.861.192-1.413.08-3.58-.77-4.479m-6.982 16.18 2.231-3.676a.7.7 0 0 0 .064-.29V6.73c0-.16-.112-.225-.224-.097-3.355 3.74-5.971 7.672-8.395 12.407-.06.12.016.225.16.177l5.009-1.54c.565-.174.882-.402 1.155-.852"/></symbol>
-<symbol id="b-eth" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 17.97L4.58 13.62 11.943 24l7.37-10.38-7.372 4.35h.003zM12.056 0L4.69 12.223l7.365 4.354 7.365-4.35L12.056 0z"/></symbol>
+<!-- the Solana-style mark (three slanted bars, drawn here): b-solana in the purple-to-green gradient, b-sol plain for amounts -->
+<symbol id="b-solana" viewBox="0 0 24 24"><defs><linearGradient id="solGrad" x1="3" y1="20" x2="21" y2="4" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#9945FF"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><g fill="url(#solGrad)"><path d="M6.2 4.5H21.5l-3.7 4H2.5z"/><path d="M2.5 10H17.8l3.7 4H6.2z"/><path d="M6.2 15.5H21.5l-3.7 4H2.5z"/></g></symbol>
+<symbol id="b-sol" viewBox="0 0 24 24" fill="currentColor"><path d="M6.2 4.5H21.5l-3.7 4H2.5z"/><path d="M2.5 10H17.8l3.7 4H6.2z"/><path d="M6.2 15.5H21.5l-3.7 4H2.5z"/></symbol>
 <symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /> <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></symbol>
 <symbol id="i-newspaper" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" /> <path d="M18 14h-8" /> <path d="M15 18h-5" /> <path d="M10 6h8v4h-8V6Z" /></symbol>
 <symbol id="i-factory" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" /> <path d="M17 18h1" /> <path d="M12 18h1" /> <path d="M7 18h1" /></symbol>
@@ -1318,7 +1271,7 @@ footer nav a:hover { color: var(--ink); }
 <!-- 1 HERO: an AI that watches every launch so you don't have to -->
 <section class="hero" aria-labelledby="h1">
   <div class="wrap center">
-    <div class="kickers"><span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> VIGIL, powered by Grok</span><span class="kicker soft"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trading memecoins on Robinhood Chain</span></div>
+    <div class="kickers"><span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> VIGIL, powered by Grok</span><span class="kicker soft"><span class="sol" aria-hidden="true"><svg class="ic"><use href="#b-solana"/></svg></span> Trading memecoins on Solana</span></div>
     <h1 id="h1">I watch every launch<br><span class="blue">so you don't have to.</span></h1>
     <p class="sub">VIGIL reads thousands of new memecoins a day, checks every claim onchain with Grok and trades the rare good ones in public. Losses included.</p>
     <div class="ctas">
@@ -1332,22 +1285,22 @@ footer nav a:hover { color: var(--ink); }
       <div class="float f1" data-depth="18">
         <div class="row"><span class="coinav" data-coin="blue" data-sym="HATCH" style="width:22px;height:22px"></span><b id="hfWatch">Watching $HATCH</b><span class="dot pulse" style="color:var(--green)"></span></div>
         <div class="bar"><i id="heroBar" style="width:91%"></i></div>
-        <small id="heroBarTxt">curve 91% · buys speeding up</small>
+        <small id="heroBarTxt">pump.fun curve · buys speeding up</small>
       </div>
       <div class="float f2" data-depth="-14">
-        <div class="row"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span><span class="pill green" id="hfChecks"><svg class="ic"><use href="#i-badge-check"/></svg> 4/4 checks</span></div>
-        <small id="hfLead">0x47a3…94d4 is a real Pons launch</small>
+        <div class="row"><span class="sol" aria-hidden="true"><svg class="ic"><use href="#b-solana"/></svg></span><span class="pill green" id="hfChecks"><svg class="ic"><use href="#i-badge-check"/></svg> 4/4 checks</span></div>
+        <small id="hfLead">9wFq…pump is a real pump.fun launch</small>
       </div>
       <div class="float f3" data-depth="22">
         <div class="row"><span class="pill blue" id="hfCallPill">TEST BUY</span><b id="hfCallSym">$HATCH</b></div>
-        <small class="onchain"><svg class="ic eth"><use href="#b-eth"/></svg> <span id="hfCallTxt">0.05 ETH · risk: one wallet is 35% of buys</span></small>
+        <small class="onchain"><svg class="ic solu"><use href="#b-sol"/></svg> <span id="hfCallTxt">0.5 SOL · risk: one wallet is 35% of buys</span></small>
       </div>
       <div class="float f4" data-depth="-20">
         <div class="row"><span class="pill ink"><svg class="ic"><use href="#i-circle-stop"/></svg> PASS</span><b id="hfPassSym">$JOLLY</b></div>
         <small class="onchain"><svg class="ic"><use href="#i-wallet"/></svg> <span id="hfPassTxt">dev wallet bought 52% of the curve</span></small>
       </div>
     </div>
-    <div class="hero-stats"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span><span><b id="hsLaunch" data-count="3544">3,544</b> launches on Robinhood Chain today</span></span><span class="onchain"><svg class="ic"><use href="#i-shield-check"/></svg><span><b id="hsClaims" data-count="1284">1,284</b> claims checked onchain</span></span><span class="onchain"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span><span><b id="hsPosts" data-count="23">23</b> <span id="hsPostsLbl">trades posted on X</span></span></span></div>
+    <div class="hero-stats"><span class="onchain"><span class="sol" aria-hidden="true"><svg class="ic"><use href="#b-solana"/></svg></span><span><b id="hsCalls" data-count="148">148</b> smart-money calls today</span></span><span class="onchain"><svg class="ic"><use href="#i-shield-check"/></svg><span><b id="hsScreened" data-count="61">61</b> screened onchain</span></span><span class="onchain"><svg class="ic"><use href="#i-trending-up"/></svg><span><b id="hsBought" data-count="3">3</b> bought</span></span></div>
   </div>
 </section>
 
@@ -1357,7 +1310,7 @@ footer nav a:hover { color: var(--ink); }
     <div>
       <span class="kicker"><svg class="ic"><use href="#i-sparkles"/></svg> Ask VIGIL</span>
       <h2 class="h2" id="h-ask">Got a coin in mind? <span class="blue">Ask VIGIL.</span></h2>
-      <p class="sub">Paste a Robinhood Chain contract or a $ticker. VIGIL researches it with Grok, the way it researches its own trades, and tells you what it finds.</p>
+      <p class="sub">Paste a Solana contract address or a $ticker. VIGIL researches it with Grok, the way it researches its own trades, and tells you what it finds.</p>
       <ul class="ask-points">
         <li><span class="ic-b"><svg class="ic"><use href="#i-shield-check"/></svg></span>Checked onchain, live: curve, pool, who's buying</li>
         <li><span class="ic-b"><svg class="ic"><use href="#i-users"/></svg></span>What people are saying, and whether it holds up</li>
@@ -1368,7 +1321,7 @@ footer nav a:hover { color: var(--ink); }
     <div class="panel grid-bg ask-panel" style="background:var(--panel-cool)">
       <div class="chat ask-chat">
         <div class="chat-h"><span class="face"></span><div><b>VIGIL</b><small>Research with Grok</small></div><span class="pill blue" id="askLeft">10 an hour</span></div>
-        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm VIGIL. Paste a Robinhood Chain contract address or a $ticker and I'll dig into it with Grok: the onchain numbers, what people are saying, and what I made of it.</div></div>
+        <div class="msgs" id="askMsgs" aria-live="polite"><div class="msg bot">Hi, I'm VIGIL. Paste a Solana contract address or a $ticker and I'll dig into it with Grok: the onchain numbers, what people are saying, and what I made of it.</div></div>
         <div class="ask-sugg" id="askSugg"></div>
         <form class="ask-bar" id="askForm"><label class="sr-only" for="askIn">Ask VIGIL about a coin</label><textarea id="askIn" rows="1" maxlength="500" placeholder="Paste a contract or a $ticker"></textarea><button class="ask-send" id="askSend" type="submit" aria-label="Send" disabled><svg class="ic"><use href="#i-arrow-up"/></svg></button></form>
         <div class="chat-foot"><span>Research, not financial advice.</span><span class="num" id="askCount">0/500</span></div>
@@ -1412,8 +1365,8 @@ footer nav a:hover { color: var(--ink); }
       </div>
       <div class="fl fl-1" aria-hidden="true"><span class="tile" style="background:var(--blue-soft);color:var(--blue-deep)"><svg class="ic"><use href="#i-sparkles"/></svg></span>Grok <small>thinking…</small></div>
       <div class="fl fl-2" aria-hidden="true"><span class="tile" style="background:var(--green-soft);color:var(--green)"><svg class="ic"><use href="#i-shield-check"/></svg></span>4/4 checks passed</div>
-      <div class="fl fl-3" aria-hidden="true"><span class="rh"><svg class="ic"><use href="#b-robinhood"/></svg></span>Robinhood Chain</div>
-      <div class="fl fl-4" aria-hidden="true"><span class="tile" style="background:var(--sand);color:var(--sand-ink)"><svg class="ic"><use href="#i-wallet"/></svg></span>0.05 ETH max <small>per trade</small></div>
+      <div class="fl fl-3" aria-hidden="true"><span class="sol"><svg class="ic"><use href="#b-solana"/></svg></span>Solana</div>
+      <div class="fl fl-4" aria-hidden="true"><span class="tile" style="background:var(--sand);color:var(--sand-ink)"><svg class="ic"><use href="#i-wallet"/></svg></span>0.5 SOL max <small>per trade</small></div>
     </div>
   </div>
 </section>
@@ -1425,9 +1378,9 @@ footer nav a:hover { color: var(--ink); }
       <span class="kicker"><svg class="ic"><use href="#i-rocket"/></svg>Launchpad</span>
       <h2 class="h2" id="h-launch">Launch your own coin. <span class="blue">Just tag VIGIL.</span></h2>
       <ol class="lsteps">
-        <li><b>1</b><div><strong>Fill in your coin</strong><span>Name, ticker, a line about it and the wallet for your fees.</span></div></li>
+        <li><b>1</b><div><strong>Fill in your coin</strong><span>Name, ticker, a line about it and the Solana wallet for your fees.</span></div></li>
         <li><b>2</b><div><strong>Post it on X with your image</strong><span>VIGIL checks every request before it launches anything.</span></div></li>
-        <li><b>3</b><div><strong>VIGIL launches it</strong><span>It replies with your CA. Once the coin pays back its launch, the creator fees go to your wallet (straight away if it's paired with a stock).</span></div></li>
+        <li><b>3</b><div><strong>VIGIL launches it on pump.fun</strong><span>It replies with your CA. VIGIL pays the launch, and you get 90% of the creator fees from the first trade (VIGIL keeps 10%).</span></div></li>
       </ol>
       <p class="lrules">Call it whatever you like · one launch per X account a day · accounts older than 30 days · no hate, scams or fake "official" coins</p>
       <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><span class="example" id="lEx">example</span></div><div class="rc-view lview" id="lRecentList"></div></div>
@@ -1438,20 +1391,10 @@ footer nav a:hover { color: var(--ink); }
           <label>Coin name<input id="lfName" maxlength="32" placeholder="Purr Capital" required></label>
           <label class="lsym">Ticker<span class="lpre">$</span><input id="lfSym" maxlength="10" placeholder="PURR" required></label>
         </div>
-        <div class="lpair"><span class="lpair-l" id="pkLbl">Pair with <em>optional · trade your coin against a Robinhood stock instead of ETH</em></span>
-          <select id="lfPair" class="pk-native" tabindex="-1" aria-hidden="true"><option value="">ETH (default)</option><optgroup label="Popular"><option value="TSLA">$TSLA · Tesla</option><option value="NVDA">$NVDA · NVIDIA</option><option value="AAPL">$AAPL · Apple</option><option value="SPY">$SPY · S&P 500 ETF</option><option value="GME">$GME · GameStop</option><option value="SPCX">$SPCX · SpaceX</option><option value="MSTR">$MSTR · Strategy</option><option value="COIN">$COIN · Coinbase</option><option value="META">$META · Meta</option><option value="AMZN">$AMZN · Amazon</option><option value="PLTR">$PLTR · Palantir</option></optgroup><optgroup label="All stocks and ETFs"><option value="AAPL">$AAPL · Apple</option><option value="AMC">$AMC · AMC</option><option value="AMD">$AMD · AMD</option><option value="AMZN">$AMZN · Amazon</option><option value="BA">$BA · Boeing</option><option value="BABA">$BABA · Alibaba</option><option value="BB">$BB · BlackBerry</option><option value="BE">$BE · Bloom Energy</option><option value="BULL">$BULL · Webull</option><option value="CEG">$CEG · Constellation Energy</option><option value="COIN">$COIN · Coinbase</option><option value="COST">$COST · Costco</option><option value="CRCL">$CRCL · Circle</option><option value="DELL">$DELL · Dell</option><option value="DJT">$DJT · Trump Media</option><option value="EWY">$EWY · South Korea ETF</option><option value="F">$F · Ford</option><option value="FIG">$FIG · Figma</option><option value="GLD">$GLD · Gold ETF</option><option value="GME">$GME · GameStop</option><option value="GOOGL">$GOOGL · Alphabet</option><option value="HIMS">$HIMS · Hims & Hers</option><option value="IBM">$IBM · IBM</option><option value="INDA">$INDA · India ETF</option><option value="INTC">$INTC · Intel</option><option value="JNJ">$JNJ · Johnson & Johnson</option><option value="LLY">$LLY · Eli Lilly</option><option value="LMT">$LMT · Lockheed Martin</option><option value="LULU">$LULU · Lululemon</option><option value="META">$META · Meta</option><option value="MRNA">$MRNA · Moderna</option><option value="MRVL">$MRVL · Marvell</option><option value="MSFT">$MSFT · Microsoft</option><option value="MSTR">$MSTR · Strategy</option><option value="MU">$MU · Micron</option><option value="NET">$NET · Cloudflare</option><option value="NFLX">$NFLX · Netflix</option><option value="NU">$NU · Nu Holdings</option><option value="NVDA">$NVDA · NVIDIA</option><option value="PFE">$PFE · Pfizer</option><option value="PLTR">$PLTR · Palantir</option><option value="QQQ">$QQQ · Nasdaq-100 ETF</option><option value="QUBT">$QUBT · Quantum Computing</option><option value="RBLX">$RBLX · Roblox</option><option value="RCAT">$RCAT · Red Cat</option><option value="RDDT">$RDDT · Reddit</option><option value="RIVN">$RIVN · Rivian</option><option value="RKLB">$RKLB · Rocket Lab</option><option value="SGOV">$SGOV · Treasury bond ETF</option><option value="SHOP">$SHOP · Shopify</option><option value="SKHY">$SKHY · SK hynix</option><option value="SLV">$SLV · Silver ETF</option><option value="SNAP">$SNAP · Snap</option><option value="SNDK">$SNDK · Sandisk</option><option value="SNOW">$SNOW · Snowflake</option><option value="SPCX">$SPCX · SpaceX</option><option value="SPY">$SPY · S&P 500 ETF</option><option value="TSLA">$TSLA · Tesla</option><option value="TSM">$TSM · TSMC</option><option value="TTWO">$TTWO · Take-Two</option><option value="UPS">$UPS · UPS</option><option value="USO">$USO · Oil ETF</option><option value="WYFI">$WYFI · WhiteFiber</option></optgroup></select>
-          <div class="pk" id="pk">
-            <button type="button" class="pk-btn" id="pkBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="pkLbl pkCur"><span class="pk-cur" id="pkCur"></span><svg class="pk-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
-            <div class="pk-pop" id="pkPop" hidden>
-              <div class="pk-q"><svg class="ic"><use href="#i-search"/></svg><input id="pkQ" placeholder="Search stocks: TSLA, Nvidia, S&amp;P…" spellcheck="false" aria-label="Search stocks"></div>
-              <div class="pk-list" id="pkList" role="listbox" aria-labelledby="pkLbl"></div>
-            </div>
-          </div>
-          <small id="lfPairNote" hidden></small></div>
         <label><span>What is it? <em>optional</em></span><input id="lfDesc" maxlength="100" placeholder="a cat that runs a hedge fund"></label>
         <div class="lrow lrow-2">
         <label title="If empty, your coin links to VIGIL's launch post"><span>Coin's X or website <em>optional</em></span><input id="lfLink" maxlength="80" placeholder="x.com/purrcapital"></label>
-        <label>Wallet for your creator fees<input id="lfWallet" maxlength="42" placeholder="0x…" spellcheck="false" required></label>
+        <label>Wallet for your creator fees<input id="lfWallet" maxlength="44" placeholder="Your Solana wallet" spellcheck="false" required></label>
         </div>
         <div class="lprev"><span class="sc-lbl">Your post</span><div class="xtl" id="lfPreview"></div><p class="lcredit"><svg class="ic"><use href="#i-badge-check"/></svg>You're credited as the creator: VIGIL tags the X account that posts this.</p></div>
         <p class="lnote" id="lfNote">Attach your coin's image on X before you post.</p>
@@ -1466,7 +1409,7 @@ footer nav a:hover { color: var(--ink); }
         <ol class="ldsteps">
           <li id="ldS1"><b></b><span>Post it on X with your image</span></li>
           <li id="ldS2"><b></b><span>VIGIL checks your coin</span></li>
-          <li id="ldS3"><b></b><span id="ldS3t">Your coin goes live on Robinhood Chain</span></li>
+          <li id="ldS3"><b></b><span id="ldS3t">Your coin goes live on pump.fun</span></li>
         </ol>
         <div class="ldlive" id="ldLive" hidden>
           <span class="sc-lbl">Contract address</span>
@@ -1551,8 +1494,8 @@ footer nav a:hover { color: var(--ink); }
     <div class="score-grid">
       <div class="sc-card" id="sparkWrap">
         <div style="display:flex;justify-content:space-between;gap:12px"><span class="sc-lbl">Net P&amp;L · closed trades</span><span class="example">example data</span></div>
-        <div class="sc-net"><span class="big" id="scNet" data-count="0.184" data-dec="3" data-prefix="+">+0.184</span><span class="unit">ETH</span><span class="sc-chip up" id="scRet">+8.0%</span></div>
-        <p class="sc-meta" id="scMeta">on <b>2.300 ETH</b> traded · <b>+0.004 ETH</b> unrealised on 1 open trade</p>
+        <div class="sc-net"><span class="big" id="scNet" data-count="0.920" data-dec="3" data-prefix="+">+0.920</span><span class="unit">SOL</span><span class="sc-chip up" id="scRet">+8.0%</span></div>
+        <p class="sc-meta" id="scMeta">on <b>11.500 SOL</b> traded · <b>+0.040 SOL</b> unrealised on 1 open trade</p>
         <div class="sc-acct" id="scAcct" hidden><span class="sc-lbl">Account balance</span><b id="scAcctV"></b></div>
         <svg class="spark" id="spark" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Cumulative profit and loss"></svg>
         <div class="spark-tip" id="sparkTip"></div>
@@ -1561,13 +1504,13 @@ footer nav a:hover { color: var(--ink); }
       <div class="sc-tiles">
         <div class="sc-card sc-tile"><span class="sc-lbl">Trades taken</span><span class="v" id="scTaken" data-count="24">24</span><span class="s" id="scTakenS">23 closed · 1 open</span></div>
         <div class="sc-card sc-tile"><span class="sc-lbl">Win rate</span><span class="v" id="scRate">57%</span><div><div class="wl" id="scWL"><i class="w" style="flex:13"></i><i class="l" style="flex:10"></i></div><span class="s" id="scWLs" style="display:block;margin-top:8px">13 wins · 10 losses</span></div></div>
-        <div class="sc-card sc-tile"><span class="sc-lbl">Avg per trade</span><span class="v up-t" id="scAvg">+0.008<small>ETH</small></span><span class="s" id="scAvgS">same size every trade</span></div>
+        <div class="sc-card sc-tile"><span class="sc-lbl">Avg per trade</span><span class="v up-t" id="scAvg">+0.040<small>SOL</small></span><span class="s" id="scAvgS">same size every trade</span></div>
         <div class="sc-card sc-tile"><span class="sc-lbl">Avg hold</span><span class="v" id="scHold">3h 10m</span><span class="s">entry to exit</span></div>
-        <div class="sc-card sc-tile"><span class="sc-lbl">Best trade</span><span class="v up-t" id="scBest">+0.041<small>ETH</small></span><span class="s" id="scBestS">$HATCH · +41.0%</span></div>
-        <div class="sc-card sc-tile"><span class="sc-lbl">Worst trade</span><span class="v down-t" id="scWorst">−0.022<small>ETH</small></span><span class="s" id="scWorstS">$MORX · −22.0%</span></div>
+        <div class="sc-card sc-tile"><span class="sc-lbl">Best trade</span><span class="v up-t" id="scBest">+0.205<small>SOL</small></span><span class="s" id="scBestS">$HATCH · +41.0%</span></div>
+        <div class="sc-card sc-tile"><span class="sc-lbl">Worst trade</span><span class="v down-t" id="scWorst">−0.110<small>SOL</small></span><span class="s" id="scWorstS">$MORX · −22.0%</span></div>
       </div>
     </div>
-    <div class="sc-recent"><span class="sc-lbl">Latest closes</span><div class="rc-view" id="scRecent"><div class="rc-track"><span class="rc"><b>$HATCH</b><span class="m up-t">+0.041</span><span class="h">4h 02m</span></span><span class="rc"><b>$MORX</b><span class="m down-t">−0.022</span><span class="h">1h 15m</span></span><span class="rc"><b>$PEPU</b><span class="m up-t">+0.013</span><span class="h">2h 48m</span></span><span class="rc"><b>$ROBO</b><span class="m down-t">−0.009</span><span class="h">52m</span></span><span class="rc"><b>$FEATHR</b><span class="m up-t">+0.018</span><span class="h">5h 30m</span></span></div></div></div>
+    <div class="sc-recent"><span class="sc-lbl">Latest closes</span><div class="rc-view" id="scRecent"><div class="rc-track"><span class="rc"><b>$HATCH</b><span class="m up-t">+0.205</span><span class="h">4h 02m</span></span><span class="rc"><b>$MORX</b><span class="m down-t">−0.110</span><span class="h">1h 15m</span></span><span class="rc"><b>$PEPU</b><span class="m up-t">+0.065</span><span class="h">2h 48m</span></span><span class="rc"><b>$ROBO</b><span class="m down-t">−0.045</span><span class="h">52m</span></span><span class="rc"><b>$FEATHR</b><span class="m up-t">+0.090</span><span class="h">5h 30m</span></span></div></div></div>
     </div>
   </div>
 </section>
@@ -1591,8 +1534,8 @@ footer nav a:hover { color: var(--ink); }
 <footer>
   <div class="wrap">
     <a class="brand" href="#top"><span class="face" aria-hidden="true"></span><span class="wordmark-t">VIGIL</span><span class="brand-tag">powered by Grok</span></a>
-    <nav aria-label="Footer"><span class="onchain"><span class="rh" aria-hidden="true"><svg class="ic"><use href="#b-robinhood"/></svg></span> Trades on Robinhood Chain</span><a class="onchain" data-x-link href="https://x.com/" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> <span data-x-handle>VIGIL on X</span></a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
-    <p class="legal">VIGIL, powered by Grok. VIGIL is an automated account run by software; its reasoning uses xAI's Grok model through the public API. Not affiliated with xAI, X, Robinhood or Pons. Not financial advice. Testing Phase trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
+    <nav aria-label="Footer"><span class="onchain"><span class="sol" aria-hidden="true"><svg class="ic"><use href="#b-solana"/></svg></span> Trades on Solana</span><a class="onchain" data-x-link href="https://x.com/" target="_blank" rel="noopener"><span class="xl" aria-hidden="true"><svg class="ic"><use href="#b-x"/></svg></span> <span data-x-handle>VIGIL on X</span></a><a href="#record">Journal</a><a href="#score">Scorecard</a><a href="#live">Live</a></nav>
+    <p class="legal">VIGIL, powered by Grok. VIGIL is an automated account run by software; its reasoning uses xAI's Grok model through the public API. Not affiliated with xAI, X, Solana, Jupiter or pump.fun. Not financial advice. Testing Phase trades are simulated and not onchain. Holdings are disclosed in every trade post. <span id="dataNote">All figures on this page are example data.</span></p>
   </div>
 </footer>
 
@@ -1611,9 +1554,11 @@ footer nav a:hover { color: var(--ink); }
   const pick = a => a[Math.floor(Math.random() * a.length)];
   const fmt = n => n.toLocaleString("en-US");
   const I = n => `<svg class="ic"><use href="#i-${n}"/></svg>`, B = n => `<svg class="ic"><use href="#b-${n}"/></svg>`;
-  const RH = `<span class="rh" aria-hidden="true">${B("robinhood")}</span>`;
+  const SOLM = `<span class="sol" aria-hidden="true">${B("solana")}</span>`;
+  // a Solana address (a token mint or a wallet): base58, 32 to 44 characters
+  const B58 = "[1-9A-HJ-NP-Za-km-z]{32,44}", isAddr = a => new RegExp(`^${B58}$`).test(a || "");
   /* an X post, laid out like a real post on x.com */
-  const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(/(0x[0-9a-fA-F]{40})/g, '<span class="ca">$1</span>');
+  const xText = t => t.replace(/\$[A-Z]{2,}/g, m => `<span class="tag">${m}</span>`).replace(new RegExp(`\\b(${B58})\\b`, "g"), '<span class="ca">$1</span>');
   const xAct = (cls, icon, n) => `<span class="xp-act ${cls}"><span class="hit">${I(icon)}</span>${n || ""}</span>`;
   // p.name / p.who override the account (the launch form previews the visitor's own post)
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">${p.name || NAME}</span><span class="xp-meta">${p.who || "@" + X_HANDLE} · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
@@ -1622,13 +1567,22 @@ footer nav a:hover { color: var(--ink); }
   // some internet providers cache a brand-new domain as missing.
   const API = (C.api || "http://localhost:8000").replace(/\/+$/, ""), API_OLD = (C.apiFallback || API).replace(/\/+$/, "");
   const apiFetch = async (path, opts) => { try { return await fetch(API + path, opts); } catch { return fetch(API_OLD + path, opts); } };
-  // $VIGIL: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
+  // $VIGIL: set both once the token is live (gmgn: https://gmgn.ai/sol/token/<mint>) and every Buy button goes to GMGN; until then they show "soon"
   const OWN_TOKEN = { ca: "", gmgn: "", ...(C.token || {}) };
   // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
   const chatFetch = (path, opts) => location.hostname === "localhost" ? fetch("http://localhost:8000" + path, opts) : apiFetch(path, opts);
   let LIVE = false;   // true once real data has loaded; the example animations then stand down
   const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const shortA = a => a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "";
+  const shortA = a => a ? `${a.slice(0, 4)}…${a.slice(-4)}` : "";
+  // where a coin trades: still on the pump.fun bonding curve, or graduated to a DEX pool
+  const DEX = { pumpfun: "pump.fun", pump: "pump.fun", pumpswap: "PumpSwap", pumpamm: "PumpSwap", raydium: "Raydium", raydiumcpmm: "Raydium",
+                raydiumclmm: "Raydium", raydiumamm: "Raydium", launchlab: "LaunchLab", meteora: "Meteora", orca: "Orca" };
+  const dexName = x => { const k = String(x || "").toLowerCase().replace(/[^a-z]/g, ""); return DEX[k] || (x ? String(x) : ""); };
+  const stageTxt = x => !x ? "" : x.stage === "pool" ? `graduated · ${dexName(x.dex) || "DEX pool"}`
+    : x.stage === "curve" ? `${dexName(x.dex) || "pump.fun"} curve` : String(x.stage || "");
+  const usdK = v => { if (v == null || v === "" || v === "unknown") return ""; if (typeof v !== "number") return String(v);
+    const a = Math.abs(v), f = (n, u) => "$" + n.toFixed(n < 10 ? 1 : 0).replace(/\.0$/, "") + u;
+    return a >= 1e9 ? f(v / 1e9, "B") : a >= 1e6 ? f(v / 1e6, "M") : a >= 1e3 ? f(v / 1e3, "K") : "$" + Math.round(v); };
   const ago = iso => { if (!iso) return ""; const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
     return s < 60 ? `${Math.floor(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`; };
   const hhmm = iso => iso ? new Date(iso).toISOString().slice(11, 16) + " UTC" : "";
@@ -1678,7 +1632,7 @@ footer nav a:hover { color: var(--ink); }
   $$(".coinav[data-coin]").forEach(el => { el.style.fontSize = "10px"; el.textContent = initial(el.dataset.sym); });
   const coins = [];
   // floating decor: glossy app-icon tiles carrying the site's own marks (where VIGIL listens, what it trades on)
-  const GLYPH = { x: [B("x"), "#FAFAFA", "#000000"], rh: [B("robinhood"), "#CCFF00", "#000000"], eth: [B("eth"), "#627EEA", "#FFFFFF"],
+  const GLYPH = { x: [B("x"), "#FAFAFA", "#000000"], sol: [B("solana"), "#FFFFFF", "#000000"],
                   ai: [I("sparkles"), "#FAFAFA", "#000000"], shield: [I("shield-check"), "#22C55E", "#0A0A0A"], eye: [I("eye"), "#FAFAFA", "#0A0A0A"] };
   const addCoin = (host, kind, size, x, y, rot, depth = 1) => {
     const [ic, fg, bg] = GLYPH[kind];
@@ -1693,11 +1647,11 @@ footer nav a:hover { color: var(--ink); }
   const stage = $("#stage");
   addCoin(stage, "ai", 52, "26%", "12%", -10, 1.4);
   addCoin(stage, "x", 42, "3%", "48%", 8, .8);
-  addCoin(stage, "rh", 48, "91%", "44%", 10, 1.2);
+  addCoin(stage, "sol", 48, "91%", "44%", 10, 1.2);
   addCoin($(".cta-panel"), "x", 60, "56%", "12%", -8, 1.3);
   addCoin($(".chat-panel"), "shield", 48, "80%", "30%", 8, 1.2);
   addCoin($(".chat-panel"), "eye", 40, "14%", "28%", -10, .9);
-  addCoin($(".chat-panel"), "rh", 34, "20%", "68%", 12, 1.1);
+  addCoin($(".chat-panel"), "sol", 34, "20%", "68%", 12, 1.1);
   addCoin($(".cta-panel"), "ai", 44, "52%", "74%", 10, .9);
 
   /* hero parallax: floating cards + coins drift with the cursor */
@@ -1709,19 +1663,19 @@ footer nav a:hover { color: var(--ink); }
     });
     stage.addEventListener("pointerleave", () => { $$(".float", stage).forEach(f => f.style.transform = ""); coins.forEach(c => c.el.style.transform = ""); });
     addEventListener("scroll", () => { coins.filter(c => !stage.contains(c.el)).forEach(c => { const r = c.el.parentElement.getBoundingClientRect(); c.el.style.transform = `translateY(${(r.top - innerHeight / 2) * -.06 * c.depth}px)`; }); }, { passive: true });
-    let hp = 91; setInterval(() => { if (LIVE) return; hp = hp >= 95 ? 88 : hp + 1; $("#heroBar").style.width = hp + "%"; $("#heroBarTxt").textContent = `curve ${hp}% · buys speeding up`; }, 2600);
+    let hp = 91; setInterval(() => { if (LIVE) return; hp = hp >= 95 ? 88 : hp + 1; $("#heroBar").style.width = hp + "%"; }, 2600);
   }
 
   /* ---------- 2 LAUNCH: the form builds the launch post; X opens with it ready (the image is added on X) ---------- */
-  const lf = { name: $("#lfName"), sym: $("#lfSym"), pair: $("#lfPair"), desc: $("#lfDesc"), link: $("#lfLink"), wallet: $("#lfWallet") };
+  const lf = { name: $("#lfName"), sym: $("#lfSym"), desc: $("#lfDesc"), link: $("#lfLink"), wallet: $("#lfWallet") };
   let launchOpen = true;  // the API says whether launches are on; until then the button says "soon"
   const lPost = () => {
     const v = Object.fromEntries(Object.entries(lf).map(([k, el]) => [k, el.value.trim()]));
     v.sym = v.sym.replace(/^\$/, "").toUpperCase();
-    const ok = { name: v.name.length > 0, sym: /^[A-Z0-9]{1,10}$/.test(v.sym), wallet: /^0x[0-9a-fA-F]{40}$/.test(v.wallet) };
+    const ok = { name: v.name.length > 0, sym: /^[A-Z0-9]{1,10}$/.test(v.sym), wallet: isAddr(v.wallet) };
     // the launch request as it's posted on X: a clean card VIGIL reads (ticker, name and wallet must be in it)
     const text = `@${X_HANDLE} launch $${v.sym || "TICKER"} ${v.name || "Coin name"}` + (v.desc ? `\n\n${v.desc}` : "")
-      + (v.link ? `\n\n${v.link}` : "") + (v.pair ? `\n\npair: ${v.pair}` : "") + `\n\nfees to: ${v.wallet || "0x…"}`;
+      + (v.link ? `\n\n${v.link}` : "") + `\n\nfees to: ${v.wallet || "your Solana wallet"}`;
     return { v, ok, text, valid: ok.name && ok.sym && ok.wallet };
   };
   const lRender = (touched = false) => {
@@ -1729,81 +1683,12 @@ footer nav a:hover { color: var(--ink); }
     $("#lfPreview").innerHTML = xPost({ t: "now", body: esc(p.text), name: "You", who: "your account" });
     [["name", lf.name], ["sym", lf.sym], ["wallet", lf.wallet]].forEach(([k, el]) => el.classList.toggle("bad", touched && el.value.trim() !== "" && !p.ok[k]));
     $("#lfGo").disabled = !p.valid || !launchOpen;
-    $("#lfPairNote").hidden = !p.v.pair;
-    $("#lfPairNote").textContent = p.v.pair ? `Your coin trades against $${p.v.pair}. Its creator fees go straight to your wallet from the first trade, paid in $${p.v.pair}.` : "";
     const note = $("#lfNote");
     note.classList.toggle("warn", touched && lf.wallet.value.trim() !== "" && !p.ok.wallet);
     note.textContent = !launchOpen ? "Launches open soon. Get your coin ready." : note.classList.contains("warn")
-      ? "That wallet doesn't look right: it should be 0x and 40 letters or numbers." : "Attach your coin's image on X before you post.";
+      ? "That wallet doesn't look right: it should be a Solana wallet address (32 to 44 letters and numbers)." : "Attach your coin's image on X before you post.";
   };
   Object.values(lf).forEach(el => el.addEventListener("input", () => lRender(true)));
-  lf.pair.addEventListener("change", () => lRender(true));
-  /* the pair picker: ETH or a stock, searchable, arrow keys + enter, escape or a click outside closes it */
-  (() => {
-    const sel = lf.pair, btn = $("#pkBtn"), pop = $("#pkPop"), q = $("#pkQ"), list = $("#pkList");
-    const groups = [{ label: "", opts: [{ v: "", sym: "ETH", nm: "Ether · the default pair" }]}]
-      .concat([...sel.querySelectorAll("optgroup")].map(g => ({ label: g.label,
-        opts: [...g.querySelectorAll("option")].map(o => ({ v: o.value, sym: o.value, nm: o.textContent.split(" · ").slice(1).join(" · ") })) })));
-    let hi = 0, shown = [];
-    // the stock's logo (web/assets/stocks); ETH its own mark; a monogram where there's no clean logo
-    const NOLOGO = new Set(["DJT", "GLD"]);
-    const icon = o => !o.v ? `<span class="pk-ic eth"><svg class="ic"><use href="#b-eth"/></svg></span>`
-      : NOLOGO.has(o.sym) ? `<span class="pk-ic mono">${o.sym.slice(0, 2)}</span>`
-      : `<span class="pk-ic"><img src="assets/stocks/${o.sym}.webp" alt="" width="64" height="64" loading="lazy" onerror="this.parentNode.classList.add('mono');this.parentNode.textContent='${o.sym.slice(0, 2)}'"></span>`;
-    const row = o => `<div class="pk-o${o.v === sel.value ? " on" : ""}" role="option" id="pk-${o.sym}" data-v="${o.v}" aria-selected="${o.v === sel.value}">`
-      + `${icon(o)}<span class="pk-t">${o.v ? "$" : ""}${o.sym}</span><span class="pk-n">${esc(o.nm)}</span><svg class="ic pk-ok"><use href="#i-check"/></svg></div>`;
-    const draw = () => {
-      const t = q.value.trim().toLowerCase().replace(/^\$/, "");
-      const seen = new Set();
-      let html = "";
-      shown = [];
-      groups.forEach(g => {
-        const hits = g.opts.filter(o => !seen.has(o.sym) && (!t || o.sym.toLowerCase().includes(t) || o.nm.toLowerCase().includes(t)));
-        if (!hits.length) return;
-        if (t) hits.forEach(o => seen.add(o.sym));  // searching: each stock once
-        html += (g.label && !t ? `<div class="pk-g">${g.label}</div>` : "") + hits.map(row).join("");
-        shown = shown.concat(hits);
-      });
-      list.innerHTML = html || `<div class="pk-none">No stock called "${esc(q.value.trim())}". Pons pairs ${groups[2].opts.length} stocks and ETFs.</div>`;
-      hi = Math.max(0, Math.min(hi, shown.length - 1));
-      mark();
-    };
-    const mark = () => {
-      $$(".pk-o", list).forEach((el, i) => el.classList.toggle("hi", i === hi));
-      const el = $$(".pk-o", list)[hi];
-      if (el) { el.scrollIntoView({ block: "nearest" }); q.setAttribute("aria-activedescendant", el.id); }
-    };
-    const cur = () => {
-      const o = groups.flatMap(g => g.opts).find(o => o.v === sel.value) || groups[0].opts[0];
-      $("#pkCur").innerHTML = `${icon(o)}<b>${o.v ? "$" : ""}${o.sym}</b><span>${esc(o.v ? o.nm : "default")}</span>`;
-      btn.classList.toggle("set", !!o.v);
-    };
-    const open = () => {
-      pop.hidden = false; btn.setAttribute("aria-expanded", "true"); $("#pk").classList.add("open");
-      q.value = ""; hi = Math.max(0, groups.flatMap(g => g.opts).findIndex(o => o.v === sel.value)); draw(); q.focus();
-    };
-    const close = (refocus = true) => {
-      if (pop.hidden) return;
-      pop.hidden = true; btn.setAttribute("aria-expanded", "false"); $("#pk").classList.remove("open");
-      if (refocus) btn.focus();
-    };
-    const pick = v => { sel.value = v; sel.dispatchEvent(new Event("change")); cur(); close(); };
-    btn.addEventListener("click", () => pop.hidden ? open() : close());
-    btn.addEventListener("keydown", e => { if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(); } });
-    q.addEventListener("input", () => { hi = 0; draw(); });
-    q.addEventListener("keydown", e => {
-      if (e.key === "ArrowDown") { e.preventDefault(); hi = Math.min(hi + 1, shown.length - 1); mark(); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); hi = Math.max(hi - 1, 0); mark(); }
-      else if (e.key === "Enter") { e.preventDefault(); if (shown[hi]) pick(shown[hi].v); }
-      else if (e.key === "Escape") { e.preventDefault(); close(); }
-      else if (e.key === "Tab") close(false);
-    });
-    list.addEventListener("mousemove", e => { const el = e.target.closest(".pk-o"); if (el) { hi = $$(".pk-o", list).indexOf(el); mark(); } });
-    list.addEventListener("click", e => { const el = e.target.closest(".pk-o"); if (el) pick(el.dataset.v); });
-    document.addEventListener("pointerdown", e => { if (!$("#pk").contains(e.target)) close(false); });
-    sel.addEventListener("change", cur);
-    cur();
-  })();
   $("#launchForm").addEventListener("submit", e => {
     e.preventDefault();
     const p = lPost();
@@ -1823,16 +1708,15 @@ footer nav a:hover { color: var(--ink); }
     "no image": ["You forgot the image", "Every coin needs a picture. Attach one to your post on X and post it again."],
     "per-user limit": ["One launch per day", "Each X account can launch one coin a day. You can launch again tomorrow."],
     "account too new": ["Your X account is too new", "Launches are open to X accounts older than 30 days, to keep bots out."],
-    "no wallet": ["No fee wallet in your post", "Add the wallet for your creator fees (one 0x address) and post again."],
+    "no wallet": ["No fee wallet in your post", "Add the wallet for your creator fees (one Solana wallet address) and post again."],
     "unclear name or ticker": ["VIGIL couldn't read the name or ticker", "Write it as: launch $TICKER Coin name. The ticker is letters and numbers, up to 10."],
     "reserved ticker": ["$VIGIL is taken", "That's VIGIL's own coin. Pick another ticker and post again."],
     "daily budget used": ["Launches are full for today", "VIGIL's launch budget for today is used up. Try again tomorrow."],
-    "unknown pair": ["VIGIL can't pair with that", "Coins pair with ETH or a Robinhood stock token like TSLA, NVDA, AAPL or SPY. Pick one from the list and post again."],
   };
   const lTrack = (sym, url, wallet = "") => {
     $("#launchForm").hidden = true; $("#lDone").hidden = false; $("#ldLive").hidden = true; $("#ldOpen").href = url;
     $("#ldWhy").hidden = true; ldIcon("i-rocket"); ldPill("blue", "Waiting for your post");
-    $("#ldS3t").textContent = `$${sym} goes live on Robinhood Chain`;
+    $("#ldS3t").textContent = `$${sym} goes live on pump.fun`;
     ldShow("", "Your launch post is ready", `Post it on X with your image attached. VIGIL picks it up within a few minutes and launches $${sym}.`);
     ldStep(1, "on"); ldStep(2, ""); ldStep(3, "");
     clearInterval(lTimer);
@@ -1856,16 +1740,15 @@ footer nav a:hover { color: var(--ink); }
       ldStep(2, "done");
       if (st.status === "approved" || st.status === "launching") {
         ldStep(3, "on"); ldPill("blue", "Launching");
-        return ldShow("", `$${sym} passed the checks`, "VIGIL is announcing it and launching it on Robinhood Chain now. This takes about a minute.");
+        return ldShow("", `$${sym} passed the checks`, "VIGIL is announcing it and launching it on pump.fun now. This takes about a minute.");
       }
       clearInterval(lTimer); ldStep(3, "done"); ldIcon("i-check"); ldPill("green", "Live");  // launched (or fees handed over)
-      ldShow("live", `$${sym} is live!`, st.pair_symbol
-        ? `Your coin is launched on Robinhood Chain, paired with $${st.pair_symbol}. Its creator fees go straight to your wallet, paid in $${st.pair_symbol}.`
-        : "Your coin is launched on Robinhood Chain. Creator fees go to your wallet once it pays back its ~$2 launch.");
+      ldShow("live", `$${sym} is live!`, "Your coin is live on pump.fun. You get 90% of its creator fees from the first trade; VIGIL keeps 10%.");
       $("#ldCa").textContent = st.token || "";
       $("#ldLinks").innerHTML = (st.announce_x_id ? `<a href="https://x.com/i/status/${esc(st.announce_x_id)}" target="_blank" rel="noopener">${NAME}'s post ↗</a>` : "")
-        + (st.tx_hash ? `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(st.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
-        + `<a href="https://gmgn.ai/robinhood/token/${esc(st.token)}" target="_blank" rel="noopener">Chart ↗</a>`;
+        + (st.tx_hash ? `<a href="https://solscan.io/tx/${esc(st.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
+        + (st.token ? `<a href="https://pump.fun/coin/${esc(st.token)}" target="_blank" rel="noopener">pump.fun ↗</a>`
+          + `<a href="https://gmgn.ai/sol/token/${esc(st.token)}" target="_blank" rel="noopener">Chart ↗</a>` : "");
       $("#ldLive").hidden = false;
     };
     poll(); lTimer = setInterval(poll, 8000);
@@ -1879,19 +1762,19 @@ footer nav a:hover { color: var(--ink); }
   /* recently launched: an endless strip of cards; example coins until the first real launch */
   const EX_LAUNCHES = [["PURR", "catfan", 2, "🐱"], ["HOPPY", "bunnydev", 9, "🐰"], ["MOOCOW", "farmfren", 25, "🐮"], ["BRRR", "printer_anon", 47, "🖨️"],
     ["QUACK", "duckszn", 70, "🦆"], ["TACO", "tacotues", 95, "🌮"], ["ROBOCAT", "meowbuilder", 130, "🤖"], ["GLOBBY", "blobartist", 185, "🫧"]]
-    .map(([symbol, handle, mins, emo], i) => ({ symbol, handle, emo, pair_symbol: { ROBOCAT: "TSLA", BRRR: "SPY", MOOCOW: "NVDA" }[symbol], launched_at: new Date(Date.now() - mins * 60e3).toISOString(), fees_handed_over: i % 3 === 0 }));
+    .map(([symbol, handle, mins, emo]) => ({ symbol, handle, emo, launched_at: new Date(Date.now() - mins * 60e3).toISOString() }));
   const launchCard = (r, ex) => `<div class="lcard">`
     + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
       : r.emo ? `<span class="lgo lemo" aria-hidden="true">${r.emo}</span>` : coinAv("blue", 38, false, null, r.symbol))
-    + `<b>$${esc(r.symbol)}${r.pair_symbol ? ` <i class="lpr">/ $${esc(r.pair_symbol)}</i>` : ""}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
-    + (ex ? `<span>Post ↗</span><span>Receipt ↗</span>`
+    + `<b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
+    + (ex ? `<span>Post ↗</span><span>pump.fun ↗</span>`
       : (r.announce_x_id ? `<a href="https://x.com/i/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
-        + `<a href="https://explorer.mainnet.chain.robinhood.com/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>`
-        + `<a href="https://gmgn.ai/robinhood/token/${esc(r.token)}" target="_blank" rel="noopener">Chart ↗</a>`)
-    + (r.fees_handed_over ? `<span class="done" title="the creator fees now go to the creator">${r.pair_symbol ? "fees to creator" : "handed over"}</span>` : "") + `</span></div>`;
+        + (r.tx_hash ? `<a href="https://solscan.io/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
+        + (r.token ? `<a href="https://pump.fun/coin/${esc(r.token)}" target="_blank" rel="noopener">pump.fun ↗</a>` : ""))
+    + `</span></div>`;
   let lKey = "";
   const launchStrip = list => {
-    const ex = !list.length, items = ex ? EX_LAUNCHES : list.slice(0, 12), key = ex ? "ex" : JSON.stringify(items.map(r => r.token + r.fees_handed_over));
+    const ex = !list.length, items = ex ? EX_LAUNCHES : list.slice(0, 12), key = ex ? "ex" : JSON.stringify(items.map(r => r.token));
     $("#lEx").style.display = ex ? "" : "none";
     if (key === lKey) return;  // unchanged: leave the strip running where it is
     lKey = key;
@@ -1911,11 +1794,11 @@ footer nav a:hover { color: var(--ink); }
 
   /* ---------- 3 LISTENS ---------- */
   let sources = [
-    { ic: B("x"), bg: "#000", who: "@loudtrader", where: "X · 14:01", txt: 'hearing $HATCH gets a big listing 👀 <code>0x47a3…94d4</code>',
+    { ic: B("x"), bg: "#000", who: "@loudtrader", where: "X · 14:01", txt: 'hearing $HATCH gets a big listing 👀 <code>9wFq…pump</code>',
       lead: { h: "$HATCH listing rumour", st: ["sand", "rumour · 1 source"], rows: [["Said by", "5 accounts"], ["All citing", "the same unnamed post"], ["Counted as", "1 claim"]], note: "5 reposts of one rumour count once. The AI weighs it as chatter, not proof." } },
-    { ic: B("twitch"), bg: "#9146FF", who: "streamer · live", where: "Twitch · 14:04 · 2:05 in", txt: 'the contract is <code>0x47a3…94d4</code>, I\'m in',
-      lead: { h: "Contract address heard on stream", st: ["blue", "lead · checking onchain"], rows: [["Heard at", "2:05 into the stream"], ["Address", "0x47a3…94d4"], ["Next step", "4 onchain checks"]], note: "Speech-to-text can mishear. An address is only a lead until the chain confirms it." } },
-    { ic: I("newspaper"), bg: "#1A1A1A", who: "HATCH team blog", where: "News · 13:58", txt: 'HATCH ships v1 on Robinhood Chain. Contract <code>0x47a3…94d4</code>',
+    { ic: B("twitch"), bg: "#9146FF", who: "streamer · live", where: "Twitch · 14:04 · 2:05 in", txt: 'the contract is <code>9wFq…pump</code>, I\'m in',
+      lead: { h: "Contract address heard on stream", st: ["blue", "lead · checking onchain"], rows: [["Heard at", "2:05 into the stream"], ["Address", "9wFq…pump"], ["Next step", "4 onchain checks"]], note: "Speech-to-text can mishear. An address is only a lead until the chain confirms it." } },
+    { ic: I("newspaper"), bg: "#1A1A1A", who: "HATCH team blog", where: "News · 13:58", txt: 'HATCH ships v1 on Solana. Contract <code>9wFq…pump</code>',
       lead: { h: "HATCH v1 launch post", st: ["green", "first-party · verified link"], rows: [["Published", "13:58 UTC"], ["Links the exact contract", "yes"], ["Weighed as", "strong evidence"]], note: null } },
   ];
   const srcs = $("#srcs"), leadCard = $("#leadCard");
@@ -1943,23 +1826,23 @@ footer nav a:hover { color: var(--ink); }
   /* ---------- 5 THINKS (chat) ---------- */
   let talks = [
     { sym: "$HATCH", act: ["solid-blue", "BUY"], why: "Real news + real buying", time: "14:06 UTC", conf: .72,
-      open: "New candidate: $HATCH · curve 91% · 4/4 checks passed",
-      bot: ["The team's own post links this exact contract, and the chain confirms it's a real Pons launch in the genuine pool.", "Buyers are speeding up across 5 minutes, 15 minutes and an hour, from 38 different wallets. The creator hasn't bought any."],
-      att: [[I("newspaper"), "#1A1A1A", "HATCH team blog", "first-party · 13:58 UTC"], [I("users"), "#000", "38 buyer wallets / 5 min", "onchain · Robinhood Chain", true]],
+      open: "New candidate: $HATCH · pump.fun curve · 4/4 checks passed",
+      bot: ["The team's own post links this exact contract, and the chain confirms it's a real pump.fun launch, not a copycat mint.", "Buyers are speeding up across 5 minutes, 15 minutes and an hour, from 38 different wallets. The creator hasn't bought any."],
+      att: [[I("newspaper"), "#1A1A1A", "HATCH team blog", "first-party · 13:58 UTC"], [I("users"), "#000", "38 buyer wallets / 5 min", "onchain · Solana", true]],
       lesson: "Last time I chased a spike like this (#1017) it faded. This one has news behind it, so I'm sizing small.",
       risk: "One wallet is 35% of all buys. If it sells, price drops fast.",
-      gates: [["green", "screen passed ✓"], ["green", "0.05 ETH cap ✓"], ["green", "slippage 1.9% ✓"]] },
+      gates: [["green", "screen passed ✓"], ["green", "0.5 SOL cap ✓"], ["green", "slippage 1.9% ✓"]] },
     { sym: "$TAKO", act: ["sand", "WATCH"], why: "Hot volume, only rumours", time: "13:52 UTC", conf: .58,
-      open: "New candidate: $TAKO · graduated · genuine pool found",
-      bot: ["Volume is triple its daily average on the real pool, with $85k of liquidity. That's interesting.", "But every mention traces back to one account. Five reposts are still one rumour."],
+      open: "New candidate: $TAKO · graduated · PumpSwap",
+      bot: ["Volume is triple its daily average on its PumpSwap pool, with $85k of liquidity. That's interesting.", "But every mention traces back to one account. Five reposts are still one rumour."],
       att: [[B("x"), "#000", "6 posts, 1 origin", "rumour · counted once"]],
       lesson: null,
       risk: "It could be one group trading with itself to look busy.",
-      gates: [["green", "screen passed ✓"], ["green", "0.05 ETH cap ✓"]] },
+      gates: [["green", "screen passed ✓"], ["green", "0.5 SOL cap ✓"]] },
     { sym: "$JOLLY", act: ["ink", "PASS"], why: "The dev bought half of it", time: "13:40 UTC", conf: .81,
-      open: "New candidate: $JOLLY · curve 88%",
+      open: "New candidate: $JOLLY · pump.fun curve",
       bot: ["It looks close to graduating, but the wallet that created it bought 52% of the curve itself.", "7 wallets bought and sold in the same minute. That's not demand."],
-      att: [[I("wallet"), "#1A1A1A", "Deployer wallet = 52% of buys", "onchain · Robinhood Chain", true]],
+      att: [[I("wallet"), "#1A1A1A", "Deployer wallet = 52% of buys", "onchain · Solana", true]],
       lesson: null,
       risk: "If the dev is genuinely building, I miss the run. I can live with that.",
       gates: [["coral", "blocked: deployer concentration"], ["coral", "blocked: wash-trading clues"]] },
@@ -1975,7 +1858,7 @@ footer nav a:hover { color: var(--ink); }
     $$(".pick").forEach((p, k) => p.setAttribute("aria-selected", k === i)); $("#chatTime").textContent = t.time;
     msgs.innerHTML = ""; say(t.open, "sys");
     for (const b of t.bot) { await typingFor(900); if (!alive()) return; say(b, "bot"); }
-    for (const a of t.att) { if (!alive()) return; say(`<span class="chip-ic" style="background:${a[1]}">${a[0]}</span><span><b>${a[2]}</b><small class="onchain">${a[4] ? RH : ""}${a[3]}</small></span>`, "att"); await new Promise(r => setTimeout(r, reduce ? 0 : 250)); }
+    for (const a of t.att) { if (!alive()) return; say(`<span class="chip-ic" style="background:${a[1]}">${a[0]}</span><span><b>${a[2]}</b><small class="onchain">${a[4] ? SOLM : ""}${a[3]}</small></span>`, "att"); await new Promise(r => setTimeout(r, reduce ? 0 : 250)); }
     if (t.lesson) { await typingFor(800); if (!alive()) return; say(`<span class="note-ic">${I("notebook-pen")}</span>` + t.lesson, "bot"); }
     await typingFor(700); if (!alive()) return;
     const act = t.act[1].toLowerCase(), actIc = { buy: "trending-up", watch: "eye", pass: "circle-stop" }[act];
@@ -1988,9 +1871,12 @@ footer nav a:hover { color: var(--ink); }
   say(talks[0].open, "sys");
 
   /* ---------- 6 LIVE ---------- */
+  // smart-money calls (example until live data arrives): the trade's P&L, the move since the call, or why it was skipped
   let watch = [
-    { s: "HATCH", p: 91, st: "bought", c: "blue" }, { s: "PIXEL", p: 87, st: "watching", c: "beige" },
-    { s: "ANONPAD", p: 100, st: "graduated", c: "white" }, { s: "JOLLY", p: 88, st: "passed", c: "beige" },
+    { s: "HATCH", sm: true, st: "bought", move: 12.4, meta: "Smart money · 18m ago · pump.fun curve", c: "blue" },
+    { s: "PIXEL", sm: true, st: "watching", lbl: "+18%", meta: "Smart money · 41m ago · pump.fun curve", c: "beige" },
+    { s: "ANONPAD", sm: true, st: "bought", move: 41.0, meta: "Smart money · 2h ago · PumpSwap", c: "white" },
+    { s: "JOLLY", sm: true, st: "skipped", meta: "Skipped · deployer holds 52%", c: "beige" },
   ];
   // closed testing-phase trades, newest first (example until live data arrives)
   let past = [
@@ -2005,8 +1891,8 @@ footer nav a:hover { color: var(--ink); }
       : /^back to entry/.test(r) ? "back to entry" : /^max hold/.test(r) ? "24h timer" : /^thesis review/.test(r) ? "thesis changed" : r.slice(0, 28); };
   const WST = { bought: "solid-blue", watching: "sand", passed: "grey", checking: "blue", graduated: "green", expired: "grey", skipped: "grey" };
   let positions = [
-    { s: "HATCH", entry: .05, c: "blue", age: "18m", hist: [.05, .0503, .0499, .0511, .0508, .0524, .0531, .0527, .0545, .0561] },
-    { s: "MOSS", entry: .05, c: "beige", age: "3h", hist: [.05, .0492, .0488, .0495, .0479, .0468, .0472, .0455, .0449, .0437] },
+    { s: "HATCH", entry: .5, c: "blue", age: "18m", hist: [.5, .503, .499, .511, .508, .524, .531, .527, .545, .561] },
+    { s: "MOSS", entry: .5, c: "beige", age: "3h", hist: [.5, .492, .488, .495, .479, .468, .472, .455, .449, .437] },
   ];
   const spark = (h, up) => { const mn = Math.min(...h), mx = Math.max(...h), W = 120, H = 34;
     const pts = h.map((v, i) => `${(i / (h.length - 1) * W).toFixed(1)},${(H - 3 - (v - mn) / ((mx - mn) || 1) * (H - 6)).toFixed(1)}`).join(" ");
@@ -2020,7 +1906,7 @@ footer nav a:hover { color: var(--ink); }
       : `<div class="wrow ${i === bumpI ? "bump" : ""}">${coinAv(w.c, 36, false, w.logo, w.s)}<div><b>$${w.s}</b><span class="pill ${WST[w.st] || "grey"}"${w.tip ? ` title="${w.tip}"` : ""}>${w.st}</span></div><div class="wprog ${w.p >= 100 ? "done" : ""}">${w.lbl ?? w.p + "%"}<span class="wbar"><i style="width:${Math.min(100, w.p)}%"></i></span></div></div>`).join("");
     $("#pastList").innerHTML = past.length ? past.slice(0, 3).map(t => `<div class="prow ${t.pl >= 0 ? "up" : "down"}">${coinAv(t.c, 30, false, t.logo, t.s)}<div><b>$${t.s}</b><small>held ${t.held} · ${t.why}</small></div><span class="plp">${t.pl >= 0 ? "+" : ""}${t.pl.toFixed(1)}%</span></div>`).join("")
       : `<div class="h-empty">No closed trades yet. The first one shows up here, win or lose.</div>`;
-    $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. VIGIL waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} ETH · ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
+    $("#posList").innerHTML = (LIVE && !positions.length) ? `<div class="h-empty"><span class="face" aria-hidden="true"></span>No open trades. VIGIL waits for a setup it likes.</div>` : positions.map(p => { const pl = (p.hist.at(-1) / p.entry - 1) * 100, up = pl >= 0; return `<div class="ptile ${up ? "up" : "down"}">${coinAv(p.c, 36, false, p.logo, p.s)}<div class="nm"><b>$${p.s}</b><small>${p.entry.toFixed(p.entry >= 0.1 ? 2 : p.entry >= 0.01 ? 3 : 4)} SOL · ${p.age}</small></div><span class="plp">${up ? "+" : ""}${pl.toFixed(1)}%</span>${spark(p.hist, up)}</div>`; }).join("");
   };
   renderLive();
   /* posting: a slider of trade threads on X, one coin per slide (the buy, the reasons under it, updates, sells) */
@@ -2051,12 +1937,12 @@ footer nav a:hover { color: var(--ink); }
   $("#tPrev").addEventListener("click", () => tGo(-1)); $("#tNext").addEventListener("click", () => tGo(1));
   tSlider.addEventListener("scroll", () => { clearTimeout(tSlider._t); tSlider._t = setTimeout(tSync, 80); }, { passive: true });
   tSlider.addEventListener("keydown", e => { if (e.key === "ArrowLeft") tGo(-1); if (e.key === "ArrowRight") tGo(1); });
-  renderTweets([{ symbol: "TAKO", posts: [{ body: "Bought $TAKO\n\nEntry: $48K MC\nSize: 0.015 ETH\n\nWhy: the team's own post confirms the launch and buyers are spreading out.", sent_at: null, x_post_id: "" }] }]);
+  renderTweets([{ symbol: "TAKO", posts: [{ body: "Bought $TAKO\n\nEntry: $48K MC\nSize: 0.5 SOL\n\nWhy: the team's own post confirms the launch and buyers are spreading out.", sent_at: null, x_post_id: "" }] }]);
   if (!reduce) {
     setInterval(() => {
       if (LIVE) return;
-      watch.forEach(w => { if (w.p < 100) w.p = Math.max(80, Math.min(99, w.p + Math.round(rnd(-1, 2)))); });
-      positions.forEach(p => { p.hist.push(Math.max(.02, p.hist.at(-1) * (1 + rnd(-.02, .022)))); if (p.hist.length > 14) p.hist.shift(); });
+      watch.forEach(w => { if (w.st === "bought" && w.move != null) w.move = Math.round((w.move + rnd(-1.5, 2)) * 10) / 10; });
+      positions.forEach(p => { p.hist.push(Math.max(.2, p.hist.at(-1) * (1 + rnd(-.02, .022)))); if (p.hist.length > 14) p.hist.shift(); });
       renderLive(Math.floor(rnd(0, watch.length)));
     }, 2500);
   }
@@ -2070,11 +1956,11 @@ footer nav a:hover { color: var(--ink); }
 
   /* ---------- 8 RECORD: the X timeline ---------- */
   let feedPosts = [
-    { t: "2m", body: "TEST BUY $HATCH on Robinhood Chain: 0.05 ETH @ 2.1e-9 ETH.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
-    { t: "14m", body: "TEST SOLD $NEZU @ 1.6e-9 ETH, −70.4%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
+    { t: "2m", body: "TEST BUY $HATCH on Solana: 0.5 SOL @ 4.1e-7 SOL.\nRisk: one wallet is 35% of buys. Simulated fill, not onchain.", s: [12, 8, 64, 5100] },
+    { t: "14m", body: "TEST SOLD $NEZU @ 1.2e-7 SOL, −70.4%.\nWhy: stop loss hit. Loss logged, not hidden.", s: [31, 14, 97, 8400] },
     { t: "31m", body: "Passing on $JOLLY. The deployer bought 52% of its own curve. That isn't demand.", s: [9, 5, 41, 3900] },
     { t: "1h", body: "Watching $TAKO. Volume is hot, sources aren't.\nWhat would make me wrong: one group trading with itself.", s: [6, 3, 28, 2700] },
-    { t: "3h", body: "Testing Phase scorecard 2026-W39: 23 closed, 13W/10L, net +0.184 ETH.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
+    { t: "3h", body: "Testing Phase scorecard 2026-W39: 23 closed, 13W/10L, net +0.920 SOL.\nEvery fill is in the public journal.", s: [44, 21, 158, 12300] },
   ];
   const kfmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(n);
   // Two cards show two posts; every 5s one of them fades to the next post (they take turns).
@@ -2124,7 +2010,7 @@ footer nav a:hover { color: var(--ink); }
 
   /* ---------- 9 SCORE sparkline ---------- */
   let pnlLbl = [];  // symbol of each closed trade, for the tooltip
-  let pnl = [0, .012, .004, -.013, .008, .031, .022, .046, .038, .029, .061, .074, .052, .088, .097, .081, .115, .132, .12, .149, .161, .158, .184];
+  let pnl = [0, .06, .02, -.065, .04, .155, .11, .23, .19, .145, .305, .37, .26, .44, .485, .405, .575, .66, .6, .745, .805, .79, .92];
   const sp = $("#spark"), SW = 1000, SH = 200, pad = 12;
   let mn, mx, px, py;
   const drawSpark = () => {
@@ -2137,7 +2023,7 @@ footer nav a:hover { color: var(--ink); }
   drawSpark();
   const sTip = $("#sparkTip"), sWrap = $("#sparkWrap");
   sp.addEventListener("pointermove", e => { if (pnl.length < 2) return; const r = sp.getBoundingClientRect(), i = Math.max(0, Math.min(pnl.length - 1, Math.round((e.clientX - r.left) / r.width * (pnl.length - 1)))), x = px(i), y = py(pnl[i]), wr = sWrap.getBoundingClientRect(); $("#spX").setAttribute("x1", x); $("#spX").setAttribute("x2", x); $("#spX").setAttribute("stroke-opacity", .25); $("#spEnd").setAttribute("cx", x); $("#spEnd").setAttribute("cy", y); sTip.style.left = (r.left - wr.left + x / SW * r.width) + "px"; sTip.style.top = (r.top - wr.top + y / SH * r.height) + "px"; const v1n = +(/\bv1 \((\d+)/.exec(pnlLbl[0] || "") || [])[1] || 0, lb = pnlLbl[i - 1];
-    sTip.textContent = `${v1n && i === 1 ? `trades 1–${v1n}` : `trade ${i + (v1n && i ? v1n - 1 : 0)}`}${lb ? " · " + (/\bv1 \(/.test(lb) ? "v1" : "$" + lb) : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(Math.abs(pnl[i]) >= 0.1 || !pnl[i] ? 3 : Math.abs(pnl[i]) >= 0.01 ? 4 : 5)} ETH`; sTip.style.opacity = 1; });
+    sTip.textContent = `${v1n && i === 1 ? `trades 1–${v1n}` : `trade ${i + (v1n && i ? v1n - 1 : 0)}`}${lb ? " · " + (/\bv1 \(/.test(lb) ? "v1" : "$" + lb) : ""} · ${pnl[i] >= 0 ? "+" : ""}${pnl[i].toFixed(Math.abs(pnl[i]) >= 0.1 || !pnl[i] ? 3 : Math.abs(pnl[i]) >= 0.01 ? 4 : 5)} SOL`; sTip.style.opacity = 1; });
   sp.addEventListener("pointerleave", () => { sTip.style.opacity = 0; $("#spX").setAttribute("stroke-opacity", 0); $("#spEnd").setAttribute("cx", px(pnl.length - 1)); $("#spEnd").setAttribute("cy", py(pnl.at(-1))); });
 
   /* ---------- 5b ASK VIGIL: a real chat (VIGIL researches with Grok), rate limited by the API ---------- */
@@ -2145,21 +2031,22 @@ footer nav a:hover { color: var(--ink); }
   const askHist = [];   // this visit only: {role, text}
   let askBusy = false, askOut = false, askToken = null;  // askToken: address of the coin being discussed
   // short lines that end in ":" (like "Why it could run:") read as bold labels in VIGIL's replies
-  const askFmt = t => esc(t).replace(/^([^\n]{2,40}):[ \t]*$/gm, "<b class=\"lbl\">$1:</b>").replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${m}</code>`)
+  const askFmt = t => esc(t).replace(/^([^\n]{2,40}):[ \t]*$/gm, "<b class=\"lbl\">$1:</b>").replace(new RegExp(`\\b${B58}\\b`, "g"), m => `<code>${m}</code>`)
     .replace(/(^|[\s(])\$([A-Za-z][A-Za-z0-9]{0,19})\b/g, '$1<span class="tag">$$$2</span>');
   const askAdd = (cls, html) => { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; askBox.appendChild(d); askBox.scrollTop = askBox.scrollHeight; return d; };
   const askSync = () => { askSend.disabled = askBusy || askOut || !askIn.value.trim(); $("#askCount").textContent = `${askIn.value.length}/500`; };
   const askSize = () => { askIn.style.height = "auto"; askIn.style.height = Math.min(askIn.scrollHeight, 120) + "px"; };
   const askLimit = r => { if (!r) return; const n = Math.min(r.hour, r.day); askOut = !n; askLeft.textContent = n ? `${n} left this hour` : "limit reached"; askLeft.className = "pill " + (n ? "blue" : "coral"); askSync(); };
   const askCard = t => {
-    const where = t.curve_progress_pct != null ? `curve ${Math.round(t.curve_progress_pct)}%` : /graduated/.test(t.stage || "") ? "graduated" : (t.stage || "");
-    const mc = t.market_cap_usd && t.market_cap_usd !== "unknown" ? ` · ${t.market_cap_usd} MC` : "";
-    return `${coinAv("blue", 36, false, t.logo, t.symbol)}<div><b>$${esc(t.symbol || "?")}</b><span class="nm">${esc(t.name || "")}</span><small>${esc(where + mc)}</small></div>`
-      + (t.explorer ? `<a href="${esc(t.explorer)}" target="_blank" rel="noopener" aria-label="View $${esc(t.symbol || "")} on the explorer">${I("arrow-up-right")}</a>` : "");
+    const mc = usdK(t.mcap_usd ?? t.market_cap_usd), liq = usdK(t.liquidity_usd);
+    const line = [stageTxt(t), mc && `${mc} MC`, liq && `${liq} liquidity`].filter(Boolean).join(" · ");
+    const url = /^https:\/\//.test(t.explorer || "") ? t.explorer : t.address ? `https://solscan.io/token/${t.address}` : "";
+    return `${coinAv("blue", 36, false, t.logo, t.symbol)}<div><b>$${esc(t.symbol || "?")}</b><span class="nm">${esc(t.name || "")}</span><small>${esc(line)}</small></div>`
+      + (url ? `<a href="${esc(url)}" target="_blank" rel="noopener" aria-label="View $${esc(t.symbol || "")} on Solscan">${I("arrow-up-right")}</a>` : "");
   };
   // One row per research step, filled in live from /chat/stream (a new line of JSON per step).
   const SCAN = {
-    coin: [I("search"), "", "Finding the coin"], onchain: [B("robinhood"), "rh", "Checking onchain"],
+    coin: [I("search"), "", "Finding the coin"], onchain: [B("solana"), "sol", "Checking onchain"],
     lore: [I("notebook-pen"), "", "Reading its lore"], x: [B("x"), "xl", "Checking the X account"],
     website: [I("globe"), "", "Visiting the website"], grok: [I("sparkles"), "", "Grok is thinking"],
   };
@@ -2195,7 +2082,7 @@ footer nav a:hover { color: var(--ink); }
                                              // a chip's coin is researched; the coin we were on only rides along as
                                              // context, and not at all when the message names a new coin
                                              token: token || undefined,
-                                             context_token: token || /\$[A-Za-z]|0x[0-9a-fA-F]{40}/.test(text) ? undefined : askToken || undefined }) });
+                                             context_token: token || /\$[A-Za-z]/.test(text) || new RegExp(`\\b${B58}\\b`).test(text) ? undefined : askToken || undefined }) });
       if (!r.ok) {   // refused before anything streamed: rate limit, too long, chat off
         const d = await r.json().catch(() => ({}));
         fail(typeof d.detail === "string" ? d.detail : "Something went wrong. Try again in a moment.");
@@ -2253,7 +2140,7 @@ footer nav a:hover { color: var(--ink); }
   const CONF = { verified: ["green", "verified"], first_party: ["green", "first-party"], reported: ["blue", "reported"], rumor: ["sand", "rumour"], sentiment: ["sand", "chatter"] };
   const buyGrade = c => ["verified", "first_party", "reported"].includes(c);
   const cut = (t, n) => { t = String(t || "").replace(/\s+/g, " ").trim(); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
-  const hl = t => esc(t).replace(/0x[0-9a-fA-F]{40}/g, m => `<code>${shortA(m)}</code>`);
+  const hl = t => esc(t).replace(new RegExp(`\\b${B58}\\b`, "g"), m => `<code>${shortA(m)}</code>`);
   const kindOf = k => KIND[k] || KIND.manual;
   const hide = el => { if (el) el.style.display = "none"; };
   const hideFloat = id => hide($(id)?.closest(".float"));
@@ -2264,21 +2151,24 @@ footer nav a:hover { color: var(--ink); }
     document.body.classList.toggle("killed", !!d.kill_switch?.on);
     $$(".example").forEach(hide);
     $("#dataNote").textContent = `Figures on this page are live from ${NAME}'s public API.`;
-    const f = d.funnel, st = d.stats;
+    const f = d.funnel || {}, st = d.stats || {};
 
     /* hero */
-    setCount($("#hsLaunch"), f.launched_24h); setCount($("#hsClaims"), st.claims_checked_24h); setCount($("#hsPosts"), st.posts_sent);
-    $("#hsPostsLbl").textContent = "posts on X";
+    // the funnel: smart-money calls seen, screened onchain and bought in the last 24h
+    setCount($("#hsCalls"), f.calls_24h ?? 0); setCount($("#hsScreened"), f.screened_24h ?? 0); setCount($("#hsBought"), f.bought_24h ?? 0);
     const top = d.watching[0];
     if (top) {
-      const p = Math.round((top.progress || 0) * 100);
-      $("#hfWatch").textContent = `Watching $${top.symbol || "?"}`; $("#heroBar").style.width = p + "%";
+      // the bar: full once the coin has graduated to a pool; else its move toward the buy trigger (hidden when there's no such number)
+      const mv = top.move_pct, bar = top.stage === "pool" ? 100
+        : (!d.buy_on_call && mv != null && d.trigger_pct > 0) ? Math.max(4, Math.min(100, Math.round(mv / d.trigger_pct * 100))) : null;
+      $("#hfWatch").textContent = `Watching $${top.symbol || "?"}`;
+      $("#heroBar").style.width = (bar ?? 0) + "%"; $("#heroBar").parentElement.style.display = bar == null ? "none" : "";
       const hc = $("#hfWatch").previousElementSibling; if (hc) hc.innerHTML = initial(top.symbol) + logoImg(top.logo);
-      $("#heroBarTxt").textContent = top.stage === "migrated" ? "graduated · trading in its pool" : `curve ${p}% · ${top.status}`;
+      $("#heroBarTxt").textContent = [stageTxt(top), mv != null ? `${mv > 0 ? "+" : mv < 0 ? "−" : ""}${Math.abs(Math.round(mv))}%` : "", top.status].filter(Boolean).join(" · ");
     } else hideFloat("#hfWatch");
     const lead = d.leads.find(l => l.status === "verified");
     if (lead) {
-      $("#hfLead").textContent = `${lead.symbol ? "$" + lead.symbol + " · " : ""}${shortA(lead.address)} is a real Pons launch`;
+      $("#hfLead").textContent = `${lead.symbol ? "$" + lead.symbol + " · " : ""}${shortA(lead.address)} checks out onchain`;
       $("#hfChecks").lastChild.textContent = buyGrade(lead.source_confidence) ? " 4/4 checks" : " 3/4 checks";
     } else hideFloat("#hfLead");
     const call = d.decisions.find(x => x.action === "buy") || d.decisions.find(x => x.action === "watch");
@@ -2303,7 +2193,7 @@ footer nav a:hover { color: var(--ink); }
         const K = kindOf(x.kind), C = CONF[x.confidence] || ["sand", x.confidence], who = x.author || x.channel || K[2];
         const ld = x.lead;
         const contract = !ld ? "none named"
-          : ld.status === "verified" ? `${shortA(ld.address)} ✓ real Pons launch${ld.symbol ? " ($" + ld.symbol + ")" : ""}`
+          : ld.status === "verified" ? `${shortA(ld.address)} ✓ checks out onchain${ld.symbol ? " ($" + ld.symbol + ")" : ""}`
           : ld.status === "rejected" ? `${shortA(ld.address)} ✗ ${ld.verify_note}` : `${shortA(ld.address)} · checking`;
         return { ic: K[0], bg: K[1], who: esc(cut(who, 26)), where: `${K[2]} · ${hhmm(x.at)}`, txt: hl(cut(x.excerpt, 150)),
           lead: { h: esc(ld?.symbol ? `$${ld.symbol} mentioned` : cut(x.excerpt, 48)),
@@ -2324,7 +2214,7 @@ footer nav a:hover { color: var(--ink); }
         const sym = "$" + esc(x.symbol || "?");
         const act = { buy: ["solid-blue", "BUY"], watch: ["sand", "WATCH"], pass: ["ink", "PASS"] }[x.action] || ["ink", x.action.toUpperCase()];
         return { sym, act, why: esc(cut(x.thesis || x.reasons[0] || x.action, 38)), time: hhmm(x.ts), conf: x.confidence || 0,
-          open: `New candidate: ${sym} · ${x.stage === "migrated" ? "graduated · genuine pool found" : `curve ${Math.round((x.progress || 0) * 100)}%`} · checked onchain`,
+          open: `New candidate: ${sym} · ${stageTxt(x) ? esc(stageTxt(x)) + " · " : ""}checked onchain`,
           bot: [x.thesis, ...x.reasons.slice(0, 2)].filter(Boolean).map(t => esc(t)),
           att: x.evidence.map(e => { const K = kindOf(e.kind); return [K[0], K[1], esc(cut(e.author || e.channel || K[2], 30)), `${(CONF[e.confidence] || ["", e.confidence])[1]} · ${hhmm(e.at)}`, false]; }),
           lesson: null, risk: esc(x.risks[0] || "Not stated."),
@@ -2337,34 +2227,36 @@ footer nav a:hover { color: var(--ink); }
     /* live */
     const sm = d.watch_mode === "scanner", sgnPct = v => v == null ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v))}%`;
     // why a call was skipped, in a few words
-    const skipWhy = n => /stock token/.test(n || "") ? "stock-token pair" : /not a Pons/.test(n || "") ? "not a Pons coin" : (n || "").slice(0, 32);
-    watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), logo: w.logo, p: Math.round((w.progress || 0) * 100),
+    const skipWhy = n => (n || "").slice(0, 32);
+    // where it trades, short: "pump.fun curve" or the DEX it graduated to
+    const whereShort = w => w.stage === "pool" ? dexName(w.dex) || "DEX pool" : stageTxt(w);
+    watch = d.watching.map((w, i) => ({ s: esc(w.symbol || "?"), logo: w.logo, p: w.stage === "pool" ? 100 : 0,
       st: w.status === "screening" ? "checking" : w.status, c: ["blue", "beige", "white", "green", "ink", "beige"][i % 6],
-      lbl: sm ? sgnPct(w.move_pct) : null, sm, move: w.move_pct,
+      lbl: sm ? sgnPct(w.move_pct) : esc(whereShort(w) || w.status), sm, move: w.move_pct,
       meta: esc(w.status === "skipped" || w.status === "expired"
         ? `${w.status === "skipped" ? "Skipped" : "Expired"}${w.note ? " · " + skipWhy(w.note) : ""}`
-        : `${w.source === "pons" ? "Pons scan" : "Smart money"} · ${ago(w.called_at)} ago`),
+        : `Smart money · ${ago(w.called_at)} ago${whereShort(w) ? " · " + whereShort(w) : ""}`),
       tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)} ago`)) : "" }));
     const nb = watch.filter(w => w.st === "bought").length;
     const ns = watch.filter(w => w.st === "skipped" || w.st === "expired").length;
     $("#wlCount").textContent = sm ? `${nb} bought` + (ns ? ` · ${ns} skipped` : "") : `${watch.length} coins`;
-    $("#wlFootL").textContent = sm ? (d.buy_on_call ? "Bought the moment a call lands" : `+${d.trigger_pct}% = buy`) : "Curve progress to graduation";
-    $("#wlFootR").textContent = sm ? (d.buy_on_call ? "P&L since the buy" : `${d.window_h}h window`) : "85% = almost bonded";
+    $("#wlFootL").textContent = sm ? (d.buy_on_call ? "Bought the moment a call lands" : `+${d.trigger_pct}% = buy`) : "Where each coin trades";
+    $("#wlFootR").textContent = sm ? (d.buy_on_call ? "P&L since the buy" : `${d.window_h}h window`) : "curve → pool";
     $("#holdCount").textContent = `${d.positions.length} open`;
     const wal = d.wallet;
     $("#walletTxt").innerHTML = d.mode !== "live" ? "testing phase" : !wal ? "live wallet"
-      : `<a href="https://explorer.mainnet.chain.robinhood.com/address/${esc(wal.address)}" target="_blank" rel="noopener">${esc(wal.address.slice(0, 6) + "…" + wal.address.slice(-4))}</a> · ${Number(wal.eth).toFixed(3)} ETH`;
+      : `<a href="https://solscan.io/account/${esc(wal.address)}" target="_blank" rel="noopener">${esc(shortA(wal.address))}</a> · ${Number(wal.sol).toFixed(3)} SOL`;
     $("#scAvgS").textContent = d.size_pct > 0 ? `${d.size_pct}% of the account per trade` : "same size every trade";
-    positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), logo: p.logo, entry: p.entry_eth, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
-      hist: p.marks.length > 1 ? p.marks : [p.entry_eth, p.entry_eth] }));
+    positions = d.positions.map((p, i) => ({ s: esc(p.symbol || "?"), logo: p.logo, entry: p.entry_sol, c: ["blue", "beige", "green"][i % 3], age: ago(p.opened_at),
+      hist: p.marks.length > 1 ? p.marks : [p.entry_sol, p.entry_sol] }));
     past = ((d.score || {}).recent || []).map((t, i) => ({ s: esc(t.symbol || "?"), logo: t.logo, pl: t.pnl_pct || 0, held: hfmt(t.hold_h),
       why: esc(whyShort(t.reason)), c: ["blue", "beige", "white"][i % 3] }));
     renderLive();
-    askSuggest(d.watching.filter(w => w.symbol && /^[A-Za-z][A-Za-z0-9]{0,19}$/.test(w.symbol) && /^0x[0-9a-fA-F]{40}$/.test(w.token || ""))
+    askSuggest(d.watching.filter(w => w.symbol && /^[A-Za-z][A-Za-z0-9]{0,19}$/.test(w.symbol) && isAddr(w.token))
       .map(w => ({ s: w.symbol, t: w.token })));
-    if (!watch.length) $("#wl").innerHTML = `<p class="empty">${sm ? "No smart-money calls on Robinhood Chain yet." : "Nothing close to graduating right now."}</p>`;
-    const inTr = d.positions.reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_eth || 0), 0);
-    $("#slotsTxt").textContent = d.slots < 100 ? `${positions.length} of ${d.slots} slots` : positions.length ? `${inTr.toFixed(inTr < 0.1 ? 4 : 3)} ETH in trades` : "";
+    if (!watch.length) $("#wl").innerHTML = `<p class="empty">${sm ? "No smart-money calls on Solana yet." : "Nothing on the watch list right now."}</p>`;
+    const inTr = d.positions.reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_sol || 0), 0);
+    $("#slotsTxt").textContent = d.slots < 100 ? `${positions.length} of ${d.slots} slots` : positions.length ? `${inTr.toFixed(inTr < 0.1 ? 4 : 3)} SOL in trades` : "";
     const th = d.trade_threads || [];
     $("#npPill").textContent = `${th.length} trade${th.length === 1 ? "" : "s"}`;
     renderTweets(th);
@@ -2384,23 +2276,24 @@ footer nav a:hover { color: var(--ink); }
     const dp = v => { const a = Math.abs(v || 0); return a === 0 || a >= 0.1 ? 3 : a >= 0.01 ? 4 : 5; };
     const sc = d.score, sgn = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(dp(v)), cls = v => v > 0 ? "up-t" : v < 0 ? "down-t" : "";
     const held = h => h == null ? "—" : h < 1 ? `${Math.max(1, Math.round(h * 60))}m` : h < 48 ? `${Math.floor(h)}h ${String(Math.round(h % 1 * 60)).padStart(2, "0")}m` : `${Math.round(h / 24)}d`;
-    const eth = (el, v) => { el.className = "v " + cls(v ?? 0); el.innerHTML = v == null ? "—" : `${sgn(v)}<small>ETH</small>`; };
-    const net = $("#scNet"); net.dataset.prefix = sc.net_eth > 0 ? "+" : sc.net_eth < 0 ? "-" : ""; net.dataset.dec = dp(sc.net_eth); setCount(net, Math.abs(sc.net_eth), dp(sc.net_eth), net.dataset.prefix);
+    const solV = (el, v) => { el.className = "v " + cls(v ?? 0); el.innerHTML = v == null ? "—" : `${sgn(v)}<small>SOL</small>`; };
+    const netV = sc.net_sol ?? 0;
+    const net = $("#scNet"); net.dataset.prefix = netV > 0 ? "+" : netV < 0 ? "-" : ""; net.dataset.dec = dp(netV); setCount(net, Math.abs(netV), dp(netV), net.dataset.prefix);
     const ret = sc.return_pct ?? 0; $("#scRet").style.display = ""; $("#scRet").className = "sc-chip " + (ret > 0 ? "up" : ret < 0 ? "down" : ""); $("#scRet").textContent = `${ret > 0 ? "+" : ""}${ret.toFixed(1)}%`;
-    const open = sc.open ?? 0, unreal = sc.unrealized_eth ?? 0;
-    const inOpen = (d.positions || []).reduce((a, p) => a + (p.entry_eth || 0), 0);
+    const open = sc.open ?? 0, unreal = sc.unrealized_sol ?? 0;
+    const inOpen = (d.positions || []).reduce((a, p) => a + (p.entry_sol || 0), 0);
     const unrealPct = inOpen ? ` (${unreal > 0 ? "+" : unreal < 0 ? "−" : ""}${Math.abs(unreal / inOpen * 100).toFixed(1)}%)` : "";
-    $("#scMeta").innerHTML = (sc.closed ? `on <b>${(sc.deployed_eth ?? 0).toFixed(dp(sc.deployed_eth))} ETH</b> traded` : "No closed trades yet")
-      + (open ? ` · <b class="${cls(unreal)}">${sgn(unreal)} ETH${unrealPct}</b> unrealised on ${open} open trade${open === 1 ? "" : "s"}` : " · nothing open right now")
-      + (sc.history ? (sc.history.includes.includes("net_eth") ? " · incl. v1" : " · v1 not in P&amp;L") : "");
+    $("#scMeta").innerHTML = (sc.closed ? `on <b>${(sc.deployed_sol ?? 0).toFixed(dp(sc.deployed_sol))} SOL</b> traded` : "No closed trades yet")
+      + (open ? ` · <b class="${cls(unreal)}">${sgn(unreal)} SOL${unrealPct}</b> unrealised on ${open} open trade${open === 1 ? "" : "s"}` : " · nothing open right now")
+      + (sc.history ? ((sc.history.includes || []).includes("net_sol") ? " · incl. v1" : " · v1 not in P&amp;L") : "");
     const live = d.mode === "live";
     $("#scPill").style.display = ""; $("#scPill").className = "pill " + (live ? "green" : "amber");
     $("#scPill").textContent = live ? "LIVE · real trades, onchain" : "TESTING PHASE · simulated, not onchain";
-    /* account balance: the trading wallet's ETH plus what the open trades are worth now */
+    /* account balance: the trading wallet's SOL plus what the open trades are worth now */
     const acct = $("#scAcct");
-    if (live && d.wallet && d.wallet.eth != null) {
-      const inTrades = (d.positions || []).reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_eth || 0), 0);
-      $("#scAcctV").textContent = `${(Number(d.wallet.eth) + inTrades).toFixed(3)} ETH`;
+    if (live && d.wallet && d.wallet.sol != null) {
+      const inTrades = (d.positions || []).reduce((a, p) => a + (p.marks.length ? p.marks[p.marks.length - 1] : p.entry_sol || 0), 0);
+      $("#scAcctV").textContent = `${(Number(d.wallet.sol) + inTrades).toFixed(3)} SOL`;
       acct.hidden = false;
     } else acct.hidden = true;
     setCount($("#scTaken"), sc.taken ?? sc.closed); const v1 = sc.history?.v1_trades || 0;
@@ -2408,12 +2301,12 @@ footer nav a:hover { color: var(--ink); }
     $("#scRate").textContent = sc.win_rate == null ? "—" : `${Math.round(sc.win_rate)}%`;
     $("#scWL").innerHTML = sc.closed ? `<i class="w" style="flex:${sc.wins}"></i><i class="l" style="flex:${sc.losses}"></i>` : "";
     $("#scWLs").textContent = `${sc.wins} win${sc.wins === 1 ? "" : "s"} · ${sc.losses} loss${sc.losses === 1 ? "" : "es"}` + (v1 ? " · incl. v1" : "");
-    eth($("#scAvg"), sc.avg_eth); $("#scHold").textContent = held(sc.avg_hold_h);
-    const bw = (t, v, sub) => { eth(v, t ? t.pnl_eth : null); sub.textContent = !t ? "no closed trades yet" : t.v1 ? (t.symbol ? `$${t.symbol} · v1` : "v1 · testing phase")
+    solV($("#scAvg"), sc.avg_sol); $("#scHold").textContent = held(sc.avg_hold_h);
+    const bw = (t, v, sub) => { solV(v, t ? t.pnl_sol : null); sub.textContent = !t ? "no closed trades yet" : t.v1 ? (t.symbol ? `$${t.symbol} · v1` : "v1 · testing phase")
       : `$${t.symbol || "?"} · ${t.pnl_pct > 0 ? "+" : ""}${t.pnl_pct.toFixed(1)}%`; };
     bw(sc.best, $("#scBest"), $("#scBestS")); bw(sc.worst, $("#scWorst"), $("#scWorstS"));
     const rec = sc.recent || [];
-    marquee(rec.length ? rec.map(t => `<span class="rc" title="${esc(t.reason || "")}"><b>$${esc(t.symbol || "?")}</b><span class="m ${cls(t.pnl_eth)}">${sgn(t.pnl_eth)}</span><span class="h">${held(t.hold_h)}</span></span>`).join("")
+    marquee(rec.length ? rec.map(t => `<span class="rc" title="${esc(t.reason || "")}"><b>$${esc(t.symbol || "?")}</b><span class="m ${cls(t.pnl_sol)}">${sgn(t.pnl_sol)}</span><span class="h">${held(t.hold_h)}</span></span>`).join("")
       : `<span class="rc-empty">The first closed trade shows up here, win or lose.</span>`, rec.length > 0);
     pnl = sc.series; pnlLbl = sc.labels || []; drawSpark();
     $("#spLbl").textContent = sc.closed ? "Cumulative P&L, trade by trade · hover the line" : "No closed trades yet. The line starts with the first one.";

@@ -1,12 +1,13 @@
-"""A coin's own story: the description and social links its creator stored
-onchain (Pons tokens carry description() and socials()), plus a quick look at
-those links: the X account's profile and the website's title and summary.
+"""A coin's own story: the description and social links its creator published
+with the coin (its Metaplex metadata JSON, e.g. what pump.fun stores on IPFS, with
+DexScreener's token info as a fallback), plus a quick look at those links: the X
+account's profile and the website's title and summary.
 
 All of it is written by the coin's creator, so it is a claim, not proof. It is
 handed to Grok as untrusted text, next to the third-party evidence.
 
-The website fetch only goes to public internet addresses (never this server's
-own network), with a short timeout, a size cap and no automatic redirects.
+The metadata and website fetches only go to public internet addresses (never this
+server's own network), with a short timeout, a size cap and no automatic redirects.
 """
 from __future__ import annotations
 
@@ -118,20 +119,62 @@ def x_profile(x: Any, handle: str) -> dict[str, Any] | None:
 
 def cached(ctx: Any, token: str) -> tuple[dict[str, Any] | None, bool]:
     """(lore, looked) from the 12h cache, or (None, False)."""
-    hit = kv_get(ctx.conn, f"lore:{token.lower()}")
+    hit = kv_get(ctx.conn, f"lore:{token}")
     if hit and time.time() - hit.get("at", 0) < TTL_S:
         return hit["lore"], bool(hit.get("looked"))
     return None, False
 
 
 def save(ctx: Any, token: str, lore: dict[str, Any], looked: bool) -> None:
-    kv_set(ctx.conn, f"lore:{token.lower()}", {"at": time.time(), "looked": looked, "lore": lore})
+    kv_set(ctx.conn, f"lore:{token}", {"at": time.time(), "looked": looked, "lore": lore})
+
+
+class _PublicOnly:
+    """An httpx client that only fetches from public internet hosts: the metadata link comes from the coin's
+    creator, so it must never reach this server's own network."""
+
+    def __init__(self, http: httpx.Client):
+        self._http = http
+
+    def get(self, url: str, **kw: Any) -> httpx.Response:
+        host = urlparse(url).hostname
+        if urlparse(url).scheme not in ("http", "https") or not host or not _public_host(host):
+            raise httpx.HTTPError(f"not a public host: {host}")
+        return self._http.get(url, follow_redirects=False, **kw)
+
+
+def _dexscreener_info(ctx: Any, token: str) -> dict[str, Any]:
+    """DexScreener's token info (links the team registered there), from the coin's deepest pair."""
+    market = getattr(ctx, "market", None)
+    if market is None:
+        return {}
+    try:
+        pairs = market.pairs(token)
+    except Exception as exc:  # the lore just goes without it
+        log.info("dexscreener info for %s unavailable: %s", token, exc)
+        return {}
+    infos = [p.get("info") for p in sorted(pairs, key=lambda p: float((p.get("liquidity") or {}).get("usd") or 0),
+                                            reverse=True) if p.get("info")]
+    return infos[0] if infos else {}
 
 
 def read_onchain(ctx: Any, token: str) -> dict[str, Any]:
-    """Just the part stored on the token: description and links."""
-    links = split_links(ctx.pons.token_socials(token))
-    return {"description": ctx.pons.token_description(token)[:600], "links": {k: v for k, v in links.items() if v}}
+    """Just what the coin itself says: its description and links."""
+    from ..chain.token import token_meta
+    web = getattr(ctx, "web", None)
+    try:
+        meta = token_meta(ctx.rpc, token, http=_PublicOnly(web) if web is not None else None)
+    except Exception as exc:  # no metadata: the lore is just thinner
+        log.info("metadata for %s unavailable: %s", token, exc)
+        meta = {}
+    urls = [meta.get(k, "") for k in ("twitter", "website", "telegram")]
+    if not any(urls) or not meta.get("description"):
+        info = _dexscreener_info(ctx, token)
+        urls += [w.get("url", "") for w in info.get("websites") or [] if isinstance(w, dict)]
+        urls += [x.get("url", "") for x in info.get("socials") or [] if isinstance(x, dict)]
+        meta.setdefault("description", str(info.get("description") or ""))
+    links = split_links(" ".join(u for u in urls if u))
+    return {"description": str(meta.get("description") or "")[:600], "links": {k: v for k, v in links.items() if v}}
 
 
 def get_lore(ctx: Any, token: str, *, look: bool = True) -> dict[str, Any]:

@@ -1,7 +1,7 @@
 """Coin logos for the website.
 
-Each Pons token stores an image link onchain (logo(), usually ipfs://). The
-site never loads those links directly: the API fetches a logo once, checks
+Each coin's metadata names an image (pump.fun coins: an IPFS link), saved in the
+token cache. The site never loads those links directly: the API fetches a logo once, checks
 it really is an image, re-encodes it as a small 128px WebP (which also drops
 anything else embedded in the file) and serves that from disk. Only tokens
 VIGIL already tracks can be fetched, so this isn't an open image proxy.
@@ -19,6 +19,8 @@ import httpx
 log = logging.getLogger(__name__)
 
 GATEWAYS = ["https://ipfs.io/ipfs/", "https://gateway.pinata.cloud/ipfs/", "https://dweb.link/ipfs/"]
+# Image hosts fetched as given (fixed, well-known CDNs, never a host the coin's creator picks)
+TRUSTED_HOSTS = {"dd.dexscreener.com", "cdn.dexscreener.com"}
 MAX_BYTES = 5_000_000
 SIZE = 128
 RETRY_AFTER_S = 6 * 3600  # a logo that failed isn't retried for a while
@@ -28,8 +30,13 @@ _failed: dict[str, float] = {}
 def _candidates(url: str) -> list[str]:
     """Gateway URLs for an IPFS logo. The link comes from whoever launched the
     token, so it is never fetched as given: only its IPFS content id is used,
-    through our fixed public gateways. Non-IPFS links are skipped."""
+    through our fixed public gateways. Other links are skipped, except images on
+    DexScreener's own CDN."""
+    from urllib.parse import urlparse
     url = url.strip()
+    u = urlparse(url)
+    if u.scheme == "https" and u.hostname in TRUSTED_HOSTS and not u.username and u.port is None:
+        return [url]
     if url.startswith("ipfs://"):
         path = url[len("ipfs://"):].removeprefix("ipfs/")
     elif url.startswith("https://") and "/ipfs/" in url:
@@ -76,13 +83,12 @@ def _to_webp(raw: bytes) -> bytes | None:
 
 def logo_file(conn: Any, data_dir: Path, token: str, client: httpx.Client | None = None) -> Path | None:
     """Path to the cached WebP for a tracked token, fetching it on first use."""
-    token = token.lower()
-    path = data_dir / "logos" / f"{token}.webp"
+    path = data_dir / "logos" / f"{token}.webp"  # base58 mint, exactly as given
     if path.exists():
         return path
     if time.time() - _failed.get(token, 0) < RETRY_AFTER_S:
         return None
-    row = conn.execute("SELECT logo_url FROM launches WHERE lower(token)=?", (token,)).fetchone()
+    row = conn.execute("SELECT logo_url FROM tokens WHERE mint=?", (token,)).fetchone()
     urls = _candidates(row["logo_url"]) if row and row["logo_url"] else []
     own = client is None
     client = client or httpx.Client(timeout=8, headers={"user-agent": "VIGIL-logo-fetch"})

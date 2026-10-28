@@ -1,43 +1,40 @@
-"""Live execution on Pons V2 bonding curves. DISABLED BY DEFAULT.
+"""Live execution on Solana through Jupiter. DISABLED BY DEFAULT.
 
 Refuses to sign unless every gate passes:
   * CT_TRADING_MODE=live
   * CT_LIVE_EXECUTION_REVIEWED=true (set only after a human code review)
-  * a trading wallet key is configured (never the owner/treasury key)
-  * kill switch off, risk limits pass
-  * chain id is Robinhood Chain
-  * a fresh quote from onchain reserves, a slippage bound, a fee/tax
-    estimate, a balance/allowance check, and an eth_call simulation of the
-    exact transaction all succeed
+  * a valid trading wallet key is configured (never the owner's or the treasury's)
+  * the kill switch is off (risk limits are checked before a trade gets here)
+  * the RPC is Solana mainnet (its genesis hash)
+  * a fresh Jupiter order for this exact swap, with its price impact inside max_slippage_bps and the same
+    bound as its slippage limit
 
-Every submission, fill, partial fill (refund) and failure is journalled.
-Graduated coins trade in the ETH pool Pons seeded (Uniswap V4, see v4.py), with the
-same gates: a fresh V4Quoter quote, a slippage floor, a simulation of the exact call.
-Coins paired with anything but ETH are refused.
+Jupiter builds the transaction (Swap V2 `order`), VIGIL signs it with the trading key, and Jupiter lands it
+(`execute`). The fill is what Jupiter reports changed hands. Every submission, fill and failure is journalled.
+`CT_LIVE_VENUE=gmgn` sends the same swaps through GMGN's trading API instead (see gmgn.py).
 """
 from __future__ import annotations
 
+import base64
 import logging
 import sqlite3
-import time
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from eth_account import Account
+from solders.transaction import VersionedTransaction
 
-from ..chain.abi import checksum, decode_output, encode_call, topic
-from ..chain.pons import CURVE_BUY, CURVE_SELL, PonsV2
-from ..chain.rpc import RpcClient, RpcError
+from ..chain.keys import MAINNET_GENESIS, SOL_MINT, is_pubkey, load_keypair
+from ..chain.rpc import RpcError
+from ..chain.solana import SolanaRpc
 from ..config import Settings, TradingMode
 from ..db import journal_append
-from .pricing import curve_buy, curve_sell
+from .jupiter import Jupiter, JupiterError, sign
+from .pricing import impact_bps
 from .risk import RiskManager
-from . import v4
 
 log = logging.getLogger(__name__)
-CURVE_BUY_REFUNDED = topic("CurveBuyRefunded(address,uint256)")
-MAX_UINT = 2**256 - 1
+FEE_RESERVE_LAMPORTS = 10_000_000  # 0.01 SOL kept for network fees and a new token account's rent
 
 
 class LiveTradingBlocked(RuntimeError):
@@ -46,26 +43,32 @@ class LiveTradingBlocked(RuntimeError):
 
 @dataclass
 class LiveFill:
-    tx_hash: str
+    tx_hash: str        # the transaction signature
     side: str
-    quote_amount: int
-    token_amount: int
-    refund: int
-    status: str  # filled | partial
+    quote_amount: int   # lamports paid (buy) or received (sell)
+    token_amount: int   # token base units received (buy) or sold (sell)
+    refund: int = 0
+    status: str = "filled"
 
 
 class LiveExecutor:
-    def __init__(self, settings: Settings, rpc: RpcClient, pons: PonsV2, conn: sqlite3.Connection,
+    def __init__(self, settings: Settings, rpc: SolanaRpc, jupiter: Jupiter, conn: sqlite3.Connection,
                  risk: RiskManager):
-        self.s, self.rpc, self.pons, self.conn, self.risk = settings, rpc, pons, conn, risk
-        self._acct = Account.from_key(settings.trading_wallet_private_key) \
-            if settings.trading_wallet_private_key else None
+        self.s, self.rpc, self.jupiter, self.conn, self.risk = settings, rpc, jupiter, conn, risk
+        self._key_error = ""
+        self._kp = None
+        if settings.trading_wallet_private_key:
+            try:
+                self._kp = load_keypair(settings.trading_wallet_private_key)
+            except (ValueError, TypeError) as exc:
+                self._key_error = f"trading wallet key is not a valid Solana key ({type(exc).__name__})"
         self._gmgn: Any = None  # GMGN's trading API client, made on first use (live_venue=gmgn)
-        self._pools: dict[str, v4.EthPool] = {}  # graduated coins' pools, looked up once
+        self._mainnet: bool | None = None
 
     @property
     def wallet(self) -> str | None:
-        return self._acct.address if self._acct else None
+        """The trading wallet's public address (base58). Never the key."""
+        return str(self._kp.pubkey()) if self._kp else None
 
     def blockers(self) -> list[str]:
         b = []
@@ -73,7 +76,9 @@ class LiveExecutor:
             b.append("trading mode is paper")
         if not self.s.live_execution_reviewed:
             b.append("live execution adapter not marked reviewed")
-        if not self._acct:
+        if self._key_error:
+            b.append(self._key_error)
+        elif not self._kp:
             b.append("no trading wallet key")
         killed, why = self.risk.kill_active()
         if killed:
@@ -84,100 +89,106 @@ class LiveExecutor:
         b = self.blockers()
         if b:
             raise LiveTradingBlocked("; ".join(b))
-        if self.rpc.chain_id() != self.s.chain_id:
-            raise LiveTradingBlocked("connected RPC is not Robinhood Chain")
+        if self._mainnet is None:
+            try:
+                self._mainnet = self.rpc.genesis_hash() == MAINNET_GENESIS
+            except RpcError as exc:
+                raise LiveTradingBlocked(f"can't reach the Solana RPC: {exc}") from exc
+        if not self._mainnet:
+            raise LiveTradingBlocked("connected RPC is not Solana mainnet")
 
-    # --- buy ----------------------------------------------------------------
+    # --- quotes ---------------------------------------------------------------
 
-    def buy_on_curve(self, *, token: str, curve: str, quote_in_wei: int, fee_bps: int, tax_bps: int) -> LiveFill:
-        self._assert_ready()
-        q_res, t_res = self.pons.curve_reserves(curve)
-        est = curve_buy(quote_in_wei, q_res, t_res, fee_bps, tax_bps)
-        if est.price_impact_bps > self.s.max_slippage_bps:
-            raise LiveTradingBlocked(f"price impact {est.price_impact_bps} bps > {self.s.max_slippage_bps}")
-        if fee_bps + tax_bps > self.s.max_trade_tax_bps:
-            raise LiveTradingBlocked(f"fee+tax {fee_bps + tax_bps} bps too high")
-        min_out = int(est.tokens_out * 10**18 * (1 - self.s.max_slippage_bps / 10_000))
-        data = encode_call("buy(uint256,uint256,address)", quote_in_wei, min_out, self.wallet)
-        return self._execute(token, curve, "buy", data, value=quote_in_wei,
-                             checklist={"quote": est.__dict__, "min_out": min_out})
+    def quote_sell(self, token: str, amount_base: int) -> int:
+        """Lamports that selling `amount_base` of the coin would return right now (a Jupiter quote: fees and price
+        impact in). Raises LiveTradingBlocked if there's no route."""
+        try:
+            return int(self.jupiter.order(token, SOL_MINT, amount_base)["outAmount"])
+        except (JupiterError, KeyError, ValueError) as exc:
+            raise LiveTradingBlocked(f"no Jupiter quote: {exc}") from exc
 
-    # --- sell ---------------------------------------------------------------
+    # --- swaps ----------------------------------------------------------------
 
     def _sellable(self, token: str, want: int) -> int:
         """How much of `want` can be sold. Token amounts are kept as floats, so "sell it all" can come back a
         hair over the exact balance: within a millionth, sell exactly what the wallet holds. More missing than
         that is refused."""
-        bal = self.pons.erc20_balance(token, self.wallet)
+        bal = self.rpc.token_balance(self.wallet, token)
         if bal >= want:
             return want
-        if bal >= want - want // 1_000_000:
+        if bal >= want - want // 1_000_000 and bal > 0:
             return bal
         raise LiveTradingBlocked(f"token balance {bal} < {want}")
 
-    def sell_on_curve(self, *, token: str, curve: str, tokens_in_wei: int, fee_bps: int, tax_bps: int) -> LiveFill:
+    def swap(self, token: str, side: str, amount_base: int) -> LiveFill:
+        """Buy the coin with `amount_base` lamports, or sell `amount_base` of the coin's base units for SOL."""
+        if side not in ("buy", "sell"):
+            raise ValueError(side)
         self._assert_ready()
-        tokens_in_wei = self._sellable(token, tokens_in_wei)
-        if self.pons.erc20_allowance(token, self.wallet, curve) < tokens_in_wei:
-            approve = encode_call("approve(address,uint256)", checksum(curve), tokens_in_wei)
-            self._send(token, approve, 0, "approve", {"spender": curve, "amount": tokens_in_wei})
-        q_res, t_res = self.pons.curve_reserves(curve)
-        est = curve_sell(tokens_in_wei, q_res, t_res, fee_bps, tax_bps)
-        min_out = int(est.quote_in * 10**18 * (1 - self.s.max_slippage_bps / 10_000))
-        data = encode_call("sell(uint256,uint256,address)", tokens_in_wei, min_out, self.wallet)
-        return self._execute(token, curve, "sell", data, value=0,
-                             checklist={"quote": est.__dict__, "min_out": min_out})
-
-    # --- graduated: the coin's ETH pool on Uniswap V4 -------------------------
-
-    def eth_pool(self, token: str) -> v4.EthPool:
-        """The pool Pons seeded for this coin, refused unless it's paired with ETH and graduated. A graduated
-        coin's pool never changes, so it's looked up once and kept."""
-        from ..chain.pons import Phase
-        hit = self._pools.get(token.lower())
-        if hit:
-            return hit
-        rec = self.pons.launch_record(token)
-        if not rec.exists or rec.phase != Phase.POOL_CREATED:
-            raise LiveTradingBlocked("not a graduated Pons coin")
-        if rec.pair_token.lower() != v4.ZERO_ADDRESS:
-            raise LiveTradingBlocked("pool is not paired with ETH")
-        pool = self._pools[token.lower()] = v4.EthPool(rec.token, rec.pool_fee, rec.tick_spacing, self.pons.meme_hook())
-        return pool
-
-    def quote_sell(self, token: str, tokens_wei: int) -> int:
-        """ETH (wei) that selling this many tokens in the coin's pool would pay right now: the pool's own quoter,
-        fees and tax included. Raises LiveTradingBlocked if there's no quote."""
-        return self._quote(self.eth_pool(token), False, tokens_wei)
-
-    def _quote(self, pool: v4.EthPool, buy: bool, amount_in: int) -> int:
-        try:
-            return v4.decode_quote(self.rpc.eth_call(self.s.uniswap_v4_quoter, v4.quote_calldata(pool, buy, amount_in)))
-        except (RpcError, ValueError) as exc:
-            raise LiveTradingBlocked(f"no V4 quote: {exc}") from exc
-
-    def swap_on_pool(self, *, token: str, side: str, amount_in_wei: int) -> LiveFill:
-        """Buy with `amount_in_wei` ETH, or sell `amount_in_wei` of the coin, in its ETH pool."""
-        self._assert_ready()
-        pool = self.eth_pool(token)
+        if not is_pubkey(token) or token == SOL_MINT:
+            raise LiveTradingBlocked("not a Solana token mint")
+        if amount_base <= 0:
+            raise LiveTradingBlocked("nothing to swap")
         if side == "sell":
-            amount_in_wei = self._sellable(token, amount_in_wei)
+            amount_base = self._sellable(token, amount_base)
+        elif self.rpc.get_balance(self.wallet) < amount_base + FEE_RESERVE_LAMPORTS:
+            raise LiveTradingBlocked("wallet SOL balance too low for the size plus fees")
         if self.s.live_venue == "gmgn":
-            return self._gmgn_swap(token, side, amount_in_wei)
-        router = checksum(self.s.uniswap_universal_router)
-        quoted = self._quote(pool, side == "buy", amount_in_wei)
-        min_out = int(quoted * (1 - self.s.max_slippage_bps / 10_000))
-        deadline = int(time.time()) + 120
-        if side == "buy":
-            data, value = v4.buy_calldata(pool, amount_in_wei, min_out, self.wallet, deadline), amount_in_wei
-        else:
-            self._permit2_allow(token, router, amount_in_wei)
-            data, value = v4.sell_calldata(pool, amount_in_wei, min_out, self.wallet, deadline), 0
-        checklist = {"venue": "v4_pool", "quote_out": quoted, "min_out": min_out, "amount_in": amount_in_wei,
-                     "pool": list(pool.key)}
-        before = (self.rpc.get_balance(self.wallet), self.pons.erc20_balance(token, self.wallet))
-        rc = self._execute(token, router, side, data, value, checklist, parse=False)
-        return self._pool_fill(token, side, rc, before, amount_in_wei)
+            return self._gmgn_swap(token, side, amount_base)
+        inp, out = (SOL_MINT, token) if side == "buy" else (token, SOL_MINT)
+        meta = {"venue": "jupiter", "side": side, "amount_in": amount_base, "token": token}
+        try:
+            order = self.jupiter.order(inp, out, amount_base, taker=self.wallet, slippage_bps=self.s.max_slippage_bps)
+        except JupiterError as exc:
+            journal_append(self.conn, "live_failed", {"stage": "quote", "error": str(exc), **meta}, ref=token, mode="live")
+            raise LiveTradingBlocked(f"no Jupiter route: {exc}") from exc
+        imp = impact_bps(order)
+        checklist = {"request_id": order.get("requestId"), "in_amount": order.get("inAmount"),
+                     "quoted_out": order.get("outAmount"), "price_impact_bps": imp, "router": order.get("router"),
+                     "slippage_bps": order.get("slippageBps")}
+        if imp > self.s.max_slippage_bps:
+            journal_append(self.conn, "live_failed", {"stage": "price_impact", **checklist, **meta}, ref=token, mode="live")
+            raise LiveTradingBlocked(f"price impact {imp} bps > {self.s.max_slippage_bps}")
+        if not order.get("transaction") or not order.get("requestId"):
+            why = order.get("errorMessage") or order.get("error") or "no transaction in the order"
+            journal_append(self.conn, "live_failed", {"stage": "order", "error": why, **checklist, **meta}, ref=token,
+                           mode="live")
+            raise LiveTradingBlocked(f"Jupiter didn't build the swap: {why}")
+        signed = sign(order["transaction"], self._kp)
+        sig = str(VersionedTransaction.from_bytes(base64.b64decode(signed)).signatures[0])
+        journal_append(self.conn, "live_submitted", {"label": side, "tx_hash": sig, **checklist, **meta}, ref=token,
+                       mode="live")
+        try:
+            res = self.jupiter.execute(signed, order["requestId"])
+        except JupiterError as exc:
+            res = self._confirm_after_error(token, sig, exc, meta)
+            if res is None:
+                raise LiveTradingBlocked(f"swap {sig[:12]}… not confirmed ({exc}); check the explorer before retrying") \
+                    from exc
+            res = {**res, "totalInputAmount": order["inAmount"], "totalOutputAmount": order["outAmount"]}
+        a = int(res.get("totalInputAmount") or res.get("inputAmountResult") or order["inAmount"])
+        b = int(res.get("totalOutputAmount") or res.get("outputAmountResult") or order["outAmount"])
+        quote, tokens = (a, b) if side == "buy" else (b, a)
+        fill = LiveFill(str(res.get("signature") or sig), side, quote, tokens)
+        journal_append(self.conn, "live_fill", {
+            "onchain": True, "paper": False, "venue": "jupiter", "tx_hash": fill.tx_hash, "side": side,
+            "quote_amount": fill.quote_amount, "token_amount": fill.token_amount, "token": token,
+            "explorer": f"{self.s.explorer_url}/tx/{fill.tx_hash}"}, ref=token, mode="live")
+        return fill
+
+    def _confirm_after_error(self, token: str, sig: str, exc: Exception, meta: dict[str, Any]) -> dict[str, Any] | None:
+        """Jupiter's execute failed or timed out: the transaction may still have landed. Ask the chain."""
+        try:
+            st = (self.rpc.signature_statuses([sig]) or [None])[0]
+        except RpcError:
+            st = None
+        if st and not st.get("err") and st.get("confirmationStatus") in ("confirmed", "finalized"):
+            journal_append(self.conn, "live_fill_from_quote", {"tx_hash": sig, "jupiter_error": str(exc), **meta},
+                           ref=token, mode="live")
+            return {"signature": sig}
+        journal_append(self.conn, "live_failed", {"stage": "execute", "tx_hash": sig, "error": str(exc),
+                                                  "chain_status": st, **meta}, ref=token, mode="live")
+        return None
 
     def _gmgn_swap(self, token: str, side: str, amount_in: int) -> LiveFill:
         """The same swap through GMGN's trading API: GMGN routes and signs it from the wallet bound to the
@@ -186,11 +197,7 @@ class LiveExecutor:
         s = self.s
         if not (s.gmgn_api_key and s.gmgn_private_key):
             raise LiveTradingBlocked("GMGN venue chosen but its API key or signing key is missing")
-        before = (self.rpc.get_balance(self.wallet), self.pons.erc20_balance(token, self.wallet))
-        if side == "buy" and before[0] < amount_in * 12 // 10:
-            raise LiveTradingBlocked("wallet ETH balance too low for size plus gas")
-        if side == "sell" and before[1] < amount_in:
-            raise LiveTradingBlocked(f"token balance {before[1]} < {amount_in}")
+        before = (self.rpc.get_balance(self.wallet), self.rpc.token_balance(self.wallet, token))
         if self._gmgn is None:
             self._gmgn = GmgnClient(s.gmgn_api_key, s.gmgn_private_key, s.gmgn_host)
         meta = {"venue": "gmgn", "side": side, "amount_in": amount_in, "token": token}
@@ -219,97 +226,12 @@ class LiveExecutor:
         if rep.get("input_amount") and rep.get("output_amount"):
             a, b = int(rep["input_amount"]), int(rep["output_amount"])
             quote, tokens = (a, b) if side == "buy" else (b, a)
-        else:  # no execution report: read what changed hands from the wallet (sell proceeds net of gas)
-            tokens_now = self.pons.erc20_balance(token, self.wallet)
+        else:  # no execution report: read what changed hands from the wallet (sell proceeds net of fees)
+            tokens_now = self.rpc.token_balance(self.wallet, token)
             quote, tokens = (amount_in, tokens_now - before[1]) if side == "buy" else \
                 (self.rpc.get_balance(self.wallet) - before[0], before[1] - tokens_now)
-        fill = LiveFill(o.get("hash") or sub.get("hash") or "", side, int(quote), int(tokens), 0, "filled")
+        fill = LiveFill(o.get("hash") or sub.get("hash") or "", side, int(quote), int(tokens))
         journal_append(self.conn, "live_fill", {
             "onchain": True, "paper": False, "venue": "gmgn", "order_id": oid, "tx_hash": fill.tx_hash, "side": side,
             "quote_amount": fill.quote_amount, "token_amount": fill.token_amount, "token": token}, ref=token, mode="live")
-        return fill
-
-    def _permit2_allow(self, token: str, router: str, amount: int) -> None:
-        """The router pulls the coin through Permit2: the coin approves Permit2 once, then Permit2
-        approves the router for this coin (30 days, redone when it runs low or expires)."""
-        permit2 = checksum(self.s.permit2)
-        if self.pons.erc20_allowance(token, self.wallet, permit2) < amount:
-            self._send(token, encode_call("approve(address,uint256)", permit2, MAX_UINT), 0, "approve_permit2",
-                       {"spender": permit2})
-        amt, exp, _ = decode_output(["uint160", "uint48", "uint48"], self.rpc.eth_call(
-            permit2, encode_call("allowance(address,address,address)", self.wallet, checksum(token), router)))
-        if int(amt) < amount or int(exp) < time.time() + 600:
-            data = encode_call("approve(address,address,uint160,uint48)", checksum(token), router, 2**160 - 1,
-                               int(time.time()) + 30 * 86400)
-            self._send(permit2, data, 0, "permit2_approve", {"token": token, "spender": router})
-
-    def _pool_fill(self, token: str, side: str, rc: dict[str, Any], before: tuple[int, int], amount_in: int) -> LiveFill:
-        """What actually changed hands, from the wallet's balances around the swap (the hook's tax
-        is not in the pool's Swap event). ETH received on a sell adds back the gas the swap burned."""
-        tokens_now = self.pons.erc20_balance(token, self.wallet)
-        if side == "buy":
-            quote, tokens = amount_in, tokens_now - before[1]
-        else:
-            gas = int(rc.get("gasUsed", "0x0"), 16) * int(rc.get("effectiveGasPrice", "0x0"), 16)
-            quote, tokens = self.rpc.get_balance(self.wallet) - before[0] + gas, before[1] - tokens_now
-        fill = LiveFill(rc["transactionHash"], side, int(quote), int(tokens), 0, "filled")
-        journal_append(self.conn, "live_fill", {
-            "onchain": True, "paper": False, "venue": "v4_pool", "tx_hash": fill.tx_hash, "side": side,
-            "quote_amount": fill.quote_amount, "token_amount": fill.token_amount, "token": token}, ref=token, mode="live")
-        return fill
-
-    # --- internals ----------------------------------------------------------
-
-    def _execute(self, token: str, to: str, side: str, data: str, value: int,
-                 checklist: dict[str, Any], parse: bool = True) -> Any:
-        if value and self.rpc.get_balance(self.wallet) < value * 12 // 10:
-            raise LiveTradingBlocked("wallet ETH balance too low for size plus gas")
-        try:  # simulate the exact call
-            self.rpc.eth_call(to, data, sender=self.wallet, value=value)
-        except RpcError as exc:
-            journal_append(self.conn, "live_failed", {"stage": "simulation", "side": side, "error": str(exc),
-                                                      **checklist}, ref=token, mode="live")
-            raise LiveTradingBlocked(f"simulation reverted: {exc}") from exc
-        receipt = self._send(to, data, value, side, checklist)
-        return self._parse_fill(token, side, receipt) if parse else receipt
-
-    def _send(self, to: str, data: str, value: int, label: str, meta: dict[str, Any]) -> dict[str, Any]:
-        txd = {"from": self.wallet, "to": checksum(to), "data": data, "value": hex(value)}
-        gas = int(self.rpc.estimate_gas(txd) * 1.3)
-        tx = {"to": checksum(to), "data": data, "value": value, "gas": gas,
-              "gasPrice": int(self.rpc.gas_price() * 1.2), "nonce": self.rpc.nonce(self.wallet),
-              "chainId": self.s.chain_id}
-        signed = self._acct.sign_transaction(tx)
-        raw = signed.raw_transaction.hex()
-        tx_hash = self.rpc.send_raw(raw if raw.startswith("0x") else "0x" + raw)
-        journal_append(self.conn, "live_submitted", {"label": label, "tx_hash": tx_hash, "to": to, "value": value,
-                                                     **meta}, ref=to, mode="live")
-        for _ in range(120):
-            rc = self.rpc.receipt(tx_hash)
-            if rc:
-                if int(rc["status"], 16) != 1:
-                    journal_append(self.conn, "live_failed", {"stage": "mined", "label": label, "tx_hash": tx_hash},
-                                   ref=to, mode="live")
-                    raise LiveTradingBlocked(f"{label} transaction reverted: {tx_hash}")
-                return rc
-            time.sleep(1)
-        journal_append(self.conn, "live_failed", {"stage": "receipt_timeout", "label": label, "tx_hash": tx_hash},
-                       ref=to, mode="live")
-        raise LiveTradingBlocked(f"no receipt for {tx_hash}; state unknown, check explorer before retrying")
-
-    def _parse_fill(self, token: str, side: str, rc: dict[str, Any]) -> LiveFill:
-        quote = tokens = refund = 0
-        want = CURVE_BUY if side == "buy" else CURVE_SELL
-        for lg in rc.get("logs", []):
-            t0 = lg["topics"][0].lower()
-            if t0 == want:
-                a, b, _, _ = decode_output(["uint256"] * 4, lg["data"])
-                quote, tokens = (a, b) if side == "buy" else (b, a)
-            elif t0 == CURVE_BUY_REFUNDED:
-                refund = int(decode_output(["uint256"], lg["data"])[0])
-        status = "partial" if refund else "filled"
-        fill = LiveFill(rc["transactionHash"], side, int(quote), int(tokens), refund, status)
-        journal_append(self.conn, "live_partial_fill" if refund else "live_fill", {
-            "onchain": True, "paper": False, "tx_hash": fill.tx_hash, "side": side, "quote_amount": fill.quote_amount,
-            "token_amount": fill.token_amount, "refund": refund, "token": token}, ref=token, mode="live")
         return fill

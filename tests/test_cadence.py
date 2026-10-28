@@ -8,9 +8,9 @@ from ct_agent.db import rows
 from ct_agent.social.cadence import cadence_once
 
 NOW = datetime(2026, 9, 25, 18, 0, tzinfo=timezone.utc)
-SITE = {"funnel": {"launched_24h": 7847},
+SITE = {"funnel": {"calls_24h": 93},
         "positions": [{"symbol": "TALIS", "pnl_pct": 92.9}, {"symbol": "FOOMS", "pnl_pct": -46.3}],
-        "score": {"taken": 10, "closed": 5, "open": 5, "win_rate": 20.0, "net_eth": -0.0401, "unrealized_eth": 0.0038,
+        "score": {"taken": 10, "closed": 5, "open": 5, "win_rate": 20.0, "net_sol": -0.0401, "unrealized_sol": 0.0038,
                   "best": {"symbol": "NYMA", "pnl_pct": 27.1}, "worst": {"symbol": "FRAI", "pnl_pct": -79.4}}}
 
 
@@ -58,7 +58,7 @@ def test_a_trade_post_counts_as_the_slot_but_replies_do_not(settings, db):
 
 def test_nothing_new_to_say_skips_to_the_next_kind(settings, db):
     ctx = _ctx(settings, db, x_musings_enabled=False)
-    quiet = {"funnel": {}, "positions": [], "score": {"taken": 3, "closed": 3, "open": 0, "win_rate": 0, "net_eth": 0}}
+    quiet = {"funnel": {}, "positions": [], "score": {"taken": 3, "closed": 3, "open": 0, "win_rate": 0, "net_sol": 0}}
     assert cadence_once(ctx, quiet, NOW)["cadence"] == "score"  # no scan data, no bags, musings off
     _send_all(db, NOW)
     assert cadence_once(ctx, quiet, NOW + timedelta(minutes=17))["cadence"] == "nothing to say"  # same scorecard again

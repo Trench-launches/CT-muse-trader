@@ -1,6 +1,6 @@
 """Quote-asset amounts with their unit attached.
 
-Curve reserves are in the launch's quote asset (native ETH or an ERC-20).
+Amounts are in the quote asset (SOL, see units.py) or a coin's own units.
 This type keeps the unit next to the number so nothing downstream can
 print raw quote units as dollars.
 """

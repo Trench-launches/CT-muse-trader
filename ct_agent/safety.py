@@ -9,11 +9,13 @@ from __future__ import annotations
 import logging
 import os
 
+from .chain.keys import is_pubkey, load_keypair
 from .config import Settings, TradingMode
 
 log = logging.getLogger(__name__)
 
 MIN_ADMIN_TOKEN_LEN = 32
+PUBLIC_RPC = "api.mainnet-beta.solana.com"
 # run-all sets this for the processes it starts, so the review is logged once, by the supervisor
 CHECKED_ENV = "CT_AGENT_SAFETY_CHECKED"
 
@@ -47,12 +49,23 @@ def review(s: Settings) -> tuple[list[str], list[str]]:
             errors.append("live trading with no CT_API_ADMIN_TOKEN: the kill switch can't be reached over the API")
         if not s.trading_wallet_private_key:
             warnings.append("CT_TRADING_MODE=live but no CT_TRADING_WALLET_PRIVATE_KEY: every live trade is blocked")
+        elif _pubkey(s.trading_wallet_private_key) is None:
+            errors.append("CT_TRADING_WALLET_PRIVATE_KEY is not a valid Solana private key (base58, as Phantom "
+                          "exports it, or a solana-keygen JSON byte array)")
         if not s.live_execution_reviewed:
             warnings.append("CT_TRADING_MODE=live but CT_LIVE_EXECUTION_REVIEWED is false: every live trade is blocked")
-        if s.max_position_eth > s.max_total_exposure_eth:
-            warnings.append("CT_MAX_POSITION_ETH is above CT_MAX_TOTAL_EXPOSURE_ETH")
+        if s.max_position_sol > s.max_total_exposure_sol:
+            warnings.append("CT_MAX_POSITION_SOL is above CT_MAX_TOTAL_EXPOSURE_SOL")
+        if s.live_venue not in ("jupiter", "gmgn"):
+            errors.append(f"CT_LIVE_VENUE must be jupiter or gmgn, not {s.live_venue!r}")
         if s.live_venue == "gmgn" and not (s.gmgn_api_key and s.gmgn_private_key):
             warnings.append("CT_LIVE_VENUE=gmgn without CT_GMGN_API_KEY and CT_GMGN_PRIVATE_KEY")
+        if s.live_venue == "jupiter" and not s.jupiter_api_key:
+            warnings.append("live trading with no CT_JUPITER_API_KEY: Jupiter's keyless lane is slow and may refuse "
+                            "swaps (free key at developers.jup.ag)")
+        if PUBLIC_RPC in s.solana_rpc_url:
+            warnings.append("live trading on the public Solana RPC: it is rate limited; set CT_SOLANA_RPC_URL to a "
+                            "provider (e.g. Helius)")
     else:
         if s.trading_wallet_private_key:
             warnings.append("CT_TRADING_WALLET_PRIVATE_KEY is set while in paper mode: it isn't needed, and a key "
@@ -61,11 +74,21 @@ def review(s: Settings) -> tuple[list[str], list[str]]:
             warnings.append("CT_LIVE_EXECUTION_REVIEWED is true while in paper mode")
 
     if s.trading_wallet_private_key and s.launcher_wallet_private_key and \
-            _norm(s.trading_wallet_private_key) == _norm(s.launcher_wallet_private_key):
+            _same_wallet(s.trading_wallet_private_key, s.launcher_wallet_private_key):
         errors.append("the trading wallet and the launchpad wallet use the same key: give each its own wallet")
+    for name in ("agent_token_address", "treasury_address"):
+        v = getattr(s, name)
+        if v and not is_pubkey(v):
+            warnings.append(f"CT_{name.upper()} is not a Solana address (base58)")
+    bad_skips = [t for t in s.skip_tokens if not is_pubkey(t)]
+    if bad_skips:
+        warnings.append(f"{len(bad_skips)} CT_SKIP_TOKENS entr{'y is' if len(bad_skips) == 1 else 'ies are'} not a "
+                        "Solana address (base58, case-sensitive)")
     if s.launchpad_enabled:
         if not s.launcher_wallet_private_key:
             warnings.append("CT_LAUNCHPAD_ENABLED without CT_LAUNCHER_WALLET_PRIVATE_KEY: launches can't be paid for")
+        elif _pubkey(s.launcher_wallet_private_key) is None:
+            errors.append("CT_LAUNCHER_WALLET_PRIVATE_KEY is not a valid Solana private key")
         if not s.x_handle:
             errors.append("CT_LAUNCHPAD_ENABLED needs CT_X_HANDLE (the bot's X handle, credited in every launch)")
         if not token:
@@ -77,8 +100,19 @@ def review(s: Settings) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
-def _norm(key: str) -> str:
-    return key.strip().lower().removeprefix("0x")
+def _pubkey(secret: str) -> str | None:
+    """The wallet address a private key belongs to, or None if it isn't a Solana key. Never the key itself."""
+    try:
+        return str(load_keypair(secret).pubkey())
+    except Exception:
+        return None
+
+
+def _same_wallet(a: str, b: str) -> bool:
+    pa, pb = _pubkey(a), _pubkey(b)
+    if pa and pb:
+        return pa == pb
+    return a.strip() == b.strip()  # base58 is case-sensitive: compared exactly
 
 
 def enforce(s: Settings) -> None:
