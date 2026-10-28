@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     agent_name: str = "VIGIL"
     agent_ticker: str = "VIGIL"  # the project's own coin; the launchpad won't launch a copy of it
     agent_token_address: str = ""  # the project's own token, once launched
-    # Never traded from scanner calls, like our own token: $MOOSE, the coin from before the VIGIL rebrand.
-    skip_tokens: list[str] = ["0x6954c198203f95d97273de98b15aad0bef5b4028"]
+    # Never traded from scanner calls, like our own token: e.g. an older project coin (JSON list of addresses).
+    skip_tokens: list[str] = []
     treasury_address: str = ""     # public treasury/creator-fee wallet, for disclosure only
 
     # --- storage --------------------------------------------------------
@@ -73,7 +73,7 @@ class Settings(BaseSettings):
     x_bearer_token: str = ""        # app-only token for reads
     x_user_access_token: str = ""   # OAuth2 user token for posting
     # The bot's X handle, without the @: shown in launch credits. Change it when the account is renamed.
-    x_handle: str = "MooseByMuse"
+    x_handle: str = ""
     # OAuth 1.0a keys from the X developer portal (Consumer Key/Secret and the
     # bot account's Access Token/Secret). These don't expire, so posting never needs a re-login.
     x_api_key: str = ""
@@ -167,13 +167,11 @@ class Settings(BaseSettings):
     score_history_v1: dict = {}
     # The site's scorecard counts trades opened from this time on (ISO, UTC). A reset keeps the history.
     score_since: str = ""
-    site_origins: list[str] = ["https://vigiltrades.vercel.app",  # the VIGIL site until its own domain is set up
-                               "https://www.moosebymuse.com", "https://moosebymuse.com",
-                               "https://www.mooseonmuse.com", "https://mooseonmuse.com",
-                               "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
+    # Websites allowed to call the API from a browser (CORS), as a JSON list. Add your site's domain(s).
+    site_origins: list[str] = ["http://127.0.0.1:5173", "http://localhost:5173"]
     # Public "Ask VIGIL" chat on the website. Every request is a paid Grok call, so it is capped per
-    # visitor and overall; the global cap is the hard ceiling on spend.
-    chat_enabled: bool = True
+    # visitor and overall; the global cap is the hard ceiling on spend. Off unless you turn it on.
+    chat_enabled: bool = False
     chat_per_ip_hour: int = 10
     chat_per_ip_day: int = 30
     chat_global_day: int = 500
@@ -214,7 +212,7 @@ class Settings(BaseSettings):
     pons_fee_escrow: str = "0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e"  # where Pons credits creator fees
 
     # --- API ------------------------------------------------------------
-    api_admin_token: str = ""  # required for mutating endpoints
+    api_admin_token: str = ""  # required for mutating endpoints; at least 32 random characters (see safety.py)
 
 
 @lru_cache

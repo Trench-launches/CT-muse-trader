@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 
 from .config import get_settings
@@ -57,6 +58,15 @@ def main(argv: list[str] | None = None) -> int:
     t.add_argument("--bot-user-id")
     args = p.parse_args(argv)
     s = get_settings()
+    if args.cmd in ("run", "run-all", "api", "live-test"):
+        from .safety import CHECKED_ENV, UnsafeSettings, enforce
+        try:
+            enforce(s)
+        except UnsafeSettings as exc:
+            print(f"ctagent: {exc}", file=sys.stderr)
+            return 2
+        if args.cmd == "run-all":
+            os.environ[CHECKED_ENV] = "1"  # the processes it starts inherit this and don't repeat the review
 
     if args.cmd == "init-db":
         from .db import open_db
@@ -209,6 +219,9 @@ def _check() -> int:
     report["live_trading"] = "BLOCKED: " + "; ".join(ctx.live.blockers()) if ctx.live.blockers() else "READY"
     killed, why = ctx.risk.kill_active()
     report["kill_switch"] = why if killed else "off"
+    from .safety import review
+    errors, warnings = review(s)
+    report["safety"] = "; ".join([f"ERROR {e}" for e in errors] + [f"warning {w}" for w in warnings]) or "ok"
     print(json.dumps(report, indent=2))
     return 0 if not report["rpc"].startswith("FAILED") else 1
 
