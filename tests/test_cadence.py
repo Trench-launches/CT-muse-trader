@@ -117,7 +117,7 @@ def test_a_goal_post_comes_round_every_few_hours_with_real_numbers(settings, db)
     early = {**SITE, "score": {**SITE["score"], "closed": 0}}
     assert cadence_once(ctx, early, NOW)["cadence"] == "goals"
     body = rows(db, "SELECT body FROM posts WHERE kind='goals'")[0]["body"]
-    assert body == "🎯 Where I'm headed\n\n" + _Brain.goal
+    assert body == "🎯 Progress update\n\n" + _Brain.goal
     f = ctx.brain.goal_ctx  # what Grok was given: only counts from the database
     assert (f["smart_money_calls_read"], f["calls_bought"], f["calls_refused_for_a_tax_on_every_transfer"],
             f["calls_that_never_ran_30pct_in_6h"], f["take_profits_hit"], f["coins_launched_for_people"]) == (11, 2, 2, 2, 2, 1)
