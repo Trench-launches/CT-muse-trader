@@ -363,7 +363,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lrh { display: flex; align-items: center; gap: 10px; }
 .lrh .example { margin-left: auto; }
 .lrh .lp-link { margin-left: auto; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
-.lrh .lp-link + .example { margin-left: 0; }  /* the link takes the free space; the example tag sits after it */
 .lrh .lp-link:hover { color: var(--ink); text-decoration: underline; }
 .lview { padding-block: 4px; }
 .lcard { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; width: 265px; margin-right: 10px;
@@ -993,7 +992,6 @@ main, footer { position: relative; z-index: 1; }
           mask-image: radial-gradient(120px circle at var(--mx) var(--my), #000 0%, transparent 80%); }
 .bg-glow { background: radial-gradient(360px circle at var(--mx) var(--my), rgba(255,255,255,.055), transparent 70%); }
 @media (hover: none), (prefers-reduced-motion: reduce) { .bg-fx { display: none; } }
-.lcard .lemo { display: grid; place-items: center; font-size: 21px; line-height: 1; background: linear-gradient(160deg, #26262B, #18181B); box-shadow: inset 0 0 0 1px var(--line); }
 .lrow-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 @media (max-width: 760px) { .lrow-2 { grid-template-columns: minmax(0, 1fr); } }
 
@@ -1400,7 +1398,7 @@ footer nav a:hover { color: var(--ink); }
         <li><b>3</b><div><strong>VIGIL launches it on pump.fun</strong><span>It replies with your CA. VIGIL pays the launch, and you get 90% of the creator fees from the first trade (VIGIL keeps 10%).</span></div></li>
       </ol>
       <p class="lrules">Call it whatever you like · one launch per X account a day · accounts older than 30 days · no hate, scams or fake "official" coins</p>
-      <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><a class="lp-link" href="/launchpad">Launchpad →</a><span class="example" id="lEx">example</span></div><div class="rc-view lview" id="lRecentList"></div></div>
+      <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><a class="lp-link" href="/launchpad">Launchpad →</a></div><div class="rc-view lview" id="lRecentList"></div></div>
     </div>
     <div class="panel grid-bg launch-panel">
       <form class="lform" id="launchForm" autocomplete="off" novalidate>
@@ -1776,28 +1774,25 @@ footer nav a:hover { color: var(--ink); }
     if (t && navigator.clipboard) navigator.clipboard.writeText(t).then(() => { $("#ldCopy").style.color = "var(--green)"; setTimeout(() => { $("#ldCopy").style.color = ""; }, 1200); });
   });
   lRender();
-  /* recently launched: an endless strip of cards; example coins until the first real launch */
-  const EX_LAUNCHES = [["PURR", "catfan", 2, "🐱"], ["HOPPY", "bunnydev", 9, "🐰"], ["MOOCOW", "farmfren", 25, "🐮"], ["BRRR", "printer_anon", 47, "🖨️"],
-    ["QUACK", "duckszn", 70, "🦆"], ["TACO", "tacotues", 95, "🌮"], ["ROBOCAT", "meowbuilder", 130, "🤖"], ["GLOBBY", "blobartist", 185, "🫧"]]
-    .map(([symbol, handle, mins, emo]) => ({ symbol, handle, emo, launched_at: new Date(Date.now() - mins * 60e3).toISOString() }));
-  const launchCard = (r, ex) => `<div class="lcard">`
+  /* recently launched: an endless strip of cards; a short note until the first real launch */
+  const launchCard = r => `<div class="lcard">`
     + (r.logo ? `<img class="lgo" src="${esc(r.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
-      : r.emo ? `<span class="lgo lemo" aria-hidden="true">${r.emo}</span>` : coinAv("blue", 38, false, null, r.symbol))
+      : coinAv("blue", 38, false, null, r.symbol))
     + `<b>$${esc(r.symbol)}</b><small>${r.handle ? "by @" + esc(r.handle) + " · " : ""}${ago(r.launched_at)} ago</small><span class="lk">`
-    + (ex ? `<span>Post ↗</span><span>pump.fun ↗</span>`
-      : (r.announce_x_id ? `<a href="https://x.com/i/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
-        + (r.tx_hash ? `<a href="https://solscan.io/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
-        + (r.token ? `<a href="https://pump.fun/coin/${esc(r.token)}" target="_blank" rel="noopener">pump.fun ↗</a>` : ""))
+    + (r.announce_x_id ? `<a href="https://x.com/i/status/${esc(r.announce_x_id)}" target="_blank" rel="noopener">Post ↗</a>` : "")
+    + (r.tx_hash ? `<a href="https://solscan.io/tx/${esc(r.tx_hash)}" target="_blank" rel="noopener">Receipt ↗</a>` : "")
+    + (r.token ? `<a href="https://pump.fun/coin/${esc(r.token)}" target="_blank" rel="noopener">pump.fun ↗</a>` : "")
     + `</span></div>`;
   let lKey = "";
   const launchStrip = list => {
-    const ex = !list.length, items = ex ? EX_LAUNCHES : list.slice(0, 12), key = ex ? "ex" : JSON.stringify(items.map(r => r.token));
-    $("#lEx").style.display = ex ? "" : "none";
+    const items = list.slice(0, 12), key = JSON.stringify(items.map(r => r.token));
     if (key === lKey) return;  // unchanged: leave the strip running where it is
     lKey = key;
-    const v = $("#lRecentList"), html = items.map(r => launchCard(r, ex)).join("");
+    const v = $("#lRecentList");
+    if (!items.length) { v.innerHTML = `<p class="lempty">No coins launched yet. Be the first: tag @${esc(X_HANDLE)} with a name and ticker.</p>`; return; }
+    const html = items.map(launchCard).join("");
     v.innerHTML = `<div class="rc-track">${html}</div>`;
-    if (reduce || (!ex && items.length < 3)) return;  // a strip of one or two real launches stays still, no repeats
+    if (reduce || items.length < 3) return;  // a strip of one or two launches stays still, no repeats
     requestAnimationFrame(() => {
       const tr = v.firstChild, w = tr.scrollWidth;
       if (!w) return;
