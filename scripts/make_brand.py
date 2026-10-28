@@ -1,10 +1,11 @@
-"""Draws VIGIL's brand art: the orb (avatar, favicons) and the orb rising over the horizon (link card, X banner).
+"""Draws VIGIL's orb art: the orb (favicons) and the orb rising over the horizon (the link card).
 
 The orb is a black disc with a thin white rim and a cool-white corona, brightest at the bottom where the horizon
 light hits it. The website draws the same orb in SVG; this script makes the raster copies.
 
 Run from the repo root:  .venv/Scripts/python.exe scripts/make_brand.py
-Writes web/favicon.ico, web/assets/icon-{16,32,48,64,180}.png, web/assets/og-vigil.png, brand/x-avatar.png, brand/x-banner.png.
+Writes web/favicon.ico, web/assets/icon-{16,32,48,64,180}.png and web/assets/og-vigil.png. (The X avatar, X banner and
+logo show the VIGIL character: scripts/make_logo.py draws those.)
 Text uses Segoe UI from C:/Windows/Fonts (falls back to Pillow's built-in font elsewhere).
 """
 from __future__ import annotations
@@ -134,36 +135,16 @@ def og(ss=2) -> Image.Image:
     return render((1200, 630), ss, draw)
 
 
-def banner(ss=2) -> Image.Image:
-    def draw(im, s):
-        w, h = im.size
-        im, circle = horizon(im, h * .84, h * .30, glow=.9)
-        im = orb(im, w * .5, h * .80, h * .11)
-        im = planet(im, circle, .9)
-        d = ImageDraw.Draw(im)
-        tracked(d, w * .5, h * .50, "VIGIL", font("seguisb.ttf", 88 * s), (250, 250, 250), .34)
-        tracked(d, w * .5, h * .62, "POWERED BY GROK", font("segoeui.ttf", 21 * s), (150, 150, 150), .32)
-        return im
-    return render((1500, 500), ss, draw)
-
-
-def avatar() -> Image.Image:
-    return render((400, 400), 4, lambda im, s: orb(im, 200 * s, 200 * s, 116 * s))
-
-
 def main() -> None:
-    web, brand = ROOT / "web", ROOT / "brand"
+    web = ROOT / "web"
     (web / "assets").mkdir(parents=True, exist_ok=True)
-    brand.mkdir(exist_ok=True)
     for px in (16, 32, 48, 64):
         icon(px).save(web / "assets" / f"icon-{px}.png")
     icon(180, round_mask=False).save(web / "assets" / "icon-180.png")  # iOS rounds the corners itself
     ico = [icon(px) for px in (16, 32, 48)]
     ico[-1].save(web / "favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)], append_images=ico[:-1])
     og().save(web / "assets" / "og-vigil.png", optimize=True)  # a new name, so X drops its cached link card
-    avatar().save(brand / "x-avatar.png", optimize=True)
-    banner().save(brand / "x-banner.png", optimize=True)
-    print("wrote favicon.ico, icon-16/32/48/64/180.png, og-vigil.png, brand/x-avatar.png, brand/x-banner.png")
+    print("wrote favicon.ico, icon-16/32/48/64/180.png, og-vigil.png")
 
 
 if __name__ == "__main__":
