@@ -24,7 +24,7 @@ from ct_agent.launchpad import pumpfun as pf
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 64
 BLOCKHASH = str(Hash.new_unique())
 DISC_PUMP_CREATE = bytes([24, 30, 200, 40, 5, 28, 7, 119])   # pump `create`, as PumpPortal's tx would call it
-CREATE_COST = 25_000_000                                      # what our fake create takes from the launcher
+CREATE_COST = 7_300_000                                       # what our fake create takes from the launcher
 
 
 def curve_bytes(creator: Pubkey, complete: bool = False, creator_fee: int = 0) -> bytes:

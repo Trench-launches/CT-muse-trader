@@ -31,7 +31,7 @@ from .pumpfun import FeeSplitUnverified, LaunchBlocked, LaunchUnconfirmed, PumpL
 log = logging.getLogger(__name__)
 ASK = re.compile(r"\b(launch|deploy)\b", re.I)
 SYMBOL = re.compile(r"^[A-Za-z0-9]{1,10}$")
-EST_OVERHEAD_LAMPORTS = lamports(0.03)  # a launch's rent + fees + the split, on top of the dev buy, before it happens
+EST_OVERHEAD_LAMPORTS = lamports(0.012)  # a launch's rent + fees + the split (~0.011), on top of the dev buy, before it happens
 SOCIALS = ("twitter", "telegram", "website")  # what pump.fun's metadata shows
 UNSENT_FAILS_AFTER_S = 180   # a signed launch the chain still doesn't know after this can't land (its blockhash expired)
 RETRY_SPLIT_S = 600          # a split that couldn't go out is tried again after this

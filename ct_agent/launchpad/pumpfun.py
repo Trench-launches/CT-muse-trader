@@ -83,8 +83,10 @@ FEE_PROGRAM_VERIFIED = False
 
 PUMPPORTAL_SLIPPAGE = 10           # percent, as in PumpPortal's own example
 PUMPPORTAL_PRIORITY_FEE = 0.0005   # SOL
-MAX_CREATE_OVERHEAD = lamports(0.06)   # rent (mint, metadata, curve, ATAs) + fees + PumpPortal's cut, above the dev buy
-MIN_LAUNCHER_RESERVE = lamports(0.05)  # keep this much on the launcher so the fee-split tx can still be paid
+# A create with no buy cost its creator 0.0057-0.0073 SOL in 21 mainnet launches on 2026-10-28 (rent for the mint,
+# metadata, curve and its ATA, plus fees); about twice that leaves room for the priority fee and PumpPortal's cut.
+MAX_CREATE_OVERHEAD = lamports(0.015)  # above the dev buy; a simulation that spends more is refused
+MIN_LAUNCHER_RESERVE = lamports(0.01)  # keep this much on the launcher so the fee-split tx (~0.004) can still be paid
 MIN_DISTRIBUTE_LAMPORTS = lamports(0.01)  # below this a payout isn't worth the transaction
 RENT_EXEMPT_EMPTY = 890_880        # the minimum a 0-byte account (the creator vault) keeps
 FEE_TX_COMPUTE_UNITS = 400_000

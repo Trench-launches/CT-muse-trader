@@ -99,7 +99,7 @@ def test_one_launch_per_account_a_day_and_a_daily_sol_budget(settings, db):
     assert take_request(_ctx(settings, db, _Brain(symbol="CATT", name="Cat Coin")),
                         _m("8", text=f"launch $CATT Cat Coin {WALLET}")) == "refused"
     assert "One launch per account per day" in _replies(db)[-1]
-    tiny = _ctx(settings, db, _Brain(symbol="DOGE", name="Dog Coin"), launch_daily_cap_sol=0.05)
+    tiny = _ctx(settings, db, _Brain(symbol="DOGE", name="Dog Coin"), launch_daily_cap_sol=0.02)
     assert take_request(tiny, {**_m("9", text=f"launch $DOGE Dog Coin {WALLET}"), "author_id": "u2"}) == "refused"
     assert "Launches are full for today" in _replies(db)[-1]
     # what launched in the last 24h counts at its real cost
@@ -372,6 +372,15 @@ def test_launch_refuses_when_low_on_sol_or_the_simulation_fails(settings, db):
     node.sim_err = {"InstructionError": [0, {"Custom": 6000}]}
     with pytest.raises(LaunchBlocked, match="simulation failed"):
         _launcher(settings, db, node, web).launch("Cat Coin", "CAT", "uri", 0.01)
+    assert node.sent == []
+
+
+def test_a_launch_that_would_spend_more_than_a_real_create_is_refused(settings, db, monkeypatch):
+    from . import launchpad_fakes
+    monkeypatch.setattr(launchpad_fakes, "CREATE_COST", pf.MAX_CREATE_OVERHEAD + 1)  # beyond the dev buy
+    node, web = _funded(), FakeWeb()
+    with pytest.raises(LaunchBlocked, match="more than expected"):
+        _launcher(settings, db, node, web).launch("Cat Coin", "CAT", "uri", 0)
     assert node.sent == []
 
 
