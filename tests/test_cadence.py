@@ -64,5 +64,22 @@ def test_nothing_new_to_say_skips_to_the_next_kind(settings, db):
     assert cadence_once(ctx, quiet, NOW + timedelta(minutes=17))["cadence"] == "nothing to say"  # same scorecard again
 
 
+def test_the_scorecard_posts_before_any_trade_has_closed(settings, db):
+    ctx = _ctx(settings, db, x_musings_enabled=False)
+    first = {"funnel": {}, "positions": [], "score": {"taken": 2, "closed": 0, "open": 2, "win_rate": None,
+                                                     "net_sol": 0.0, "best": None, "worst": None}}
+    assert cadence_once(ctx, first, NOW)["cadence"] == "score"
+    body = rows(db, "SELECT body FROM posts")[0]["body"]
+    assert "0 closed, 2 open" in body and "Win rate: none closed yet" in body
+
+
+def test_a_broken_kind_is_skipped_not_retried_forever(settings, db, monkeypatch):
+    import ct_agent.social.cadence as cadence
+    monkeypatch.setattr(cadence, "score_post", lambda site: 1 / 0)
+    ctx = _ctx(settings, db, x_musings_enabled=False)
+    cadence.kv_set(db, "cadence_next", 3)  # the scorecard's turn
+    assert cadence_once(ctx, SITE, NOW)["cadence"] == "scan"  # it moves on to the next kind
+
+
 def test_off_when_the_cadence_is_zero(settings, db):
     assert cadence_once(_ctx(settings, db, x_cadence_min=0), SITE, NOW) == {}
