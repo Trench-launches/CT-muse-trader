@@ -71,6 +71,12 @@ class PostIn(BaseModel):
     image: str | None = None  # a file in ct_agent/social/media, e.g. "moose-cap.png"
 
 
+class ImportLaunchIn(BaseModel):
+    mint: str = Field(max_length=44)
+    handle: str | None = Field(default=None, max_length=16)       # who to credit; VIGIL's own X handle by default
+    fee_share_tx: str | None = Field(default=None, max_length=100)  # the split's transaction, for the record
+
+
 class ResolveIn(BaseModel):
     status: str = Field(pattern="^(sent|pending|cancelled)$")
     x_post_id: str | None = None
@@ -412,6 +418,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         journal_append(conn, "post_queued_by_hand", {"post_id": pid, "by": who, "text": text, "image": body.image,
                                                      "new": created})
         return {"id": pid, "queued": created}
+
+    @app.post("/admin/launches/import")
+    def import_launch(body: ImportLaunchIn, who: str = Depends(admin), conn=Depends(db)) -> dict[str, Any]:
+        """Put a launch made outside the X flow (ctagent launch-test) on the launch list, so the site shows it.
+        The coin is checked on chain: its fee split must be locked and include VIGIL's launcher."""
+        from ..launchpad.pumpfun import LaunchBlocked, PumpLauncher
+        from ..launchpad.service import import_launch as do_import
+        from . import site as site_mod
+        if not is_pubkey(body.mint):
+            raise HTTPException(400, "mint isn't a Solana address")
+        launcher = PumpLauncher(s, chat_services()["rpc"], conn)
+        try:
+            out = do_import(conn, s, launcher, body.mint, handle=body.handle, fee_share_tx=body.fee_share_tx)
+        except LaunchBlocked as exc:
+            raise HTTPException(409, str(exc))
+        site_mod._BOARD.clear()
+        site_mod._CACHE.clear()  # the site shows it on its next poll, not a minute later
+        return {**out, "by": who}
 
     @app.post("/admin/posts/{post_id}/resolve")
     def resolve_post(post_id: int, body: ResolveIn, who: str = Depends(admin), conn=Depends(db)) -> dict[str, Any]:

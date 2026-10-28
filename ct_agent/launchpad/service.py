@@ -355,3 +355,54 @@ def _distribute(ctx: Any, launcher: PumpLauncher, r: dict[str, Any]) -> int:
     except Exception as exc:  # retried on the next round
         log.warning("fee payout for %s failed: %s", r["token"], exc)
         return 0
+
+
+# --- launches made outside the X flow ----------------------------------------------------------------------------------
+
+def import_launch(conn: Any, s: Any, launcher: PumpLauncher, mint: str, *, handle: str | None = None,
+                  fee_share_tx: str | None = None) -> dict[str, Any]:
+    """Put a coin the launcher made outside the X flow (ctagent launch-test runs on the owner's machine, with its
+    own database) on the launch list, so the site shows it. Everything comes from the chain, nothing from the caller:
+    the curve must point at a locked fee split that includes VIGIL's launcher; the name, ticker and image come from
+    the token's metadata; the launch transaction and time from the mint's first transaction. A coin already on the
+    list is left as it is. Raises LaunchBlocked when the coin isn't one of the launcher's, or can't be read."""
+    old = conn.execute("SELECT id, symbol FROM launch_requests WHERE token=?", (mint,)).fetchone()
+    if old:
+        return {"status": "exists", "id": old["id"], "symbol": old["symbol"], "token": mint}
+    me = launcher.wallet
+    if not me:
+        raise LaunchBlocked("no launcher wallet key")
+    from .pumpfun import sharing_config_pda
+    bc = launcher.curve(mint)
+    if bc["creator"] != str(sharing_config_pda(mint)):
+        raise LaunchBlocked("this coin has no creator-fee split, so it isn't a finished VIGIL launch")
+    cfg = launcher.sharing_config(mint)
+    if not cfg or not cfg["admin_revoked"]:
+        raise LaunchBlocked("this coin's fee split isn't locked yet")
+    owners = [sh.address for sh in cfg["shareholders"]]
+    if me not in owners:
+        raise LaunchBlocked("VIGIL's launcher isn't in this coin's fee split: not one of its launches")
+    recipient = next((a for a in owners if a != me), me)
+    asset = launcher.rpc.get_asset(mint) or {}
+    content = asset.get("content") or {}
+    meta = content.get("metadata") or {}
+    name, symbol = " ".join(str(meta.get("name") or "").split())[:32], str(meta.get("symbol") or "").strip().upper()[:10]
+    if not name or not symbol:
+        raise LaunchBlocked("couldn't read the coin's name and ticker from its metadata")
+    image = (content.get("links") or {}).get("image") or None
+    sigs = launcher.rpc.request("getSignaturesForAddress", [mint, {"limit": 1000}]) or []
+    first = sigs[-1] if sigs else {}  # newest first, so the last is the launch
+    at = (datetime.fromtimestamp(first["blockTime"], timezone.utc).isoformat(timespec="seconds")
+          if first.get("blockTime") else utcnow())
+    shares = [sh.as_dict() for sh in cfg["shareholders"]]
+    cur = conn.execute(
+        "INSERT INTO launch_requests(x_post_id,author_id,handle,created_at,status,name,symbol,description,logo,image_uri,"
+        "socials,recipient,token,metadata_uri,tx_hash,fee_share_tx,fee_shares,launched_at) "
+        "VALUES(?,?,?,?,'launched',?,?,?,?,?,'{}',?,?,?,?,?,?,?)",
+        (f"import:{mint}", "", (handle or s.x_handle or "").lstrip("@") or None, at, name, symbol,
+         str(meta.get("description") or "")[:280], image, image, recipient, mint, content.get("json_uri"),
+         first.get("signature"), fee_share_tx, json.dumps(shares), at))
+    journal_append(conn, "launchpad_imported", {"id": cur.lastrowid, "mint": mint, "symbol": symbol,
+                                                "tx": first.get("signature"), "shares": shares}, ref=mint, mode="live")
+    return {"status": "imported", "id": cur.lastrowid, "symbol": symbol, "name": name, "token": mint,
+            "tx_hash": first.get("signature"), "launched_at": at, "fee_shares": shares}

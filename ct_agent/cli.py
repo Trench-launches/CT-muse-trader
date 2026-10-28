@@ -225,6 +225,7 @@ def _launch_test(s, image: str, name: str, symbol: str, fees_to: str, *, descrip
     print(f"spent {sol(before - rpc.get_balance(lp.wallet)):.4f} SOL")
     if cfg.get("admin_revoked") and got == [(sh.address, sh.bps) for sh in shares]:
         print("the split is right: set CT_LAUNCH_FEE_SPLIT_VERIFIED=true on the server to let the launchpad send splits")
+        print(f"to list it on the site, POST /admin/launches/import with {{\"mint\": \"{out.mint}\"}} and the admin token")
         return 0
     print("the split on chain isn't what was asked: keep CT_LAUNCH_FEE_SPLIT_VERIFIED off and look into it")
     return 1

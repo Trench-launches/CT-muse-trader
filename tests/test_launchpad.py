@@ -611,3 +611,72 @@ def test_launch_test_refuses_a_big_dev_buy_or_the_launcher_as_fee_wallet(setting
     assert node.sent == []
     out = capsys.readouterr().out
     assert "capped at 0.05 SOL" in out and "another wallet than the launcher" in out and "isn't a Solana address" in out
+
+
+# --- importing a launch made outside the X flow --------------------------------------------------------------------------
+
+def _imported_coin(node, shares, revoked=True):
+    cfg = pf.sharing_config_pda(MINT)
+    node.set_account(pf.bonding_curve_pda(MINT), pf.PUMP_PROGRAM, curve_bytes(cfg))
+    node.set_account(cfg, pf.PUMP_FEES_PROGRAM, config_bytes(Pubkey.from_string(MINT), LAUNCHER_KP.pubkey(), shares, revoked))
+    node.assets[MINT] = {"content": {"json_uri": "https://ipfs.io/ipfs/bafymeta",
+                                     "metadata": {"name": "VIGIL Launch Test", "symbol": "vtest", "description": "a test"},
+                                     "links": {"image": "https://ipfs.io/ipfs/bafyimg"}}}
+    node.signatures[MINT] = [{"signature": "SPLITSIG", "blockTime": 1_800_000_100},
+                             {"signature": "LAUNCHSIG", "blockTime": 1_800_000_000}]
+
+
+def test_a_launch_test_coin_is_imported_from_the_chain(settings, db):
+    from ct_agent.api import site
+    from ct_agent.launchpad.service import import_launch
+    node = _funded()
+    _imported_coin(node, [(REQUESTER, 9000), (LAUNCHER_KP.pubkey(), 1000)])
+    lp = _launcher(settings, db, node, FakeWeb())
+    out = import_launch(db, lp.settings, lp, MINT)
+    assert out["status"] == "imported" and out["symbol"] == "VTEST" and out["tx_hash"] == "LAUNCHSIG"
+    r = rows(db, "SELECT * FROM launch_requests")[0]
+    assert (r["status"], r["token"], r["recipient"], r["handle"], r["image_uri"]) == \
+        ("launched", MINT, WALLET, "VigilBot", "https://ipfs.io/ipfs/bafyimg")
+    assert json.loads(r["fee_shares"]) == [{"address": WALLET, "bps": 9000}, {"address": LAUNCHER, "bps": 1000}]
+    assert r["launched_at"].startswith("2027-01-15")  # the launch transaction's block time
+    coin = site.launch_board(db, lp.settings)["coins"][0]
+    assert coin["symbol"] == "VTEST" and coin["creator_share_bps"] == 9000 and coin["logo"] == "https://ipfs.io/ipfs/bafyimg"
+    assert import_launch(db, lp.settings, lp, MINT)["status"] == "exists"  # a second import changes nothing
+    assert len(rows(db, "SELECT * FROM launch_requests")) == 1
+    assert rows(db, "SELECT * FROM posts") == []  # nothing is posted on X for an imported coin
+
+
+def test_only_the_launchers_own_locked_splits_can_be_imported(settings, db):
+    from ct_agent.launchpad.service import import_launch
+    node = _funded()
+    lp = _launcher(settings, db, node, FakeWeb())
+    with pytest.raises(LaunchBlocked, match="bonding curve"):
+        import_launch(db, lp.settings, lp, MINT)  # no such coin
+    stranger = Pubkey.new_unique()
+    _imported_coin(node, [(REQUESTER, 9000), (stranger, 1000)])
+    with pytest.raises(LaunchBlocked, match="isn't in this coin's fee split"):
+        import_launch(db, lp.settings, lp, MINT)
+    _imported_coin(node, [(REQUESTER, 9000), (LAUNCHER_KP.pubkey(), 1000)], revoked=False)
+    with pytest.raises(LaunchBlocked, match="isn't locked"):
+        import_launch(db, lp.settings, lp, MINT)
+    node.set_account(pf.bonding_curve_pda(MINT), pf.PUMP_PROGRAM, curve_bytes(LAUNCHER_KP.pubkey()))
+    with pytest.raises(LaunchBlocked, match="no creator-fee split"):
+        import_launch(db, lp.settings, lp, MINT)
+    assert rows(db, "SELECT * FROM launch_requests") == []
+
+
+def test_the_import_endpoint_needs_the_admin_token(settings, db):
+    from fastapi.testclient import TestClient
+    from ct_agent.api.app import create_app
+    node = _funded()
+    _imported_coin(node, [(REQUESTER, 9000), (LAUNCHER_KP.pubkey(), 1000)])
+    s = settings.model_copy(update={"launchpad_enabled": True, "launcher_wallet_private_key": LAUNCHER_SECRET,
+                                    "api_admin_token": "a" * 40, "x_handle": "VigilBot"})
+    app = create_app(s)
+    app.state.chat_services = {"rpc": node.rpc}
+    api = TestClient(app)
+    assert api.post("/admin/launches/import", json={"mint": MINT}).status_code == 401
+    assert api.post("/admin/launches/import", json={"mint": "nope"}, headers={"authorization": "Bearer " + "a" * 40}).status_code == 400
+    r = api.post("/admin/launches/import", json={"mint": MINT}, headers={"authorization": "Bearer " + "a" * 40}).json()
+    assert r["status"] == "imported" and r["symbol"] == "VTEST"
+    assert api.get("/launchpad/board").json()["stats"]["launched"] == 1

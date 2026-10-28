@@ -51,6 +51,8 @@ class FakeSolana:
         self.land = True          # sent transactions confirm; False: the node never hears of them
         self.fail_on_chain: Any = None
         self.costs: dict[str, int] = {}
+        self.assets: dict[str, dict[str, Any]] = {}       # mint -> Helius DAS getAsset result
+        self.signatures: dict[str, list[dict[str, Any]]] = {}  # address -> getSignaturesForAddress (newest first)
         self.rpc = SolanaRpc("https://rpc.test", transport=httpx.MockTransport(self._handle), retries=0)
 
     # --- state helpers ---
@@ -127,6 +129,10 @@ class FakeSolana:
             result = sig
         elif method == "getSignatureStatuses":
             result = {"context": {"slot": 1}, "value": [self.statuses.get(s) for s in params[0]]}
+        elif method == "getAsset":
+            result = self.assets.get(params["id"])
+        elif method == "getSignaturesForAddress":
+            result = self.signatures.get(params[0], [])
         elif method == "getTransaction":
             c = self.costs.get(params[0])
             result = None if c is None else {"meta": {"preBalances": [10**9], "postBalances": [10**9 - c]}}
