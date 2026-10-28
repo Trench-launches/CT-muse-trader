@@ -1,53 +1,31 @@
-"""Prototype candidate filters from the brief. Not a profitable strategy.
+"""Screen a Solana coin: prototype filters, not a profitable strategy.
 
-Stages:
-  almost_bonded  phase 0 and realQuoteReserve / graduationThreshold >= 0.85
-  migrated       phase 2 (genuine Pons V4 pool), >= $5k 1h volume and
-                 >= $15k liquidity on that pool, for paper screening
-Skipped: phase 1 (swept), phase 3 (rescued), anything not a verified
-Pons V2 launch, and anything still inside the launch snipe-tax window.
+Blockers (the coin fails the screen):
+  * it isn't priced against SOL (risk limits and sizes are in SOL);
+  * mint safety: its creator can still mint more or freeze holders' coins, or a Token-2022 extension can take,
+    block or tax holders' coins;
+  * no market data, or 1h volume / liquidity under the minimums;
+  * holders: the creator, or the 10 biggest wallets (not counting bonding curves, pools or burn addresses), hold
+    too much of the supply.
+Flags (worth knowing, not disqualifying): volume many times the liquidity (wash trading), one wallet holding a
+big share.
+
+The scanner's buy rule doesn't wait on the screen (only the wallet's limits can stop a triggered buy, and unsafe
+mints are never tradeable at all); the screen's findings go to Grok with every analysis.
 """
 from __future__ import annotations
 
-import sqlite3
-from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..config import Settings
-from ..db import rows
-
-
-@dataclass
-class WindowStats:
-    seconds: int
-    buys: int
-    sells: int
-    buy_quote: float
-    sell_quote: float
-    unique_buyers: int
-
-    @property
-    def buys_per_min(self) -> float:
-        return self.buys / (self.seconds / 60)
-
-
-@dataclass
-class Activity:
-    windows: list[WindowStats]
-    top_buyer_share: float
-    deployer_buy_share: float
-    roundtrip_traders: int
-    accelerating: bool
-    acceleration: float
+from ..units import QUOTE_SYMBOL
 
 
 @dataclass
 class Candidate:
     token: str
-    stage: str
-    progress: float | None
-    phase: int
+    stage: str | None            # 'curve' (launchpad bonding curve) | 'pool' (graduated) | None (unknown)
     score: float
     flags: list[str] = field(default_factory=list)
     blockers: list[str] = field(default_factory=list)
@@ -58,73 +36,21 @@ class Candidate:
         return not self.blockers
 
 
-def activity_for(conn: sqlite3.Connection, token: str, deployer: str, head_block: int, block_time_s: float,
-                 windows_s: list[int], quote_decimals: int = 18) -> Activity:
-    longest = max(windows_s)
-    lo = head_block - int(longest / block_time_s)
-    trades = rows(conn, "SELECT * FROM curve_trades WHERE token=? AND block_number>=? ORDER BY block_number",
-                  (token, lo))
-    scale = 10 ** quote_decimals
-    stats = []
-    for w in sorted(windows_s):
-        start = head_block - int(w / block_time_s)
-        ts = [t for t in trades if t["block_number"] >= start]
-        b = [t for t in ts if t["side"] == "buy"]
-        s = [t for t in ts if t["side"] == "sell"]
-        stats.append(WindowStats(w, len(b), len(s), sum(int(t["quote_amount"]) for t in b) / scale,
-                                 sum(int(t["quote_amount"]) for t in s) / scale,
-                                 len({t["trader"] for t in b})))
-    buys = [t for t in trades if t["side"] == "buy"]
-    by_buyer = Counter()
-    for t in buys:
-        by_buyer[t["trader"].lower()] += int(t["quote_amount"])
-    total = sum(by_buyer.values()) or 1
-    top_share = (max(by_buyer.values()) / total) if by_buyer else 0.0
-    dep_share = by_buyer.get(deployer.lower(), 0) / total
-    sellers = {t["trader"].lower() for t in trades if t["side"] == "sell"}
-    roundtrips = len(sellers & set(by_buyer))
-    # Acceleration only counts if every shorter window beats the next longer
-    # one, so a single burst in one window is not trusted.
-    rates = [w.buys_per_min for w in stats]
-    accelerating = len(rates) >= 2 and all(rates[i] > rates[i + 1] for i in range(len(rates) - 1)) and stats[0].buys >= 3
-    accel = rates[0] / rates[-1] if rates and rates[-1] > 0 else (float(rates[0] > 0) if rates else 0.0)
-    return Activity(stats, top_share, dep_share, roundtrips, accelerating, accel)
-
-
-def screen_almost_bonded(s: Settings, *, token: str, progress: float, phase: int, launch_age_s: float,
-                         snipe_window_s: int, fee_bps: int, creator_tax_bps: int, activity: Activity,
-                         quote_symbol: str = "ETH") -> Candidate:
-    c = Candidate(token=token, stage="almost_bonded", progress=progress, phase=phase, score=0.0)
+def screen_token(s: Settings, *, token: str, stage: str | None, pool_found: bool, volume_h1_usd: float | None,
+                 liquidity_usd: float | None, volume_h24_usd: float | None, safety: list[str] | None = None,
+                 holders: dict[str, Any] | None = None, quote_symbol: str = QUOTE_SYMBOL) -> Candidate:
+    c = Candidate(token=token, stage=stage, score=0.0)
     _quote_check(c, quote_symbol)
-    if phase != 0:
-        c.blockers.append(f"phase {phase} is not the curve phase")
-    if progress < s.almost_bonded_ratio:
-        c.blockers.append(f"progress {progress:.2f} < {s.almost_bonded_ratio}")
-    if launch_age_s <= snipe_window_s:
-        c.blockers.append("inside launch snipe-tax window")
-    _common_checks(s, c, fee_bps, creator_tax_bps, activity)
-    c.score = round(progress * 2 + min(activity.acceleration, 5) + (2 if activity.accelerating else 0)
-                    - len(c.flags) * 0.5, 3)
-    return c
-
-
-def screen_migrated(s: Settings, *, token: str, phase: int, pool_found: bool, volume_h1_usd: float | None,
-                    liquidity_usd: float | None, volume_h24_usd: float | None, fee_bps: int,
-                    creator_tax_bps: int, activity: Activity | None, quote_symbol: str = "ETH") -> Candidate:
-    c = Candidate(token=token, stage="migrated", progress=1.0, phase=phase, score=0.0)
-    _quote_check(c, quote_symbol)
-    if phase != 2:
-        c.blockers.append(f"phase {phase} is not PoolCreated")
+    for why in safety or []:
+        c.blockers.append(f"unsafe mint: {why}")
     if not pool_found:
-        c.blockers.append("genuine Pons V4 pool not found in market data")
-    if (volume_h1_usd or 0) < s.min_migrated_volume_h1_usd:
-        c.blockers.append(f"1h volume ${volume_h1_usd or 0:,.0f} < ${s.min_migrated_volume_h1_usd:,.0f}")
-    if (liquidity_usd or 0) < s.min_migrated_liquidity_usd:
-        c.blockers.append(f"liquidity ${liquidity_usd or 0:,.0f} < ${s.min_migrated_liquidity_usd:,.0f}")
-    if activity:
-        _common_checks(s, c, fee_bps, creator_tax_bps, activity)
-    else:
-        _tax_check(s, c, fee_bps, creator_tax_bps)
+        c.blockers.append("no market data for this coin yet")
+    if (volume_h1_usd or 0) < s.min_volume_h1_usd:
+        c.blockers.append(f"1h volume ${volume_h1_usd or 0:,.0f} < ${s.min_volume_h1_usd:,.0f}")
+    if (liquidity_usd or 0) < s.min_liquidity_usd:
+        c.blockers.append(f"liquidity ${liquidity_usd or 0:,.0f} < ${s.min_liquidity_usd:,.0f}")
+    if holders:
+        _holder_checks(s, c, holders)
     # Volume now vs. average hour of the last day: >1 means heating up.
     hourly_avg = (volume_h24_usd or 0) / 24
     heat = (volume_h1_usd or 0) / hourly_avg if hourly_avg > 0 else 0.0
@@ -138,35 +64,19 @@ def screen_migrated(s: Settings, *, token: str, phase: int, pool_found: bool, vo
 
 
 def _quote_check(c: Candidate, quote_symbol: str) -> None:
-    """Risk limits and position sizing are in ETH, so only ETH-priced tokens can be
-    traded. Blocking here stops the AI being asked about untradeable tokens."""
+    """Risk limits and position sizing are in SOL, so only SOL-priced trades are supported."""
     c.metrics["quote"] = quote_symbol
-    if quote_symbol != "ETH":
-        c.blockers.append(f"priced in {quote_symbol}; only ETH-priced tokens are supported for now")
+    if quote_symbol != QUOTE_SYMBOL:
+        c.blockers.append(f"priced in {quote_symbol}; only {QUOTE_SYMBOL} trades are supported")
 
 
-def _tax_check(s: Settings, c: Candidate, fee_bps: int, creator_tax_bps: int) -> None:
-    total = fee_bps + creator_tax_bps
-    c.metrics["trade_fee_bps"] = total
-    if total > s.max_trade_tax_bps:
-        c.blockers.append(f"fee+tax {total} bps > {s.max_trade_tax_bps}")
-    elif creator_tax_bps:
-        c.flags.append(f"creator tax {creator_tax_bps} bps on every trade")
-
-
-def _common_checks(s: Settings, c: Candidate, fee_bps: int, creator_tax_bps: int, a: Activity) -> None:
-    _tax_check(s, c, fee_bps, creator_tax_bps)
-    c.metrics.update({
-        "top_buyer_share": round(a.top_buyer_share, 3),
-        "deployer_buy_share": round(a.deployer_buy_share, 3),
-        "roundtrip_traders": a.roundtrip_traders,
-        "accelerating": a.accelerating,
-        "acceleration": round(a.acceleration, 2),
-        "windows": [w.__dict__ for w in a.windows],
-    })
-    if a.deployer_buy_share > s.max_deployer_buy_share:
-        c.blockers.append(f"deployer bought {a.deployer_buy_share:.0%} of curve volume")
-    if a.top_buyer_share > s.max_top_buyer_share:
-        c.flags.append(f"one wallet is {a.top_buyer_share:.0%} of buys")
-    if a.roundtrip_traders >= 3:
-        c.flags.append(f"{a.roundtrip_traders} wallets both bought and sold: wash-trading clue")
+def _holder_checks(s: Settings, c: Candidate, h: dict[str, Any]) -> None:
+    top10, top, creator = h.get("top10_share"), h.get("top_holder_share"), h.get("creator_share")
+    c.metrics.update({k: h[k] for k in ("top10_share", "top_holder_share", "creator_share", "wallets_counted")
+                      if h.get(k) is not None})
+    if creator is not None and creator > s.max_deployer_hold_share:
+        c.blockers.append(f"the creator still holds {creator:.0%} of the supply")
+    if top10 is not None and top10 > s.max_top10_hold_share:
+        c.blockers.append(f"the 10 biggest wallets hold {top10:.0%} of the supply")
+    if top is not None and top > s.max_top_buyer_share:
+        c.flags.append(f"one wallet holds {top:.0%} of the supply")

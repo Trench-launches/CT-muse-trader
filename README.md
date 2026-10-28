@@ -1,9 +1,10 @@
-# VIGIL: an open, automated memecoin trader for Robinhood Chain
+# VIGIL: an open, automated memecoin trader for Solana
 
-VIGIL is an AI trading persona that runs in the open. It watches new
-Pons V2 memecoin launches on Robinhood Chain (chain id 4663), checks each
-one onchain, asks xAI's **Grok** whether it's worth a trade, applies hard risk limits Grok can't override,
-journals every decision in a tamper-evident log, and posts its trades (wins and losses) on X.
+VIGIL is an AI trading persona that runs in the open. It follows a smart-money scanner's calls on Solana
+memecoins (pump.fun launches and the coins trading on PumpSwap, Raydium and other DEXs), checks each coin
+onchain (who can still mint or freeze it, Token-2022 taxes, who holds the supply), has xAI's **Grok** write its
+read on the coin, trades by fixed rules through **Jupiter** with hard risk limits nothing can override, journals
+every decision in a tamper-evident log, and posts its trades (wins and losses) on X.
 A one-page website shows the journal, scorecard and open positions live.
 
 This repo is everything you need to run **your own copy**: the Python backend (`ct_agent/`) and the
@@ -19,15 +20,14 @@ static site (`web/`). You bring your own keys. Nothing in the repo talks to anyo
 ## How it works
 
 ```
- Robinhood Chain RPC ──► indexer ──┐                       ┌──► social ──► X API (posts, replies)
- (launches, phases, curve trades)  │                       │      outbox: daily cap, idempotent,
-                                   ▼                       │      never blind-retries an ambiguous send
- news RSS / X reads / Twitch ──► research ──► SQLite ◄──── trader / exits / caller
- (budgeted, attributed)   verify leads     (append-only    screen → Grok → hard gates → fill
-                          onchain          hash-chained    → exits (stop / take-profit / max-hold)
-                                           journal)
-                                              ▲
-                                              └── api (public reads, admin writes) ◄── web/ (static site)
+ smart-money scanner (Supabase) ──► caller / trader ──┐       ┌──► social ──► X API (posts, replies)
+ Solana RPC (mints, holders) ─────► mint safety,      │       │      outbox: daily cap, idempotent,
+ Jupiter (quotes, swaps, prices) ─► Jupiter route,    ▼       │      never blind-retries an ambiguous send
+ DexScreener (pools, USD prices) ─► Grok's read ──► SQLite ◄──┴── exits (stop / take-profit / max-hold,
+ news RSS / X reads / Twitch ──► research ──────► (append-only        one batched price call per tick)
+ (budgeted, attributed)   verify leads onchain    hash-chained journal, token cache)
+                                                     ▲
+                                                     └── api (public reads, admin writes) ◄── web/ (static site)
 ```
 
 Each box is a separate OS process, started together by `ctagent run-all` (or one container each with
@@ -35,9 +35,8 @@ docker compose), so an X outage can't stop trading and a crash in one worker can
 
 | Worker | What it does |
 | --- | --- |
-| `indexer` | Reads Pons launches and curve trades from the chain into SQLite |
 | `research` | Pulls news, X posts and Twitch chat; links mentions to coins only after verifying them onchain |
-| `caller` / `trader` | Screens candidates, asks Grok, applies the gates, opens (paper or live) positions |
+| `caller` / `trader` | Copies the scanner's Solana calls, checks they're tradeable, gets Grok's read, buys by rule (paper or live) |
 | `exits` | Checks stop-loss, take-profit ladder and max-hold every few seconds |
 | `social` | Writes and sends posts and replies through a rate-limited outbox |
 | `launchpad` | Optional: launches coins for people who ask on X (off by default) |
@@ -47,22 +46,23 @@ docker compose), so an X outage can't stop trading and a crash in one worker can
 
 | Rule | Where |
 | --- | --- |
-| Only Pons V2 launches, verified onchain via the factory record | `chain/pons.py` `verify_token` |
-| Genuine V4 pool only; lookalike pools rejected by computed PoolId | `PonsV2.genuine_pool_id`, `market/dex.py` |
-| Never buy inside the launch snipe-tax window (read live from the factory) | `strategy/screen.py` |
-| Deployer concentration, holder concentration, thin-chart and wash-trade guards | `strategy/engine.py` |
+| Solana calls only; mints are base58 and case-sensitive, never lowercased | `sources/scanner.py`, `chain/keys.py` |
+| A coin is tradeable only if it's a real mint, nobody can mint or freeze it, no Token-2022 extension can take or tax holders' coins, and Jupiter can route it | `chain/token.py` `safety_blockers`, `sources/scanner.py` |
+| Buy rule: +`CT_SCANNER_TRIGGER_PCT` from the call within `CT_SCANNER_WINDOW_HOURS` (or on the call); Grok never decides the trade | `strategy/engine.py` |
+| Liquidity, volume, wash-trade and holder-concentration screen (curves, pools and burns don't count as holders) | `strategy/screen.py`, `chain/token.py` `holder_facts` |
 | Addresses from chat, speech or posts are leads until verified on this chain | `sources/store.py` |
 | Third-party text is fenced as untrusted in the Grok prompt | `brain/grok.py` |
 | Grok cannot override gates, limits or the kill switch | `strategy/engine.py` |
 | Paper first; paper trades labelled and never shown as onchain | `execution/paper.py`, `social/compose.py` |
-| Live needs mode=live, a human review flag, a trading-only key, a quote, a slippage bound, a tax check and a simulation | `execution/live.py` |
+| Live needs mode=live, a human review flag, a valid trading-only key, Solana mainnet, and a fresh Jupiter order whose price impact is inside `CT_MAX_SLIPPAGE_BPS` | `execution/live.py` |
 | Position, exposure, daily-loss and daily-entry limits, and a kill switch | `execution/risk.py` |
 | Dangerous settings refused at start-up (e.g. live with no admin token) | `safety.py` |
 | Every fill, exit and failure journalled, append-only and hash-chained | `db.py`, `schema.sql` |
 
 ## Quick start (local, paper mode)
 
-You need Python 3.12+. Nothing else is required to start: with no keys the bot indexes the chain read-only.
+You need Python 3.12+. Nothing else is required to start; to have calls to trade you need a scanner feed
+(`CT_SUPABASE_URL`/`CT_SUPABASE_KEY`, see "Keys" below).
 
 ```bash
 git clone https://github.com/Trench-launches/vigil.git && cd vigil
@@ -70,7 +70,7 @@ python -m venv .venv
 .venv/bin/pip install -e ".[dev]"        # Windows: .venv\Scripts\pip install -e ".[dev]"
 cp .env.example .env                     # then fill in what you have (see "Keys" below)
 .venv/bin/ctagent check                  # tests each connection and prints a safety review
-.venv/bin/ctagent run indexer --once     # one indexing pass
+.venv/bin/ctagent run trader --once      # one trading cycle: fetch calls, screen, read, paper-buy
 .venv/bin/ctagent run-all                # every worker + the API on http://127.0.0.1:8000/docs
 .venv/bin/pytest                         # the test suite, fully offline
 ```
@@ -128,22 +128,25 @@ paper mode. `ctagent check` prints the same review.
 | Grok (the brain) | `CT_GROK_API_KEY` | [console.x.ai](https://console.x.ai), API Keys. Billed per use by xAI; separate from X developer keys. |
 | X reads | `CT_X_BEARER_TOKEN` | [developer.x.com](https://developer.x.com): create a project and app, copy the Bearer token. X API access is paid. |
 | X posting | `CT_X_API_KEY`, `CT_X_API_SECRET`, `CT_X_ACCESS_TOKEN`, `CT_X_ACCESS_SECRET` | Same app. Set user authentication to Read and write, then generate the Access Token and Secret **while signed in as the bot account**. Or use OAuth 2.0: `CT_X_CLIENT_ID`/`CT_X_CLIENT_SECRET`, then run `ctagent x-login` once. |
-| Robinhood Chain RPC | `CT_RPC_URL` | The public RPC works for testing. For production use a provider such as [Alchemy](https://dashboard.alchemy.com) (Robinhood Chain mainnet); the URL then contains your key, so treat it as a secret. |
-| Smart-money scanner (optional) | `CT_SUPABASE_URL`, `CT_SUPABASE_KEY` | Only if you run your own scanner that writes calls to Supabase. Otherwise set `CT_CANDIDATE_SOURCE=pons`. |
+| Solana RPC | `CT_SOLANA_RPC_URL`, `CT_SOLANA_BACKUP_RPC_URL` | The public RPC works for testing. For production use a provider such as [Helius](https://dashboard.helius.dev) (free tier is enough to start; it also serves coin metadata); the URL then contains your key, so treat it as a secret. |
+| Jupiter (swaps and prices) | `CT_JUPITER_API_KEY` | Free key at [developers.jup.ag](https://developers.jup.ag) (about 1 request a second). Needed before going live. |
+| Smart-money scanner | `CT_SUPABASE_URL`, `CT_SUPABASE_KEY` | Your own scanner writing calls to Supabase (`alert_performance`, rows with `chain=solana`). It is the bot's only source of coins. |
+| Launchpad (optional) | `CT_LAUNCHER_WALLET_PRIVATE_KEY`, `CT_PINATA_JWT` | Its own small wallet (~0.5 SOL) and a [Pinata](https://app.pinata.cloud) JWT for coin images. |
 | Twitch (optional) | `CT_TWITCH_*` | [dev.twitch.tv/console](https://dev.twitch.tv/console). |
-| Trading wallet (live only) | `CT_TRADING_WALLET_PRIVATE_KEY` | Make a **new** wallet just for the bot and fund it with a small amount. See [SECURITY.md](SECURITY.md). |
+| Trading wallet (live only) | `CT_TRADING_WALLET_PRIVATE_KEY` | Make a **new** Solana wallet just for the bot (e.g. Phantom: export the base58 private key) and fund it with a small amount of SOL. See [SECURITY.md](SECURITY.md). |
 | Admin token | `CT_API_ADMIN_TOKEN` | Make one: `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 
 ### Going live (real money)
 
 Only after you've run on paper long enough to trust the results, and read `ct_agent/execution/live.py`:
 
-1. Create a new wallet for the bot only, and fund it with what you can afford to lose.
-2. Set `CT_TRADING_WALLET_PRIVATE_KEY`, a 32+ character `CT_API_ADMIN_TOKEN`, `CT_LIVE_EXECUTION_REVIEWED=true`
-   and finally `CT_TRADING_MODE=live`.
-3. Run `ctagent check` (it should say `live_trading: READY` and `safety: ok`), then
-   `ctagent live-test <coin> --eth 0.002` for one tiny round trip before letting the bot run.
-4. Keep the limits small (`CT_MAX_POSITION_ETH`, `CT_MAX_TOTAL_EXPOSURE_ETH`, `CT_MAX_DAILY_LOSS_ETH`).
+1. Create a new Solana wallet for the bot only, and fund it with what you can afford to lose.
+2. Set `CT_TRADING_WALLET_PRIVATE_KEY`, `CT_JUPITER_API_KEY`, a provider `CT_SOLANA_RPC_URL`, a 32+ character
+   `CT_API_ADMIN_TOKEN`, `CT_LIVE_EXECUTION_REVIEWED=true` and finally `CT_TRADING_MODE=live`.
+3. Run `ctagent check` (it should report the Solana RPC as mainnet, a Jupiter quote for 0.01 SOL to USDC,
+   `live_trading: READY` and `safety: ok`), then `ctagent live-test <mint> --sol 0.01` for one tiny round trip
+   (buy, then sell everything bought) and confirm both transactions on Solscan before letting the bot run.
+4. Keep the limits small (`CT_MAX_POSITION_SOL`, `CT_MAX_TOTAL_EXPOSURE_SOL`, `CT_MAX_DAILY_LOSS_SOL`).
 
 ## Deploying
 
@@ -190,26 +193,28 @@ and `brand/` (`scripts/make_brand.py` redraws it).
 Reads are public; `/admin/*` needs `Authorization: Bearer $CT_API_ADMIN_TOKEN` and is disabled while that
 token is unset. Browsers can't send that header cross-site (CORS rejects it), so admin calls stay server-side.
 
-`GET /health` `/candidates` `/launches` `/tokens/{address}` `/decisions` `/positions` `/scorecard` `/journal`
-`/journal/verify` `/sources` `/leads` `/posts` `/scanner` `/outcomes` `/site` `/launchpad/status` `/chat/limits`
+`GET /health` `/candidates` `/tokens` `/tokens/{mint}` `/decisions` `/positions` `/scorecard` `/journal`
+`/journal/verify` `/sources` `/leads` `/posts` `/scanner` `/outcomes` `/site` `/launchpad/status` `/launchpad/recent`
+`/logo/{mint}` `/chat/limits`
 `POST /chat` `/chat/stream` (rate limited, off by default)
 `POST /admin/kill` `/admin/sources` `/admin/transcripts` `/admin/posts` `/admin/posts/{id}/resolve`
 `POST /webhooks/twitch` (signature-verified EventSub)
 
 Interactive docs at `/docs` while the API runs.
 
-## Chain facts (verified against mainnet, Sep 2026)
+## Solana facts the code relies on
 
-- Pons V2 factory `0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e`, meme hook `0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044`.
-- Graduation at 4.2 ETH on native-quote launches; curve fee 1%; creator tax 0-4% seen.
-- Snipe tax 99%, decaying over a few seconds (read live from the factory, never assumed).
-- Blocks are ~0.1 s; thousands of launches per day. The public RPC caps `eth_getLogs` at 10,000 logs per query
-  and the client shrinks ranges automatically.
-- Most graduated tokens have many third-party lookalike V4 pools; only the hooked one is real.
+- Amounts: SOL has 9 decimals (lamports); each coin has its own (pump.fun coins use 6), read from the mint.
+- Swaps go through Jupiter's Swap V2 `order` → sign → `execute`, with RFQ routes excluded so the bot's signature
+  is the only one needed. Exit marks come from Jupiter's Price API (one batched call per check); a real quote is
+  only taken when something actually sells.
+- Both token programs are supported: SPL Token and Token-2022 (whose extensions are checked).
+- A coin is `curve` while it's on a launchpad bonding curve (e.g. pump.fun) and `pool` once it trades in a pool
+  (e.g. PumpSwap, Raydium), from its deepest SOL pair on DexScreener.
 
 ## Contributing and security
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md) and
 please don't open a public issue.
 
-Released under the [MIT License](LICENSE). VIGIL is an independent project, not affiliated with xAI, X, Robinhood or Pons.
+Released under the [MIT License](LICENSE). VIGIL is an independent project, not affiliated with xAI, X, Solana, Jupiter or pump.fun.

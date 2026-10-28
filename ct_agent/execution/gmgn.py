@@ -1,5 +1,6 @@
-"""GMGN's trading API (openapi.gmgn.ai): swaps are submitted to GMGN, which signs them with the trading
-wallet bound to the API key, then polled until they confirm onchain.
+"""GMGN's trading API (openapi.gmgn.ai), an alternative venue to Jupiter (CT_LIVE_VENUE=gmgn, off by default):
+swaps are submitted to GMGN on chain "sol", which signs them with the trading wallet bound to the API key, then
+polled until they confirm onchain.
 
 Every trade request is signed with the Ed25519 key whose public half is uploaded to GMGN: the message is
 `{path}:{sorted query}:{body}:{timestamp}`, sent base64 in X-Signature. The timestamp must be within 5s of
@@ -16,7 +17,9 @@ from urllib.parse import quote
 
 import httpx
 
-NATIVE = "0x0000000000000000000000000000000000000000"  # ETH on GMGN's EVM chains
+from ..chain.keys import SOL_MINT
+
+NATIVE = SOL_MINT  # SOL, as GMGN's Solana API names it (the wrapped-SOL mint)
 DONE = {"confirmed", "failed", "expired"}
 
 

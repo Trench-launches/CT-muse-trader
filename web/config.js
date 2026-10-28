@@ -6,5 +6,5 @@ window.SITE_CONFIG = {
   xHandle: "",             // the bot's X account, without the @ ("" hides the handle)
   api: "http://localhost:8000",  // the backend's public URL (ctagent api / run-all)
   apiFallback: "",         // optional second URL, tried when the first can't be reached
-  token: { ca: "", gmgn: "" },   // the project's own token, once launched: contract address and GMGN link
+  token: { ca: "", gmgn: "" },   // the project's own token, once launched: mint address and GMGN link (https://gmgn.ai/sol/token/<mint>)
 };

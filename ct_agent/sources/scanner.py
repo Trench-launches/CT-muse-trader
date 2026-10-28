@@ -1,9 +1,10 @@
-"""Calls from the smart-money scanner (its Supabase table `alert_performance`), Robinhood Chain only.
+"""Calls from the smart-money scanner (its Supabase table `alert_performance`), Solana only.
 
-These replace the Pons auto-scan as the source of coins. A call only becomes a candidate once the
-coin has run +scanner_trigger_pct from the call price, within scanner_window_hours of the call, in
-the ETH pool Pons seeded for it. Coins that aren't graduated Pons coins, or are priced in anything
-but ETH, are skipped and say why.
+The scanner is VIGIL's only source of coins. A call only becomes a candidate once the coin has run
++scanner_trigger_pct from the call price (USD, DexScreener), within scanner_window_hours of the call.
+A coin is tradeable when it is a real token mint, nobody can still mint or freeze it (and no Token-2022
+extension can take or tax holders' coins), and Jupiter can route a small SOL swap into it. Anything else
+is skipped and says why, in plain words. Mints are base58 and case-sensitive: never lowercased.
 """
 from __future__ import annotations
 
@@ -12,12 +13,17 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..chain.abi import ZERO_ADDRESS
-from ..chain.pons import Phase
+from ..chain import token as tok
+from ..chain.keys import SOL_MINT, is_pubkey
+from ..chain.rpc import RpcError
 from ..context import Context
 from ..db import kv_get, kv_set, rows, tx, utcnow
+from ..execution.jupiter import JupiterError
+from ..market import tokens
+from ..units import lamports
 
 log = logging.getLogger(__name__)
+PROBE_SOL = 0.01  # the small buy Jupiter must be able to route for a coin to count as tradeable
 FIELDS = ("id,token_address,token_symbol,alert_price,alert_mcap,alert_timestamp,alert_score,alert_tier,"
           "alert_entry_phase,alert_signals,alert_liquidity,alert_volume,alert_age_days,alert_sm_wallets,"
           "alert_sm_netflow,alert_whale_flow,alert_sm_holders,alert_sm_held_usd,alert_supply_ctl_pct,source")
@@ -33,7 +39,7 @@ def fetch_new(ctx: Context) -> int:
     if not (s.supabase_url and s.supabase_key):
         return 0
     last = kv_get(conn, "scanner_cursor")
-    q = f"chain=eq.robinhood&order=id.asc&limit=200&select={FIELDS}"
+    q = f"chain=eq.solana&order=id.asc&limit=200&select={FIELDS}"
     if last is None:
         since = int((_now() - timedelta(hours=s.scanner_window_hours)).timestamp() * 1000)
         q += f"&alert_timestamp=gte.{since}"
@@ -53,7 +59,7 @@ def fetch_new(ctx: Context) -> int:
         if calls:
             kv_set(conn, "scanner_cursor", max(int(c["id"]) for c in calls))
     if last is None and not calls:  # nothing in the window yet: start after the newest call, not from zero
-        r = ctx.web.get(f"{s.supabase_url.rstrip('/')}/rest/v1/alert_performance?select=id&order=id.desc&limit=1",
+        r = ctx.web.get(f"{s.supabase_url.rstrip('/')}/rest/v1/alert_performance?select=id&chain=eq.solana&order=id.desc&limit=1",
                         timeout=20, headers={"apikey": s.supabase_key, "Authorization": f"Bearer {s.supabase_key}"})
         r.raise_for_status()
         newest = r.json()
@@ -62,7 +68,7 @@ def fetch_new(ctx: Context) -> int:
 
 
 def fetch_fibbot(ctx: Context) -> int:
-    """Fibbot's Robinhood smart-money calls (its table `smart_money_calls`, source 'smart_money' only; its
+    """Fibbot's Solana smart-money calls (its table `smart_money_calls`, source 'smart_money' only; its
     Nansen alerts and fib alerts are ignored). Most are the same calls as the main scanner's; what Fibbot adds
     is re-calls: a coin called again later, which starts a fresh call with its own price and window. A Fibbot
     call within 15 minutes of a call VIGIL already has for that coin is the same call and is skipped."""
@@ -71,7 +77,7 @@ def fetch_fibbot(ctx: Context) -> int:
         return 0
     last = kv_get(conn, "fibbot_cursor") or (_now() - timedelta(hours=s.scanner_window_hours)).isoformat()
     r = ctx.web.get(f"{s.fibbot_supabase_url.rstrip('/')}/rest/v1/smart_money_calls", timeout=20,
-                    params={"chain": "eq.robinhood", "source": "eq.smart_money", "called_at": f"gt.{last}",
+                    params={"chain": "eq.solana", "source": "eq.smart_money", "called_at": f"gt.{last}",
                             "order": "called_at.asc", "limit": "200",
                             "select": "id,token_address,symbol,called_at,call_price,call_mc,source"},
                     headers={"apikey": s.fibbot_supabase_key, "Authorization": f"Bearer {s.fibbot_supabase_key}"})
@@ -80,7 +86,7 @@ def fetch_fibbot(ctx: Context) -> int:
     with tx(conn):
         for c in calls:
             at = datetime.fromisoformat(c["called_at"].replace("Z", "+00:00")).astimezone(timezone.utc)
-            near = conn.execute("SELECT 1 FROM scanner_calls WHERE lower(token)=lower(?) AND called_at BETWEEN ? AND ?",
+            near = conn.execute("SELECT 1 FROM scanner_calls WHERE token=? AND called_at BETWEEN ? AND ?",
                                 (c["token_address"], (at - timedelta(minutes=15)).isoformat(timespec="seconds"),
                                  (at + timedelta(minutes=15)).isoformat(timespec="seconds"))).fetchone()
             if near:
@@ -100,43 +106,53 @@ def fetch_fibbot(ctx: Context) -> int:
 
 
 def _pool_for(ctx: Context, call: dict[str, Any]) -> tuple[str | None, str | None]:
-    """(genuine ETH pool id, None) for a tradeable coin, else (None, why it's skipped)."""
+    """(pool id, None) for a tradeable coin, else (None, why it's skipped). The pool id is the coin's deepest
+    SOL pool, or "jupiter" when Jupiter routes it but no pool is listed yet. (None, None) means the check
+    couldn't run right now (RPC or Jupiter down): it is tried again next cycle."""
     s = ctx.settings
     token = call["token"]
-    if s.agent_token_address and token.lower() == s.agent_token_address.lower():
+    if s.agent_token_address and token == s.agent_token_address:
         return None, "our own token"
-    if token.lower() in {t.lower() for t in s.skip_tokens}:
+    if token in set(s.skip_tokens):
         return None, "a token we're tied to"
+    if not is_pubkey(token) or token == SOL_MINT:
+        return None, "not a Solana token address"
     try:
-        rec = ctx.pons.launch_record(token)
-    except Exception as exc:  # not a Pons coin (the call reverts), or the chain is unreachable right now
-        return None, f"not a Pons V2 coin ({str(exc)[:60]})"
-    if not rec.exists:
-        return None, "not a Pons V2 coin"
-    if rec.pair_token.lower() != ZERO_ADDRESS:
-        return None, "priced in a stock token, not ETH"
-    if rec.phase != Phase.POOL_CREATED:
-        return None, f"not graduated to its pool yet ({rec.phase.name})"
-    return ctx.pons.genuine_pool_id(rec), None
+        info = tok.mint_info(ctx.rpc, token)
+    except RpcError as exc:
+        log.warning("mint check for %s failed: %s", token, exc)
+        return None, None
+    if not info.exists:
+        return None, "not a Solana token mint"
+    unsafe = tok.safety_blockers(info, s.max_transfer_fee_bps)
+    if unsafe:
+        return None, "unsafe coin: " + "; ".join(unsafe)
+    try:
+        ctx.jupiter.order(SOL_MINT, token, lamports(PROBE_SOL))
+    except JupiterError as exc:
+        if str(exc).startswith("no route"):
+            return None, "Jupiter can't route a swap into it yet"
+        log.warning("jupiter check for %s failed: %s", token, exc)
+        return None, None
+    pool = None
+    try:
+        pool = ctx.market.pool_stats(token)
+    except Exception as exc:  # market data is extra: Jupiter's route is what makes it tradeable
+        log.warning("pool stats for %s unavailable: %s", token, exc)
+    try:
+        tokens.ensure(ctx, token, info=info, pool=pool)
+    except Exception as exc:
+        log.warning("token cache for %s not filled: %s", token, exc)
+    return (pool.pool_id if pool and pool.pool_id else "jupiter"), None
 
 
 def _prices(ctx: Context, calls: list[dict[str, Any]]) -> dict[str, float]:
-    """USD price of each coin in its genuine pool (by pool id, never a lookalike pool)."""
-    want = {c["token"].lower(): c["pool_id"].lower() for c in calls if c.get("pool_id")}
-    out: dict[str, float] = {}
-    tokens = list(want)
-    for i in range(0, len(tokens), 30):
-        try:
-            r = ctx.market._http.get(f"https://api.dexscreener.com/tokens/v1/{ctx.settings.dexscreener_chain}/"
-                                     + ",".join(tokens[i:i + 30]))
-            r.raise_for_status()
-            for p in r.json() or []:
-                t = str((p.get("baseToken") or {}).get("address", "")).lower()
-                if want.get(t) == str(p.get("pairAddress", "")).lower() and p.get("priceUsd"):
-                    out[t] = float(p["priceUsd"])
-        except Exception as exc:  # a missed cycle just waits for the next
-            log.warning("scanner prices unavailable: %s", exc)
-    return out
+    """USD price of each coin (DexScreener, its deepest pair)."""
+    try:
+        return ctx.market.prices_usd([c["token"] for c in calls if c.get("pool_id")])
+    except Exception as exc:  # a missed cycle just waits for the next
+        log.warning("scanner prices unavailable: %s", exc)
+        return {}
 
 
 def refresh(ctx: Context) -> list[dict[str, Any]]:
@@ -145,12 +161,14 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
     cutoff = (_now() - timedelta(hours=s.scanner_window_hours)).isoformat(timespec="seconds")
     with tx(conn):
         conn.execute("UPDATE scanner_calls SET status='expired' WHERE status='watching' AND called_at<?", (cutoff,))
-        conn.execute("UPDATE scanner_calls SET status='bought' WHERE status='watching' AND lower(token) IN "
-                     "(SELECT lower(token) FROM positions WHERE status='open')")
+        conn.execute("UPDATE scanner_calls SET status='bought' WHERE status='watching' AND token IN "
+                     "(SELECT token FROM positions WHERE status='open')")
     open_calls = rows(conn, "SELECT * FROM scanner_calls WHERE status='watching' ORDER BY id")
     for c in open_calls:
         if c.get("pool_id") is None:
             pid, why = _pool_for(ctx, c)
+            if pid is None and why is None:
+                continue  # couldn't check right now: next cycle
             with tx(conn):
                 if why:
                     conn.execute("UPDATE scanner_calls SET status='skipped', note=? WHERE id=?", (why, c["id"]))
@@ -161,7 +179,7 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
     prices = _prices(ctx, live)
     ready = []
     for c in live:
-        px = prices.get(c["token"].lower())
+        px = prices.get(c["token"])
         if not px or not c.get("call_price_usd"):
             continue
         move = (px / c["call_price_usd"] - 1) * 100
@@ -180,8 +198,8 @@ def refresh(ctx: Context) -> list[dict[str, Any]]:
 
 
 def to_analyse(conn: Any, window_hours: float, limit: int = 3) -> list[dict[str, Any]]:
-    """Calls Grok hasn't looked at yet, oldest first: every Robinhood call gets a read and a post, including
-    ones VIGIL can't trade (priced in a stock token, or not a Pons coin). Only our own token is left out."""
+    """Calls Grok hasn't looked at yet, oldest first: every Solana call gets a read and a post, including
+    ones VIGIL can't trade (unsafe, or Jupiter can't route it). Only our own token is left out."""
     cutoff = (_now() - timedelta(hours=window_hours)).isoformat(timespec="seconds")
     return rows(conn, "SELECT * FROM scanner_calls WHERE decision_id IS NULL AND called_at>=? AND "
                       "((status IN ('watching','bought') AND pool_id IS NOT NULL) OR "
@@ -195,7 +213,7 @@ def mark_analysed(conn: Any, call_id: int, decision_id: int) -> None:
 
 def mark_bought(conn: Any, token: str) -> None:
     with tx(conn):
-        conn.execute("UPDATE scanner_calls SET status='bought' WHERE lower(token)=lower(?) AND status='watching'", (token,))
+        conn.execute("UPDATE scanner_calls SET status='bought' WHERE token=? AND status='watching'", (token,))
 
 
 def call_facts(call: dict[str, Any], trigger_pct: float) -> dict[str, Any]:

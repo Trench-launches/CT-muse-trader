@@ -1,59 +1,54 @@
-"""Fill estimates for paper trades and live minOut calculation.
+"""Fill estimates for paper trades and position marks.
 
-Curve: exact constant-product math against getReserves(), with the fee and
-creator tax taken from the quote leg exactly as PonsV2BondingCurve does.
-Pool: an estimate from indicative liquidity, clearly labelled.
+A paper buy or sell is priced from a real Jupiter quote whenever one is available (exactly what a swap would pay
+right now, fees and price impact in). Without one, `pool_estimate` approximates the coin's pool from indicative
+liquidity, clearly labelled as an estimate.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 BPS = 10_000
 
 
 @dataclass(frozen=True)
 class FillEstimate:
-    quote_in: float
-    tokens_out: float
-    avg_price: float          # quote per token
-    spot_price: float         # quote per token before the trade
+    quote_in: float           # SOL paid (buy) or received (sell)
+    tokens_out: float         # tokens received (buy) or sold (sell)
+    avg_price: float          # SOL per token
+    spot_price: float         # SOL per token before the trade
     price_impact_bps: int
     fee_and_tax_quote: float
     method: str
 
 
-def curve_buy(quote_in_wei: int, quote_reserve: int, token_reserve: int, fee_bps: int, tax_bps: int,
-              quote_decimals: int = 18, token_decimals: int = 18) -> FillEstimate:
-    fee = quote_in_wei * (fee_bps + tax_bps) // BPS
-    net = quote_in_wei - fee
-    out = token_reserve * net // (quote_reserve + net)
-    qs, ts = 10 ** quote_decimals, 10 ** token_decimals
-    spot = (quote_reserve / qs) / (token_reserve / ts)
-    avg = (quote_in_wei / qs) / (out / ts) if out else float("inf")
-    # Price impact is how far the trade itself moves the price (net of fees);
-    # fees and creator tax are reported and limited separately.
-    impact = int(((net / qs) / (out / ts) / spot - 1) * BPS) if out else BPS
-    return FillEstimate(quote_in_wei / qs, out / ts, avg, spot, impact, fee / qs, "curve_constant_product")
+def impact_bps(order: dict[str, Any]) -> int:
+    """Price impact of a Jupiter order in basis points. `priceImpact` is a percentage; the older
+    `priceImpactPct` is a fraction. Either sign means the same: how far the trade moves the price."""
+    if order.get("priceImpact") not in (None, ""):
+        return int(round(abs(float(order["priceImpact"])) * 100))
+    if order.get("priceImpactPct") not in (None, ""):
+        return int(round(abs(float(order["priceImpactPct"])) * BPS))
+    return 0
 
 
-def curve_sell(tokens_in_wei: int, quote_reserve: int, token_reserve: int, fee_bps: int, tax_bps: int,
-               quote_decimals: int = 18, token_decimals: int = 18) -> FillEstimate:
-    gross = quote_reserve * tokens_in_wei // (token_reserve + tokens_in_wei)
-    fee = gross * (fee_bps + tax_bps) // BPS
-    net = gross - fee
-    qs, ts = 10 ** quote_decimals, 10 ** token_decimals
-    spot = (quote_reserve / qs) / (token_reserve / ts)
-    avg = (net / qs) / (tokens_in_wei / ts) if tokens_in_wei else 0.0
-    gross_avg = (gross / qs) / (tokens_in_wei / ts) if tokens_in_wei else 0.0
-    impact = int((1 - gross_avg / spot) * BPS) if spot else BPS
-    return FillEstimate(net / qs, tokens_in_wei / ts, avg, spot, impact, fee / qs, "curve_constant_product")
+def from_quote(order: dict[str, Any], *, buy: bool, decimals: int, method: str = "jupiter_quote") -> FillEstimate:
+    """A paper fill from a Jupiter order: SOL in and tokens out for a buy, tokens in and SOL out for a sell."""
+    a, b = int(order["inAmount"]), int(order["outAmount"])
+    lamports, base = (a, b) if buy else (b, a)
+    sol, tokens = lamports / 10 ** 9, base / 10 ** decimals
+    avg = sol / tokens if tokens else 0.0
+    imp = impact_bps(order)
+    spot = avg / (1 + imp / BPS) if buy else avg / (1 - min(imp, BPS - 1) / BPS)
+    return FillEstimate(sol, tokens, avg, spot, imp, 0.0, method)
 
 
-def pool_estimate(quote_in: float, price_native: float, liquidity_usd: float, eth_usd: float,
+def pool_estimate(quote_in: float, price_native: float, liquidity_usd: float, sol_usd: float,
                   fee_bps: int, buy: bool = True) -> FillEstimate:
-    """Approximate a full-range V4 pool as constant product with half the
-    liquidity on each side. Indicative only."""
-    r_q = (liquidity_usd / 2) / eth_usd
+    """Approximate the coin's pool as constant product with half the liquidity on each side. Indicative only.
+    For a sell, the first argument is the token amount."""
+    r_q = (liquidity_usd / 2) / sol_usd
     r_t = r_q / price_native
     if buy:
         net = quote_in * (1 - fee_bps / BPS)
@@ -61,7 +56,7 @@ def pool_estimate(quote_in: float, price_native: float, liquidity_usd: float, et
         avg = quote_in / out
         return FillEstimate(quote_in, out, avg, price_native, int((net / out / price_native - 1) * BPS),
                             quote_in - net, "pool_estimate_indicative")
-    tokens = quote_in  # for sells, first arg is token amount
+    tokens = quote_in
     gross = r_q * tokens / (r_t + tokens)
     net = gross * (1 - fee_bps / BPS)
     avg = net / tokens

@@ -5,7 +5,7 @@ from PIL import Image
 
 from ct_agent.api.logos import _candidates, logo_file
 
-TOKEN = "0x" + "ab" * 20
+TOKEN = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
 
 
 def _png() -> bytes:
@@ -15,15 +15,15 @@ def _png() -> bytes:
 
 
 def _db_with_logo(db, url):
-    db.execute("INSERT INTO launches(token,curve,deployer,pair_token,launch_config_id,graduation_threshold,block_number,"
-               "tx_hash,first_seen,logo_url) VALUES(?,?,?,?,?,?,?,?,?,?)",
-               (TOKEN, "c", "d", "p", 1, "1", 1, "h", "now", url))
+    db.execute("INSERT INTO tokens(mint,decimals,first_seen,logo_url) VALUES(?,?,?,?)", (TOKEN, 5, "now", url))
 
 
 def test_only_ipfs_content_ids_are_fetched_through_our_gateways():
     assert _candidates("ipfs://bafkreiabc")[0] == "https://ipfs.io/ipfs/bafkreiabc"
     assert _candidates("https://attacker.example/ipfs/bafy1")[0] == "https://ipfs.io/ipfs/bafy1"
     assert _candidates("https://attacker.example/logo.png") == [] and _candidates("http://10.0.0.1/ipfs/x") == []
+    assert _candidates("https://dd.dexscreener.com/ds-data/tokens/solana/x.png") ==         ["https://dd.dexscreener.com/ds-data/tokens/solana/x.png"]  # DexScreener's own CDN, as given
+    assert _candidates("https://dd.dexscreener.com:8443/x.png") == []
 
 
 def test_logo_is_reencoded_small_and_cached(db, tmp_path):

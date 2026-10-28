@@ -11,31 +11,50 @@ impact. Paper trade P&L (with fees) lives in positions.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..chain.pons import Phase
+from ..chain.keys import SOL_MINT
 from ..db import rows, utcnow
+
+log = logging.getLogger(__name__)
 
 CHECKPOINTS = {"p15m": 15, "p1h": 60, "p4h": 240, "p24h": 1440}  # minutes after the call
 
 
+def spot_prices(ctx: Any, mints: list[str]) -> dict[str, float]:
+    """Spot price in SOL per token for each mint, in one batched call: Jupiter's price feed (USD per coin over USD
+    per SOL), with DexScreener as the fallback. Mints with no price are left out."""
+    mints = [m for m in dict.fromkeys(mints) if m]
+    if not mints:
+        return {}
+    out: dict[str, float] = {}
+    try:
+        px = ctx.jupiter.prices(mints + [SOL_MINT])
+        sol = float((px.get(SOL_MINT) or {}).get("usdPrice") or 0)
+        if sol > 0:
+            out = {m: float(px[m]["usdPrice"]) / sol for m in mints if m in px and px[m].get("usdPrice")}
+    except Exception as exc:  # Jupiter down or rate limited: DexScreener below
+        log.warning("jupiter prices unavailable: %s", exc)
+    missing = [m for m in mints if m not in out]
+    if missing:
+        try:
+            sol = ctx.market.sol_usd()
+            if sol:
+                out.update({m: p / sol for m, p in ctx.market.prices_usd(missing).items() if p})
+        except Exception as exc:
+            log.warning("dexscreener prices unavailable: %s", exc)
+    return out
+
+
 def spot_price(ctx: Any, token: str) -> tuple[float | None, str]:
-    """Spot price in ETH per token: curve reserves before graduation, the
-    genuine Pons pool after. (None, why) when there is no price."""
-    rec = ctx.pons.launch_record(token)
-    launch = ctx.conn.execute("SELECT decimals, quote_decimals, pool_id FROM launches WHERE token=?",
-                              (token,)).fetchone()
-    td = (launch["decimals"] if launch and launch["decimals"] is not None else 18)
-    qd = (launch["quote_decimals"] if launch and launch["quote_decimals"] is not None else 18)
-    if rec.phase == Phase.NOT_GRADUATED:
-        q, t = ctx.pons.curve_reserves(rec.curve)
-        return ((q / 10 ** qd) / (t / 10 ** td), "curve") if t else (None, "empty curve")
-    if rec.phase == Phase.POOL_CREATED:
-        pid = (launch["pool_id"] if launch and launch["pool_id"] else None) or ctx.pons.genuine_pool_id(rec)
-        pool = ctx.market.genuine_pool_stats(token, pid)
-        return (pool.price_native, "pool") if pool and pool.price_native else (None, "no pool price")
-    return None, f"phase {rec.phase.name}"
+    """Spot price in SOL per token, and where the coin trades ('curve' or 'pool', from the token cache).
+    (None, why) when there is no price."""
+    price = spot_prices(ctx, [token]).get(token)
+    row = ctx.conn.execute("SELECT stage FROM tokens WHERE mint=?", (token,)).fetchone()
+    venue = (row["stage"] if row and row["stage"] else None) or "market"
+    return (price, venue) if price else (None, "no price")
 
 
 def record_call(ctx: Any, a: Any, *, decision_id: int, action: str, confidence: float, pack: dict[str, Any],
@@ -53,9 +72,8 @@ def record_call(ctx: Any, a: Any, *, decision_id: int, action: str, confidence: 
     ev = pack.get("evidence") or []
     grades = sorted({e.get("confidence") for e in ev if e.get("confidence")})
     features = {
-        "stage": a.cand.stage, "progress": a.cand.progress, "score": a.cand.score,
-        "flags": a.cand.flags, "metrics": a.cand.metrics,
-        "fee_bps": (a.launch.get("fee_bps") or 0) + (a.record.creator_tax_bps or 0),
+        "stage": a.cand.stage, "dex": a.coin.get("dex_id"), "score": a.cand.score,
+        "flags": a.cand.flags, "blockers": a.cand.blockers, "metrics": a.cand.metrics,
         "x_attention_24h": (pack.get("x_attention_24h") or {}).get("count_24h"),
         "evidence_count": len(ev), "evidence_grades": grades,
         "ai_confidence": confidence, "model": model, "gates": gates,
@@ -64,37 +82,41 @@ def record_call(ctx: Any, a: Any, *, decision_id: int, action: str, confidence: 
     }
     conn.execute("INSERT INTO call_outcomes(decision_id,token,symbol,stage,action,decided_at,venue0,price0,features) "
                  "VALUES(?,?,?,?,?,?,?,?,?)",
-                 (decision_id, a.cand.token, a.launch.get("symbol"), a.cand.stage, action, utcnow(), venue, price,
+                 (decision_id, a.cand.token, a.coin.get("symbol"), a.cand.stage or "unknown", action, utcnow(), venue, price,
                   json.dumps(features, default=str)))
     return True
 
 
 def track_outcomes(ctx: Any, limit: int = 40) -> int:
-    """Fill in whichever checkpoints are now due. Bounded per cycle so a
-    backlog can't flood the RPC."""
+    """Fill in whichever checkpoints are now due. Bounded per cycle, and priced in one batched call."""
     conn, now = ctx.conn, datetime.now(timezone.utc)
-    filled = 0
+    due_rows = []
     for r in rows(conn, "SELECT * FROM call_outcomes WHERE done=0 AND price0 IS NOT NULL ORDER BY decided_at LIMIT ?",
                   (limit,)):
         age_min = (now - datetime.fromisoformat(r["decided_at"])).total_seconds() / 60
         due = [c for c, m in CHECKPOINTS.items() if r[c] is None and age_min >= m]
-        if not due:
-            continue
-        try:
-            price, venue = spot_price(ctx, r["token"])
-        except Exception:
-            price, venue = None, "price error"
-        # A token with no price any more (dead curve, pool gone) is recorded as 0.
-        p = price if price is not None else 0.0
+        if due:
+            due_rows.append((r, due))
+    if not due_rows:
+        return 0
+    try:
+        prices = spot_prices(ctx, [r["token"] for r, _ in due_rows])
+    except Exception:
+        prices = {}
+    mints = list({r["token"] for r, _ in due_rows})
+    stages = {r["mint"]: r["stage"] for r in rows(conn, f"SELECT mint, stage FROM tokens WHERE mint IN "
+                                                        f"({','.join('?' * len(mints))})", mints)}
+    for r, due in due_rows:
+        # A token with no price any more (dead, rugged, delisted) is recorded as 0.
+        p = prices.get(r["token"]) or 0.0
         sets = {c: p for c in due}
         sets["peak"] = max(r["peak"] or r["price0"], p)
         sets["trough"] = min(r["trough"] if r["trough"] is not None else r["price0"], p)
-        sets["graduated"] = int(bool(r["graduated"]) or venue == "pool")
+        sets["graduated"] = int(bool(r["graduated"]) or (r["stage"] == "curve" and stages.get(r["token"]) == "pool"))
         sets["done"] = int(r["p24h"] is not None or "p24h" in due)
         conn.execute(f"UPDATE call_outcomes SET {', '.join(f'{k}=?' for k in sets)} WHERE decision_id=?",
                      (*sets.values(), r["decision_id"]))
-        filled += 1
-    return filled
+    return len(due_rows)
 
 
 # --- report -------------------------------------------------------------------
@@ -120,18 +142,17 @@ def _groups(r: dict[str, Any]) -> dict[str, str]:
     return {
         "action": r["action"],
         "stage": r["stage"],
-        "curve progress": _band(f.get("progress"), [0.9, 0.95, 2], ["85-90%", "90-95%", "95%+"])
-        if r["stage"] == "almost_bonded" else "n/a (graduated)",
+        "dex": f.get("dex") or "unknown",
         "screen score": _band(f.get("score"), [2, 4, 6, 1e9], ["<2", "2-4", "4-6", "6+"]),
         "X mentions 24h": _band(f.get("x_attention_24h"), [1, 6, 21, 1e12], ["0", "1-5", "6-20", "21+"]),
         "evidence": "buy-grade" if grades & {"verified", "first_party", "reported"}
         else ("rumour/chat only" if grades else "none"),
         "AI confidence": _band(f.get("ai_confidence", f.get("muse_confidence")), [0.5, 0.7, 0.85, 2], ["<0.5", "0.5-0.7", "0.7-0.85", "0.85+"]),
-        "whale flag": "yes" if "one wallet is" in flags else "no",
+        "whale flag": "yes" if "one wallet holds" in flags else "no",
         "wash flag": "yes" if ("wash" in flags) else "no",
-        "creator tax": "yes" if "creator tax" in flags else "no",
-        "buys accelerating": "yes" if m.get("accelerating") else "no",
-        "fee+tax": _band(f.get("fee_bps"), [150, 400, 1e9], ["<1.5%", "1.5-4%", "4%+"]),
+        "screen": "passed" if not f.get("blockers") else "failed",
+        "volume heat": _band(m.get("volume_heat"), [1, 2, 4, 1e9], ["<1x", "1-2x", "2-4x", "4x+"]),
+        "top 10 holders": _band(m.get("top10_share"), [0.15, 0.25, 0.35, 2], ["<15%", "15-25%", "25-35%", "35%+"]),
     }
 
 

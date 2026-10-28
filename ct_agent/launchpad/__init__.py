@@ -1,2 +1,2 @@
-"""Launchpad: VIGIL launches Pons V2 coins for people who ask on X, pays the launch from its own launcher wallet,
-and hands each coin's creator fees to the requester once they've paid the launch back."""
+"""Launchpad: VIGIL launches pump.fun coins on Solana for people who ask on X, pays each launch from its own launcher
+wallet, and splits each coin's creator fees once at launch (the requester's share, the rest to VIGIL)."""

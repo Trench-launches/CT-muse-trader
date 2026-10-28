@@ -1,38 +1,45 @@
-"""Launch requests from X, the launches themselves, and handing each coin's creator fees to its requester.
+"""Launch requests from X, the pump.fun launches themselves, and each coin's creator-fee split.
 
-1. take_request (in the mentions loop): a post asking VIGIL to launch a coin is checked (one per account a day,
-   account age, a wallet for the fees, an attached image, the daily budget) and screened by Grok (a real
+1. take_request (in the mentions loop): a post asking VIGIL to launch a coin is checked (per-account daily limit,
+   account age, one Solana wallet for the fees, an attached image, the daily SOL budget) and screened by Grok (a real
    request, no impersonation, nothing unsafe). It's approved, or refused with a short reply.
-2. launchpad_once (its own loop): approved requests are launched from the launcher wallet, with that wallet as
-   the coin's creator-fee recipient, and VIGIL replies with the contract address. Then, for every coin it still
-   holds the fees for: once the coin's creator fees cover the launch cost, sweep them and hand the fees to the
-   requester for good. A coin that graduates has traded far more than that, so it's handed over too.
+2. launchpad_once (its own loop): approved requests are announced on X, then launched on pump.fun from the launcher
+   wallet, and VIGIL replies with the contract address. Right after, the coin's creator fees are split once and
+   pump.fun locks it: launch_creator_share_bps (90%) to the requester's wallet, the rest to the launcher. Coins with a
+   split get their fees paid out every few hours.
 
-A request can pair the coin with a Robinhood stock token instead of ETH ("pair: TSLA"). Its fees are paid in that
-stock, which VIGIL has no use for, so a stock-paired coin names the requester as its fee recipient from the start
-and VIGIL simply absorbs the (ETH) launch cost.
+A request with a tx_hash is never launched again: if the outcome of a send is unknown, the loop asks the chain.
 """
 from __future__ import annotations
 
 import json
 import logging
 import re
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..chain.abi import ZERO_ADDRESS
-from ..chain.pons import Phase
-from ..db import journal_append, rows, utcnow
+from solders.pubkey import Pubkey
+
+from ..chain import keys
+from ..db import journal_append, kv_get, kv_set, rows, utcnow
 from ..social.compose import Draft
 from ..social.outbox import enqueue
-from .chain import LaunchBlocked, Launcher
-from .pairs import asked_pair, pair_token
+from ..units import lamports, sol
+from .pumpfun import FeeSplitUnverified, LaunchBlocked, LaunchUnconfirmed, PumpLauncher, split_for
 
 log = logging.getLogger(__name__)
 ASK = re.compile(r"\b(launch|deploy)\b", re.I)
-WALLET = re.compile(r"\b0x[0-9a-fA-F]{40}\b")
 SYMBOL = re.compile(r"^[A-Za-z0-9]{1,10}$")
-EST_COST_WEI = 700_000_000_000_000  # ~0.0007 ETH: a launch's fee + gas, for the budget before it happens
+EST_OVERHEAD_LAMPORTS = lamports(0.03)  # a launch's rent + fees + the split, on top of the dev buy, before it happens
+SOCIALS = ("twitter", "telegram", "website")  # what pump.fun's metadata shows
+UNSENT_FAILS_AFTER_S = 180   # a signed launch the chain still doesn't know after this can't land (its blockhash expired)
+RETRY_SPLIT_S = 600          # a split that couldn't go out is tried again after this
+DISTRIBUTE_EVERY_S = 6 * 3600
+# Addresses in a post that are never the requester's wallet
+NOT_A_WALLET = {keys.SOL_MINT, keys.USDC_MINT, keys.SYSTEM_PROGRAM, keys.TOKEN_PROGRAM, keys.PUMP_PROGRAM,
+                keys.PUMP_AMM_PROGRAM, keys.INCINERATOR, "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+                "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ", "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"}
 
 
 def looks_like_request(text: str) -> bool:
@@ -43,12 +50,30 @@ def _since(hours: float) -> str:
     return (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat(timespec="seconds")
 
 
-def _spent_24h(conn: Any) -> int:
-    """Wei spent on launches in the last 24h, counting approved ones still waiting at the estimate."""
-    done = sum(int(r["cost_wei"] or 0) for r in rows(conn, "SELECT cost_wei FROM launch_requests WHERE launched_at>=?",
-                                                        (_since(24),)))
+def _est_cost(s: Any) -> int:
+    return lamports(max(0.0, float(s.launch_dev_buy_sol or 0))) + EST_OVERHEAD_LAMPORTS
+
+
+def _spent_24h(conn: Any, s: Any) -> int:
+    """Lamports spent on launches in the last 24h, counting approved ones still waiting at the estimate."""
+    done = sum(int(r["cost_lamports"] or 0) for r in rows(
+        conn, "SELECT cost_lamports FROM launch_requests WHERE launched_at>=?", (_since(24),)))
     waiting = conn.execute("SELECT COUNT(*) c FROM launch_requests WHERE status IN ('approved','launching')").fetchone()["c"]
-    return done + waiting * EST_COST_WEI
+    return done + waiting * _est_cost(s)
+
+
+def _wallets(text: str, s: Any) -> list[str]:
+    """Solana wallets in the post, as written (base58 is case-sensitive). Program ids, well-known mints, VIGIL's own
+    coin and anything off the ed25519 curve (token accounts, PDAs: they can't be someone's wallet) are skipped."""
+    skip = NOT_A_WALLET | {a for a in (getattr(s, "agent_token_address", ""),) if a}
+    out = []
+    for a in keys.find_pubkeys(text):
+        if a in skip:
+            continue
+        if not Pubkey.from_string(a).is_on_curve():
+            continue
+        out.append(a)
+    return out
 
 
 def _reply(conn: Any, m: dict[str, Any], text: str, kind: str = "launch") -> None:
@@ -95,19 +120,12 @@ def take_request(ctx: Any, m: dict[str, Any]) -> str:
     if age < timedelta(days=s.launch_min_account_days):
         return _refuse(conn, m, "account too new", f"Launches are open to X accounts older than "
                                                   f"{s.launch_min_account_days} days, ser. Try again later.", **fields)
-    wallets = {w.lower() for w in WALLET.findall(text)}
+    wallets = _wallets(text, s)
     if len(wallets) != 1:
-        return _refuse(conn, m, "no wallet", "Add the wallet that should get the creator fees (one 0x address) "
+        return _refuse(conn, m, "no wallet", "Add the Solana wallet that should get the creator fees (one address) "
                                               "and ask again 🌅", **fields)
     if not m.get("images"):
         return _refuse(conn, m, "no image", "Attach an image for the coin and ask again 🌅", **fields)
-    pair_sym = asked_pair(text)
-    if pair_sym == "ETH":
-        pair_sym = None
-    pair_addr = pair_token(pair_sym) if pair_sym else None
-    if pair_sym and not pair_addr:
-        return _refuse(conn, m, "unknown pair", f"I can pair coins with ETH or a Robinhood stock like TSLA, NVDA, AAPL "
-                                                f"or SPY, but not ${pair_sym}. Pick another and ask again 🌅", **fields)
     if not d.approve:
         return _refuse(conn, m, "grok declined: " + d.reason, (d.reason or "I can't launch that one.")[:200], **fields)
     if not name or not SYMBOL.match(sym) or sym.lower() not in text.lower() or name.lower() not in text.lower():
@@ -117,40 +135,38 @@ def take_request(ctx: Any, m: dict[str, Any]) -> str:
     if sym == own:  # any name goes, except a copy of VIGIL's own coin
         return _refuse(conn, m, "reserved ticker", f"${own} is my own coin, so I can't launch another one. "
                                                    "Pick another ticker 🌅", **fields)
-    if _spent_24h(conn) + EST_COST_WEI > int(s.launch_daily_cap_eth * 10**18):
+    if _spent_24h(conn, s) + _est_cost(s) > lamports(s.launch_daily_cap_sol):
         return _refuse(conn, m, "daily budget used", "Launches are full for today. Ask again tomorrow 🌅", **fields)
-    socials = {k: getattr(d, k) for k in ("twitter", "telegram", "discord", "website", "farcaster") if getattr(d, k)}
+    socials = {k: getattr(d, k, "") for k in SOCIALS if getattr(d, k, "")}
     conn.execute("INSERT INTO launch_requests(x_post_id,author_id,handle,created_at,status,name,symbol,description,logo,"
-                 "socials,recipient,pair_symbol,pair_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                 "socials,recipient) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                  (m["id"], m.get("author_id") or "", author.get("username"), utcnow(), "approved", name, sym,
-                  d.description[:280], m["images"][0], json.dumps(socials), wallets.pop(), pair_sym, pair_addr))
+                  d.description[:280], m["images"][0], json.dumps(socials), wallets[0]))
     journal_append(conn, "launchpad_approved", {"x_post_id": m["id"], "handle": author.get("username"),
-                                                "pair": pair_sym, **fields})
+                                                "recipient": wallets[0], **fields})
     return "approved"
 
 
-def launchpad_once(ctx: Any, launcher: Launcher | None = None) -> dict[str, Any]:
+# --- the loop ----------------------------------------------------------------------------------------------------------
+
+def launchpad_once(ctx: Any, launcher: PumpLauncher | None = None) -> dict[str, Any]:
     s, conn = ctx.settings, ctx.conn
     if not s.launchpad_enabled:
         return {"launchpad": "off"}
-    launcher = launcher or Launcher(s, ctx.rpc, ctx.pons, conn)
-    launched = handed = 0
+    launcher = launcher or PumpLauncher(s, ctx.rpc, conn, ctx.web)
+    launched = split = paid = 0
+    for r in rows(conn, "SELECT * FROM launch_requests WHERE status='launching' ORDER BY id"):
+        try:
+            launched += _settle(ctx, launcher, r)
+        except Exception as exc:  # one stuck launch never stops the others; asked again next loop
+            log.warning("checking launch %s failed: %s", r["id"], exc)
     for r in rows(conn, "SELECT * FROM launch_requests WHERE status='approved' ORDER BY id LIMIT 3"):
         launched += _launch(ctx, launcher, r)
-    for r in rows(conn, "SELECT * FROM launch_requests WHERE status='launched' ORDER BY id"):
-        try:
-            handed += _maybe_hand_over(ctx, launcher, r)
-        except (LaunchBlocked, Exception) as exc:  # one coin's hiccup never stops the others; retried next loop
-            log.warning("hand-over check failed for %s: %s", r["token"], exc)
-    try:
-        if launcher.escrow_balance() > 0:  # swept fees refill the launch budget
-            launcher.claim()
-    except (LaunchBlocked, Exception) as exc:
-        log.warning("escrow claim failed: %s", exc)
-    return {"launched": launched, "handed_over": handed}
-
-
-EXPLORER = "https://explorer.mainnet.chain.robinhood.com"
+    for r in rows(conn, "SELECT * FROM launch_requests WHERE status='launched' AND fee_shares IS NULL ORDER BY id"):
+        split += _split(ctx, launcher, r)
+    for r in rows(conn, "SELECT * FROM launch_requests WHERE status='launched' AND fee_shares IS NOT NULL ORDER BY id"):
+        paid += _distribute(ctx, launcher, r)
+    return {"launched": launched, "fee_splits": split, "distributed": paid}
 
 
 def announce_key(r: dict[str, Any]) -> str:
@@ -161,90 +177,181 @@ def _by(r: dict[str, Any]) -> str:
     return f"@{r['handle']}" if r.get("handle") else "its creator"
 
 
-def _launch(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
-    """Announce, launch, then post the receipt. The coin's X link is written onchain at launch and can't change,
-    so VIGIL's announcement goes out first and the coin links to it (unless they gave their own link)."""
-    conn = ctx.conn
+def _pct(bps: int) -> str:
+    return f"{bps / 100:g}%"
+
+
+def _launch(ctx: Any, launcher: PumpLauncher, r: dict[str, Any]) -> int:
+    """Announce, launch, then post the receipt. The coin's X link is written into its metadata at launch and can't
+    change, so VIGIL's announcement goes out first and the coin links to it (unless they gave their own link)."""
+    conn, s = ctx.conn, ctx.settings
+    if r.get("tx_hash"):  # signed before: never again
+        conn.execute("UPDATE launch_requests SET status='launching' WHERE id=?", (r["id"],))
+        return 0
     key = announce_key(r)
     ann = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?", (key,)).fetchone()
-    pair = r.get("pair_symbol")
     if ann is None:
         desc = f"\n\n{r['description']}" if r["description"] else ""
         creator = f"\nCreator: @{r['handle']}" if r["handle"] else ""
-        paired = f"\nPaired with {pair}" if pair else ""
         enqueue(conn, Draft("launch_announce", f"🚀 New on the VIGIL launchpad\n\n${r['symbol']} · {r['name']}{creator}"
-                                               f"{paired}{desc}\n\nLaunching now. CA and receipt below 👇",
-                            r["token"] or f"launch:{r['id']}", key))
+                                               f"{desc}\n\nLaunching now on pump.fun. CA and receipt below 👇",
+                            f"launch:{r['id']}", key))
         return 0
     if ann["status"] in ("pending", "sending"):
         return 0  # the coin links to that post: launch once it's out
     posted = ann["status"] == "sent" and ann["x_post_id"]
-    conn.execute("UPDATE launch_requests SET status='launching' WHERE id=?", (r["id"],))
+    if conn.execute("UPDATE launch_requests SET status='launching' WHERE id=? AND status='approved'",
+                    (r["id"],)).rowcount != 1:
+        return 0
     socials = json.loads(r["socials"] or "{}")
     if not socials.get("twitter") and posted:
         socials["twitter"] = f"https://x.com/i/status/{ann['x_post_id']}"  # works whatever the handle becomes
-    via = f"@{ctx.settings.x_handle}"
+    via = f"@{s.x_handle}" if s.x_handle else "VIGIL"
     credit = f"Created by @{r['handle']}, launched via {via}" if r["handle"] else f"Launched via {via}"
     own = (r["description"] or "").strip().rstrip(".").strip()
     desc = f"{own}. {credit}" if own else credit  # one full stop, whatever they typed
-    m = {"id": r["x_post_id"], "author_id": r["author_id"]}
+
+    def signed(mint: str, sig: str) -> None:  # recorded before it goes out: this request is never launched twice
+        conn.execute("UPDATE launch_requests SET token=?, tx_hash=? WHERE id=?", (mint, sig, r["id"]))
+        kv_set(conn, f"launch_signed_at:{r['id']}", time.time())
+
     try:
-        out = launcher.launch(name=r["name"], symbol=r["symbol"], logo=r["logo"], description=desc, socials=socials,
-                              ref=r["x_post_id"], pair_token=r.get("pair_token") or ZERO_ADDRESS,
-                              recipient=r["recipient"] if pair else None)  # stock pair: fees are theirs from the start
+        uri = r.get("metadata_uri")
+        if not uri:
+            uri = launcher.upload_metadata(r["name"], r["symbol"], desc, r["logo"], socials)
+            conn.execute("UPDATE launch_requests SET metadata_uri=?, socials=? WHERE id=?",
+                         (uri, json.dumps(socials), r["id"]))
+        out = launcher.launch(r["name"], r["symbol"], uri, s.launch_dev_buy_sol, on_signed=signed)
+    except LaunchUnconfirmed as exc:
+        log.warning("launch %s sent but not confirmed yet: %s", r["id"], exc)
+        journal_append(conn, "launchpad_unconfirmed", {"id": r["id"], "signature": exc.signature, "mint": exc.mint,
+                                                       "error": str(exc)[:300]}, ref=exc.mint, mode="live")
+        return 0  # stays 'launching' with its tx_hash: the next loop asks the chain
     except LaunchBlocked as exc:
-        conn.execute("UPDATE launch_requests SET status='failed', reason=? WHERE id=?", (str(exc)[:300], r["id"]))
-        sorry = f"❌ ${r['symbol']} didn't launch\n\nSomething went wrong on my side and no coin was made. Sorry fren."
-        if posted:
-            enqueue(conn, Draft("launch_receipt", sorry, f"launch:{r['id']}", f"launch_receipt:{r['id']}", reply_to=key))
-        _reply(conn, m, "Couldn't launch that one right now, something went wrong on my side. Sorry fren, "
-                        "try again later 🌅", kind="launch_failed")
+        _fail(ctx, r, str(exc), posted)
         return 0
-    now = utcnow()
-    conn.execute("UPDATE launch_requests SET status=?, token=?, curve=?, tx_hash=?, cost_wei=?, earned_wei='0', "
-                 "launched_at=?, handed_at=?, socials=? WHERE id=?",
-                 ("handed_over" if pair else "launched", out.token, out.curve, out.tx_hash, str(out.cost_wei), now,
-                  now if pair else None, json.dumps(socials), r["id"]))
-    fees = f"straight to {_by(r)}, paid in {pair}" if pair else f"{_by(r)}, once the launch is paid back"
-    receipt = (f"✅ ${r['symbol']} is live on Robinhood Chain\n\nCA: {out.token}\nTx: {EXPLORER}/tx/{out.tx_hash}\n"
-               + (f"Pair: {pair}\n" if pair else "") + "\n"
-               f"Launch cost: {out.cost_wei / 10**18:.5f} ETH (paid by VIGIL)\n"
-               f"Creator fees: {fees}")
+    except Exception as exc:  # an RPC that stayed down through its retries, say
+        if conn.execute("SELECT tx_hash FROM launch_requests WHERE id=?", (r["id"],)).fetchone()["tx_hash"]:
+            log.warning("launch %s signed, then: %s", r["id"], exc)  # stays 'launching': the next loop asks the chain
+            return 0
+        _fail(ctx, r, f"launch error: {type(exc).__name__}: {exc}", posted)
+        return 0
+    _launched(ctx, launcher, r, out.mint, out.signature, out.cost_lamports, posted, ann["x_post_id"] if posted else None)
+    return 1
+
+
+def _fail(ctx: Any, r: dict[str, Any], why: str, posted: Any) -> None:
+    conn = ctx.conn
+    conn.execute("UPDATE launch_requests SET status='failed', reason=? WHERE id=?", (why[:300], r["id"]))
+    journal_append(conn, "launchpad_launch_failed", {"id": r["id"], "symbol": r["symbol"], "reason": why[:300]})
     if posted:
-        enqueue(conn, Draft("launch_receipt", receipt, out.token, f"launch_receipt:{r['id']}", reply_to=key))
-    link = f"https://x.com/i/status/{ann['x_post_id']}" if posted else f"https://gmgn.ai/robinhood/token/{out.token}"
-    yours = (f"Paired with {pair}. Its creator fees go straight to your wallet, paid in {pair}." if pair else
-             "Creator fees go to your wallet once the coin pays back its ~$2 launch.")
-    _reply(conn, m, f"🚀 ${r['symbol']} is live\n\nCA: {out.token}\n\n{yours}\n\n{link}")
+        sorry = f"❌ ${r['symbol']} didn't launch\n\nSomething went wrong on my side and no coin was made. Sorry fren."
+        enqueue(conn, Draft("launch_receipt", sorry, f"launch:{r['id']}", f"launch_receipt:{r['id']}",
+                            reply_to=announce_key(r)))
+    _reply(conn, {"id": r["x_post_id"], "author_id": r["author_id"]},
+           "Couldn't launch that one right now, something went wrong on my side. Sorry fren, try again later 🌅",
+           kind="launch_failed")
+
+
+def _launched(ctx: Any, launcher: PumpLauncher, r: dict[str, Any], mint: str, sig: str, cost: int | None,
+              posted: Any, ann_x_id: str | None) -> None:
+    conn, s = ctx.conn, ctx.settings
+    conn.execute("UPDATE launch_requests SET status='launched', token=?, tx_hash=?, cost_lamports=?, launched_at=? "
+                 "WHERE id=?", (mint, sig, str(cost) if cost is not None else None, utcnow(), r["id"]))
+    shares = split_for(r["recipient"], launcher.wallet or "", s.launch_creator_share_bps)
+    theirs = next((sh.bps for sh in shares if sh.address == r["recipient"]), 0)
+    explorer = (s.explorer_url or "https://solscan.io").rstrip("/")
+    pump = f"https://pump.fun/coin/{mint}"
+    fees = (f"{_pct(theirs)} to {_by(r)}, {_pct(10_000 - theirs)} to VIGIL" if 0 < theirs < 10_000
+            else f"all to {_by(r)}" if theirs else "all to VIGIL")
+    cost_line = f"Launch cost: {sol(cost):.4f} SOL (paid by VIGIL)\n" if cost is not None else ""
+    receipt = (f"✅ ${r['symbol']} is live on Solana\n\nCA: {mint}\nTx: {explorer}/tx/{sig}\n{pump}\n\n"
+               f"{cost_line}Creator fees: {fees} (set on pump.fun right after launch, then locked)")
+    if posted:
+        enqueue(conn, Draft("launch_receipt", receipt, mint, f"launch_receipt:{r['id']}", reply_to=announce_key(r)))
+    link = f"https://x.com/i/status/{ann_x_id}" if ann_x_id else pump
+    yours = (f"{_pct(theirs)} of its creator fees go to your wallet. The split is set on pump.fun right after "
+             "launch and then locked." if theirs else "")
+    _reply(conn, {"id": r["x_post_id"], "author_id": r["author_id"]},
+           f"🚀 ${r['symbol']} is live on Solana\n\nCA: {mint}\n\n{yours}\n\n{link}".replace("\n\n\n\n", "\n\n"))
     # they asked before and it was refused (no image, say): the answer goes under that first post too
     for old in rows(conn, "SELECT x_post_id FROM launch_requests WHERE author_id=? AND upper(symbol)=? AND "
                           "status='refused' AND id<?", (r["author_id"], r["symbol"].upper(), r["id"])):
         _reply(conn, {"id": old["x_post_id"], "author_id": r["author_id"]},
-               f"🚀 ${r['symbol']} is live now\n\nCA: {out.token}\n\nReceipt: {link}", kind="launch_followup")
-    return 1
+               f"🚀 ${r['symbol']} is live now\n\nCA: {mint}\n\nReceipt: {link}", kind="launch_followup")
+    r = {**r, "status": "launched", "token": mint, "tx_hash": sig}
+    _split(ctx, launcher, r)  # straight away: the split is cheapest while the curve has barely traded
 
 
-def _maybe_hand_over(ctx: Any, launcher: Launcher, r: dict[str, Any]) -> int:
-    """Hand the coin's creator fees to its requester once they've paid back the launch."""
+def _settle(ctx: Any, launcher: PumpLauncher, r: dict[str, Any]) -> int:
+    """A launch left 'launching' (sent but unconfirmed, or the process stopped mid-launch): ask the chain."""
     conn = ctx.conn
-    cost, earned = int(r["cost_wei"] or 0), int(r["earned_wei"] or 0)
-    rec = ctx.pons.launch_record(r["token"])
-    if rec.phase == Phase.NOT_GRADUATED and earned < cost:  # sweep only until the launch is paid back, never again
-        if earned + launcher.pending_creator_wei(r["curve"]) < cost:
-            return 0
-        earned += launcher.sweep(r["curve"], ref=r["x_post_id"])
-        conn.execute("UPDATE launch_requests SET earned_wei=? WHERE id=?", (str(earned), r["id"]))
-        if earned < cost:
-            return 0
-    # graduated: the coin traded past 4.2 ETH on its curve, its fees long since covered the launch
-    if (r["recipient"] or "").lower() == (launcher.wallet or "").lower():  # VIGIL's own coin: the fees stay here
-        conn.execute("UPDATE launch_requests SET status='handed_over', handed_at=? WHERE id=?", (utcnow(), r["id"]))
+    if not r.get("tx_hash"):  # never signed, so nothing went out: it can simply be tried again
+        conn.execute("UPDATE launch_requests SET status='approved' WHERE id=? AND tx_hash IS NULL", (r["id"],))
         return 0
-    tx = launcher.hand_over(r["token"], r["recipient"])
-    conn.execute("UPDATE launch_requests SET status='handed_over', handed_at=? WHERE id=?", (utcnow(), r["id"]))
-    journal_append(conn, "launchpad_handed_over", {"token": r["token"], "to": r["recipient"], "tx_hash": tx,
-                                                   "earned_wei": str(earned), "cost_wei": str(cost)}, ref=r["token"])
-    _reply(conn, {"id": r["x_post_id"], "author_id": r["author_id"]},
-           f"🤝 ${r['symbol']} has paid back its launch\n\nFrom now on its creator fees go straight to your wallet.",
-           kind="launch_handed")
+    ann = conn.execute("SELECT status, x_post_id FROM posts WHERE idempotency_key=?", (announce_key(r),)).fetchone()
+    posted = ann and ann["status"] == "sent" and ann["x_post_id"]
+    st = ctx.rpc.signature_statuses([r["tx_hash"]])[0]
+    if st and not st.get("err") and st.get("confirmationStatus") in ("confirmed", "finalized"):
+        _launched(ctx, launcher, r, r["token"], r["tx_hash"], launcher.tx_cost(r["tx_hash"]), posted,
+                  ann["x_post_id"] if posted else None)
+        return 1
+    if st and st.get("err"):
+        _fail(ctx, r, f"launch transaction failed on chain: {st['err']}", posted)
+        return 0
+    signed_at = kv_get(conn, f"launch_signed_at:{r['id']}", 0) or 0
+    if st is None and time.time() - float(signed_at) > UNSENT_FAILS_AFTER_S:
+        _fail(ctx, r, "launch transaction never landed", posted)  # its blockhash has expired: it can't land now
+    return 0
+
+
+def _due(conn: Any, key: str) -> bool:
+    return time.time() >= float(kv_get(conn, key, 0) or 0)
+
+
+def _split(ctx: Any, launcher: PumpLauncher, r: dict[str, Any]) -> int:
+    """Set the coin's creator-fee split once (requester first, then VIGIL). Retried until it's on chain."""
+    conn, s = ctx.conn, ctx.settings
+    key = f"launch_split_next:{r['id']}"
+    if not _due(conn, key):
+        return 0
+    shares = split_for(r["recipient"], launcher.wallet or "", s.launch_creator_share_bps)
+    try:
+        sig = launcher.set_fee_split(r["token"], shares)
+    except FeeSplitUnverified as exc:
+        kv_set(conn, key, time.time() + RETRY_SPLIT_S)
+        if not kv_get(conn, f"launch_split_unverified:{r['id']}"):  # journal it once, with the simulation, for review
+            kv_set(conn, f"launch_split_unverified:{r['id']}", True)
+            journal_append(conn, "launchpad_fee_split_unverified",
+                           {"id": r["id"], "mint": r["token"], "shares": [x.as_dict() for x in shares],
+                            "reason": str(exc)[:300], "simulation": exc.simulation}, ref=r["token"], mode="live")
+        log.warning("fee split for %s not sent: %s", r["token"], exc)
+        return 0
+    except Exception as exc:  # LaunchBlocked or an RPC hiccup: try again later
+        kv_set(conn, key, time.time() + RETRY_SPLIT_S)
+        log.warning("fee split for %s failed: %s", r["token"], exc)
+        journal_append(conn, "launchpad_fee_split_failed", {"id": r["id"], "mint": r["token"],
+                                                            "error": str(exc)[:300]}, ref=r["token"], mode="live")
+        return 0
+    conn.execute("UPDATE launch_requests SET fee_share_tx=?, fee_shares=? WHERE id=?",
+                 (sig, json.dumps([x.as_dict() for x in shares]), r["id"]))
+    theirs = next((x.bps for x in shares if x.address == r["recipient"]), 0)
+    if sig and theirs:
+        explorer = (s.explorer_url or "https://solscan.io").rstrip("/")
+        _reply(conn, {"id": r["x_post_id"], "author_id": r["author_id"]},
+               f"🔒 ${r['symbol']} creator fees are split on chain and locked: {_pct(theirs)} to your wallet.\n\n"
+               f"{explorer}/tx/{sig}", kind="launch_split")
     return 1
+
+
+def _distribute(ctx: Any, launcher: PumpLauncher, r: dict[str, Any]) -> int:
+    conn = ctx.conn
+    key = f"launch_distribute_next:{r['id']}"
+    if not _due(conn, key):
+        return 0
+    kv_set(conn, key, time.time() + DISTRIBUTE_EVERY_S)
+    try:
+        return 1 if launcher.distribute_fees(r["token"]) else 0
+    except Exception as exc:  # retried on the next round
+        log.warning("fee payout for %s failed: %s", r["token"], exc)
+        return 0

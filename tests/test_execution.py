@@ -1,44 +1,56 @@
+"""Risk limits, the paper broker, fill pricing, the live Jupiter executor and the screen."""
 from pathlib import Path
+from types import SimpleNamespace
 
+import base58
 import pytest
+from solders.keypair import Keypair
 
-from ct_agent.chain.pons import PonsV2
-from ct_agent.chain.rpc import RpcClient
+from ct_agent.chain.solana import SolanaRpc
 from ct_agent.config import Settings
 from ct_agent.db import journal_recent, rows
+from ct_agent.execution.jupiter import Jupiter
 from ct_agent.execution.live import LiveExecutor, LiveTradingBlocked
 from ct_agent.execution.paper import close_position, open_position
-from ct_agent.execution.pricing import curve_buy, curve_sell, pool_estimate
+from ct_agent.execution.pricing import FillEstimate, from_quote, impact_bps, pool_estimate
 from ct_agent.execution.risk import RiskManager
-from ct_agent.strategy.screen import Activity, WindowStats, activity_for, screen_almost_bonded, screen_migrated
+from ct_agent.strategy.screen import screen_token
 
-from .fakes import FACTORY, FakeChain, FakeToken, addr
+from .fakes import Coin, FakeJupiter, FakeSolana, mint
 
-ETH = 10**18
-
-
-def test_curve_math_matches_constant_product_with_fees():
-    est = curve_buy(ETH // 10, int(1.68 * ETH), 10**27, 100, 0)
-    net = ETH // 10 - ETH // 1000
-    assert est.tokens_out == pytest.approx((10**27 * net // (int(1.68 * ETH) + net)) / 1e18)
-    assert est.price_impact_bps > 500  # 0.1 ETH into a 1.68 ETH curve moves price a lot
-    back = curve_sell(int(est.tokens_out * 1e18), int(1.68 * ETH) + net, 10**27 - int(est.tokens_out * 1e18), 100, 0)
-    assert back.quote_in < 0.1  # round trip loses fees
+KEY = Keypair()
+SECRET = base58.b58encode(bytes(KEY)).decode()
 
 
-def test_pool_estimate_is_labelled_indicative():
-    e = pool_estimate(0.05, 1e-8, 40_000, 2_700, 100)
+def _fill(sol=0.05, tokens=1_000_000.0) -> FillEstimate:
+    return FillEstimate(sol, tokens, sol / tokens, sol / tokens, 10, 0.0, "jupiter_quote")
+
+
+def test_pool_estimate_is_labelled_indicative_and_impact_excludes_fees():
+    e = pool_estimate(0.05, 1e-6, 40_000, 150, 100)
     assert e.method == "pool_estimate_indicative" and e.tokens_out > 0
+    assert pool_estimate(0.0001, 1e-6, 100_000, 150, 700).price_impact_bps <= 1  # dust: fees aren't impact
+    sell = pool_estimate(1000.0, 1e-6, 100_000, 150, 100, buy=False)
+    assert sell.quote_in < 1000 * 1e-6
+
+
+def test_jupiter_order_becomes_a_fill():
+    buy = from_quote({"inAmount": "500000000", "outAmount": "750000000000", "priceImpact": -0.25}, buy=True, decimals=6)
+    assert (buy.quote_in, buy.tokens_out, buy.price_impact_bps) == (0.5, 750_000.0, 25)
+    sell = from_quote({"inAmount": "750000000000", "outAmount": "490000000", "priceImpactPct": "0.004"}, buy=False,
+                      decimals=6)
+    assert (sell.quote_in, sell.tokens_out, sell.price_impact_bps) == (0.49, 750_000.0, 40)
+    assert impact_bps({}) == 0
 
 
 def test_risk_limits_and_kill_switch(db, settings):
     r = RiskManager(settings, db)
-    assert r.check_entry(token="0x1", quote_symbol="ETH", mode="paper").ok
-    assert not r.check_entry(token="0x1", quote_symbol="USDC", mode="paper").ok
-    live = r.check_entry(token="0x1", quote_symbol="ETH", mode="live")
+    assert r.check_entry(token=mint(1), quote_symbol="SOL", mode="paper").ok
+    assert not r.check_entry(token=mint(1), quote_symbol="USDC", mode="paper").ok
+    live = r.check_entry(token=mint(1), quote_symbol="SOL", mode="live")
     assert not live.ok and "trading mode is paper" in live.reasons
     Path(settings.kill_switch_file).write_text("stop")
-    v = r.check_entry(token="0x1", quote_symbol="ETH", mode="paper")
+    v = r.check_entry(token=mint(1), quote_symbol="SOL", mode="paper")
     assert not v.ok and "kill file" in v.reasons[0]
     Path(settings.kill_switch_file).unlink()
     r.set_kill(True, "manual test", "tester")
@@ -49,19 +61,19 @@ def test_risk_limits_and_kill_switch(db, settings):
 
 def test_paper_lifecycle_limits_and_journal(db, settings):
     r = RiskManager(settings, db)
-    fill = curve_buy(int(0.05 * ETH), int(5 * ETH), 3 * 10**26, 100, 0)
     for i in range(settings.max_open_positions):
-        v = r.check_entry(token=f"0x{i}", quote_symbol="ETH", mode="paper")
+        v = r.check_entry(token=mint(i), quote_symbol="SOL", mode="paper")
         assert v.ok, v.reasons
-        open_position(db, token=f"0x{i}", symbol="T", decision_id=None, quote_symbol="ETH", fill=fill,
-                      stage="almost_bonded")
-    v = r.check_entry(token="0x9", quote_symbol="ETH", mode="paper")
+        assert v.size_sol == settings.max_position_sol == 0.5
+        open_position(db, token=mint(i), symbol="T", decision_id=None, quote_symbol="SOL", fill=_fill(), stage="pool")
+    v = r.check_entry(token=mint(9), quote_symbol="SOL", mode="paper")
     assert not v.ok and any("max open" in x for x in v.reasons)
-    assert not r.check_entry(token="0x0", quote_symbol="ETH", mode="paper").ok  # duplicate
-    pos = rows(db, "SELECT * FROM positions WHERE token='0x0'")[0]
-    exit_fill = curve_sell(int(fill.tokens_out * 1e18), int(4 * ETH), 4 * 10**26, 100, 0)
-    pnl = close_position(db, pos, fill=exit_fill, reason="stop_loss")
-    assert pnl < 0
+    assert not r.check_entry(token=mint(0), quote_symbol="SOL", mode="paper").ok  # duplicate
+    # the same mint lowercased is a different (invalid) address: never matched as a duplicate
+    assert "already holding this token" not in r.check_entry(token=mint(0).lower(), quote_symbol="SOL", mode="paper").reasons
+    pos = rows(db, "SELECT * FROM positions WHERE token=?", (mint(0),))[0]
+    pnl = close_position(db, pos, fill=_fill(0.02), reason="stop_loss")
+    assert pnl == pytest.approx(-0.03)
     kinds = [j["kind"] for j in journal_recent(db)]
     assert kinds.count("paper_fill") == 3 and "paper_exit" in kinds
     assert all(j["payload"]["onchain"] is False for j in journal_recent(db, kind="paper_fill"))
@@ -69,133 +81,134 @@ def test_paper_lifecycle_limits_and_journal(db, settings):
 
 def test_daily_loss_limit_blocks_new_entries(db, settings):
     db.execute("INSERT INTO positions(token,mode,status,quote_symbol,opened_at,entry_quote,entry_tokens,entry_price,"
-               "closed_at,pnl_quote) VALUES('0xa','paper','closed','ETH',datetime('now'),0.05,1,0.05,"
-               "strftime('%Y-%m-%dT%H:%M:%S+00:00','now'),-0.06)")
-    v = RiskManager(settings, db).check_entry(token="0xb", quote_symbol="ETH", mode="paper")
-    assert not v.ok and any("daily loss" in x for x in v.reasons)
+               "closed_at,pnl_quote) VALUES(?,'paper','closed','SOL',datetime('now'),0.5,1,0.5,"
+               "strftime('%Y-%m-%dT%H:%M:%S+00:00','now'),-0.6)", (mint(1),))
+    v = RiskManager(settings, db).check_entry(token=mint(2), quote_symbol="SOL", mode="paper")
+    assert not v.ok and any("daily loss limit 0.5 SOL" in x for x in v.reasons)
 
 
 def test_trade_size_is_a_share_of_the_account(db, settings):
-    from types import SimpleNamespace
     from ct_agent.strategy.engine import _trade_size
-    s = settings.model_copy(update={"position_size_pct": 3.0, "paper_starting_balance_eth": 1.0,
-                                    "max_position_eth": 0.5})
+    s = settings.model_copy(update={"position_size_pct": 3.0, "paper_starting_balance_sol": 1.0,
+                                    "max_position_sol": 0.5})
     ctx = SimpleNamespace(settings=s, risk=RiskManager(s, db))
     assert _trade_size(ctx) == 0.03
     db.execute("INSERT INTO positions(token,mode,status,quote_symbol,opened_at,entry_quote,entry_tokens,entry_price,"
-               "closed_at,pnl_quote) VALUES('0xa','paper','closed','ETH','2026-01-01',0.05,1,0.05,'2026-01-01',1.0)")
+               "closed_at,pnl_quote) VALUES(?,'paper','closed','SOL','2026-01-01',0.05,1,0.05,'2026-01-01',1.0)",
+               (mint(1),))
     assert _trade_size(ctx) == 0.06  # the account doubled, so does the size
-    assert RiskManager(s, db).check_entry(token="0xb", quote_symbol="ETH", mode="paper",
-                                          desired_eth=_trade_size(ctx)).size_eth == 0.06
+    assert RiskManager(s, db).check_entry(token=mint(2), quote_symbol="SOL", mode="paper",
+                                          desired_sol=_trade_size(ctx)).size_sol == 0.06
     assert _trade_size(SimpleNamespace(settings=settings, risk=RiskManager(settings, db))) is None  # 0% = fixed size
 
 
+# --- the live executor ------------------------------------------------------------------------------------------
+
+def _live(db, tmp_path, coin=None, **kw):
+    ch = FakeSolana([coin or Coin(mint(1), price_usd=0.0001)])
+    jup = FakeJupiter(ch)
+    s = Settings(_env_file=None, trading_mode="live", live_execution_reviewed=True, trading_wallet_private_key=SECRET,
+                 kill_switch_file=str(tmp_path / "KILL"), jupiter_api_key="test", **kw)
+    rpc = SolanaRpc("https://rpc.test", transport=ch.transport(), retries=0)
+    j = Jupiter("https://api.jup.ag", "test", transport=jup.transport(), min_interval_s=0)
+    ex = LiveExecutor(s, rpc, j, db, RiskManager(s, db))
+    ch.lamports[ex.wallet] = 2 * 10**9
+    return ex, ch, jup
+
+
 def test_live_executor_refuses_by_default(db, settings):
-    ch = FakeChain()
-    pons = PonsV2(RpcClient("http://fake", transport=ch.transport(), retries=0), FACTORY)
-    ex = LiveExecutor(settings, pons.rpc, pons, db, RiskManager(settings, db))
+    ex = LiveExecutor(settings, SimpleNamespace(), SimpleNamespace(), db, RiskManager(settings, db))
     assert set(ex.blockers()) >= {"trading mode is paper", "live execution adapter not marked reviewed",
                                   "no trading wallet key"}
-    with pytest.raises(LiveTradingBlocked):
-        ex.buy_on_curve(token=addr(1), curve=addr(2), quote_in_wei=ETH // 100, fee_bps=100, tax_bps=0)
     with pytest.raises(LiveTradingBlocked, match="trading mode is paper"):
-        ex.swap_on_pool(token=addr(1), side="buy", amount_in_wei=ETH // 100)
-    s2 = Settings(_env_file=None, trading_mode="live", live_execution_reviewed=True,
-                  trading_wallet_private_key="0x" + "11" * 32, kill_switch_file=settings.kill_switch_file)
-    ex2 = LiveExecutor(s2, pons.rpc, pons, db, RiskManager(s2, db))
-    assert ex2.blockers() == [] and ex2.wallet.startswith("0x")
+        ex.swap(mint(1), "buy", 10**7)
+    bad = settings.model_copy(update={"trading_mode": "live", "live_execution_reviewed": True,
+                                      "trading_wallet_private_key": "0x" + "11" * 32})
+    ex = LiveExecutor(bad, SimpleNamespace(), SimpleNamespace(), db, RiskManager(bad, db))
+    assert ex.wallet is None and any("not a valid Solana key" in b for b in ex.blockers())
 
 
-def _act(**kw):
-    base = dict(windows=[WindowStats(300, 10, 1, 1.0, 0.1, 8)], top_buyer_share=0.1, deployer_buy_share=0.0,
-                roundtrip_traders=0, accelerating=True, acceleration=3.0)
-    base.update(kw)
-    return Activity(**base)
+def test_live_buy_then_sell_through_jupiter(db, tmp_path):
+    ex, ch, jup = _live(db, tmp_path)
+    assert ex.blockers() == [] and ex.wallet == str(KEY.pubkey())
+    buy = ex.swap(mint(1), "buy", 10**7)  # 0.01 SOL
+    assert buy.quote_amount == 10**7 and buy.token_amount == int(0.01 / (0.0001 / 150) * 0.999 * 10**6)
+    assert ch.balances[(ex.wallet, mint(1))] == buy.token_amount and ch.statuses[buy.tx_hash]
+    sub = journal_recent(db, kind="live_submitted")[0]["payload"]
+    assert sub["tx_hash"] == buy.tx_hash and sub["price_impact_bps"] == 10
+    sell = ex.swap(mint(1), "sell", buy.token_amount)
+    assert sell.token_amount == buy.token_amount and 0 < sell.quote_amount < 10**7  # the round trip costs a little
+    fills = journal_recent(db, kind="live_fill")
+    assert [f["payload"]["side"] for f in fills] == ["sell", "buy"] and fills[0]["payload"]["onchain"] is True
+    assert ex.quote_sell(mint(1), 10**6) > 0
 
 
-def test_screen_almost_bonded_rules(settings):
-    ok = screen_almost_bonded(settings, token="0x1", progress=0.9, phase=0, launch_age_s=600, snipe_window_s=3,
-                              fee_bps=100, creator_tax_bps=0, activity=_act())
-    assert ok.eligible and ok.score > 0
-    low = screen_almost_bonded(settings, token="0x1", progress=0.5, phase=0, launch_age_s=600, snipe_window_s=3,
-                               fee_bps=100, creator_tax_bps=0, activity=_act())
-    assert not low.eligible
-    snipe = screen_almost_bonded(settings, token="0x1", progress=0.95, phase=0, launch_age_s=2, snipe_window_s=3,
-                                 fee_bps=100, creator_tax_bps=0, activity=_act())
-    assert "inside launch snipe-tax window" in snipe.blockers
-    dev = screen_almost_bonded(settings, token="0x1", progress=0.95, phase=0, launch_age_s=600, snipe_window_s=3,
-                               fee_bps=100, creator_tax_bps=0, activity=_act(deployer_buy_share=0.5))
-    assert any("deployer" in b for b in dev.blockers)
-    tax = screen_almost_bonded(settings, token="0x1", progress=0.95, phase=0, launch_age_s=600, snipe_window_s=3,
-                               fee_bps=100, creator_tax_bps=1000, activity=_act())
-    assert any("fee+tax" in b for b in tax.blockers)
+def test_live_impact_gate_refuses_before_signing(db, tmp_path):
+    ex, ch, jup = _live(db, tmp_path, Coin(mint(1), impact_pct=4.0))  # 400 bps > 300
+    with pytest.raises(LiveTradingBlocked, match="price impact 400 bps > 300"):
+        ex.swap(mint(1), "buy", 10**7)
+    assert "/swap/v2/execute" not in jup.calls and not ch.balances
+    assert journal_recent(db, kind="live_failed")[0]["payload"]["stage"] == "price_impact"
 
 
-def test_screen_migrated_rules(settings):
-    good = screen_migrated(settings, token="0x1", phase=2, pool_found=True, volume_h1_usd=30_000,
-                           liquidity_usd=45_000, volume_h24_usd=240_000, fee_bps=100, creator_tax_bps=0, activity=None)
-    assert good.eligible and good.metrics["volume_heat"] == 3.0
-    for kw, msg in [({"phase": 1}, "phase"), ({"pool_found": False}, "genuine"),
-                    ({"volume_h1_usd": 4_000}, "1h volume"), ({"liquidity_usd": 10_000}, "liquidity")]:
-        args = dict(token="0x1", phase=2, pool_found=True, volume_h1_usd=30_000, liquidity_usd=45_000,
-                    volume_h24_usd=240_000, fee_bps=100, creator_tax_bps=0, activity=None)
-        args.update(kw)
-        assert any(msg in b for b in screen_migrated(settings, **args).blockers)
+def test_live_refuses_other_chains_and_low_balance(db, tmp_path):
+    ex, ch, jup = _live(db, tmp_path)
+    ch.lamports[ex.wallet] = 5 * 10**6
+    with pytest.raises(LiveTradingBlocked, match="balance too low"):
+        ex.swap(mint(1), "buy", 10**7)
+    with pytest.raises(LiveTradingBlocked, match="not a Solana token"):
+        ex.swap("0x" + "ab" * 20, "buy", 10)
+    ex2, ch2, _ = _live(db, tmp_path)
+    ch2.genesis = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG"  # devnet
+    with pytest.raises(LiveTradingBlocked, match="not Solana mainnet"):
+        ex2.swap(mint(1), "buy", 10**7)
 
 
-def test_activity_requires_acceleration_across_windows(db):
-    from ct_agent.db import utcnow
-    db.execute("INSERT INTO launches(token,curve,deployer,pair_token,launch_config_id,graduation_threshold,"
-               "block_number,tx_hash,first_seen) VALUES('0xT','0xC','0xD','0x0',0,'1',1,'0x',?)", (utcnow(),))
-    head = 100_000
-    n = 0
-    for blk in [head - 30_000, head - 20_000, head - 5_000, head - 1_000, head - 500, head - 200, head - 100]:
-        n += 1
-        db.execute("INSERT INTO curve_trades VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                   (f"0x{n}", 0, "0xT", "0xC", blk, "buy", f"0xb{n}", str(ETH // 10), "1", "0", "0"))
-    a = activity_for(db, "0xT", "0xD", head, 0.1, [300, 900, 3600])
-    assert a.windows[0].buys == 4 and a.accelerating
+def test_live_failed_swap_is_not_a_fill(db, tmp_path):
+    ex, ch, jup = _live(db, tmp_path)
+    jup.execute_error = "slippage tolerance exceeded"
+    with pytest.raises(LiveTradingBlocked, match="not confirmed"):
+        ex.swap(mint(1), "buy", 10**7)
+    assert journal_recent(db, kind="live_failed")[0]["payload"]["stage"] == "execute"
+    assert not journal_recent(db, kind="live_fill")
 
 
-def test_screen_blocks_non_eth_quotes_before_the_ai(settings):
-    c = screen_migrated(settings, token="0x1", phase=2, pool_found=True, volume_h1_usd=30_000, liquidity_usd=45_000,
-                        volume_h24_usd=240_000, fee_bps=100, creator_tax_bps=0, activity=None, quote_symbol="GLD")
-    assert not c.eligible and any("priced in GLD" in b for b in c.blockers)
-    ok = screen_almost_bonded(settings, token="0x1", progress=0.9, phase=0, launch_age_s=600, snipe_window_s=3,
-                              fee_bps=100, creator_tax_bps=0, activity=_act(), quote_symbol="ETH")
-    assert ok.eligible
-
-
-def test_price_impact_excludes_fees():
-    tiny = curve_buy(10**12, 5 * ETH, 10**27, 400, 300)   # dust trade with 7% fees+tax
-    assert tiny.price_impact_bps <= 1 and tiny.fee_and_tax_quote > 0
-    p = pool_estimate(0.0001, 1e-8, 100_000, 2_700, 700)
-    assert p.price_impact_bps <= 1
-
-
-def test_graduated_positions_are_priced_by_the_pools_own_quoter():
-    from types import SimpleNamespace
-    from ct_agent.chain.pons import Phase
-    from ct_agent.strategy import engine
-    calls = []
-    live = SimpleNamespace(quote_sell=lambda token, wei: calls.append(wei) or wei // 2)  # 0.5 ETH per token
-    pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.POOL_CREATED))
-    ctx = SimpleNamespace(live=live, pons=pons)
-    engine._GRADUATED.discard(addr(0x77).lower())
-    fill, venue = engine._mark(ctx, {"token": addr(0x77)}, 10.0)
-    assert venue == "pool" and fill.method == "v4_quote_onchain" and fill.quote_in == pytest.approx(5.0)
-    assert calls == [10 * ETH] and addr(0x77).lower() in engine._GRADUATED  # next time: straight to the quote
-
-
-def test_selling_everything_survives_float_rounding(db, settings):
-    """FRAI's stop: 622314.8347010531 tokens as a float comes back a hair over the exact balance in wei."""
-    from types import SimpleNamespace
-    held = 622314834701053077515436
-    s = Settings(_env_file=None, trading_mode="live", live_execution_reviewed=True,
-                 trading_wallet_private_key="0x" + "11" * 32, kill_switch_file=settings.kill_switch_file)
-    ex = LiveExecutor(s, SimpleNamespace(), SimpleNamespace(erc20_balance=lambda t, w: held), db, RiskManager(s, db))
-    want = int(622314.8347010531 * ETH)
-    assert want > held and ex._sellable(addr(1), want) == held  # rounding: sell exactly what's there
-    assert ex._sellable(addr(1), held // 2) == held // 2        # a partial sell is untouched
+def test_selling_everything_survives_float_rounding(db, tmp_path):
+    ex, ch, jup = _live(db, tmp_path)
+    held = 622314834701
+    ch.balances[(ex.wallet, mint(1))] = held
+    want = int(622314.8347010531 * 10**6) + 1
+    assert want > held and ex._sellable(mint(1), want) == held  # rounding: sell exactly what's there
+    assert ex._sellable(mint(1), held // 2) == held // 2        # a partial sell is untouched
     with pytest.raises(LiveTradingBlocked, match="token balance"):
-        ex._sellable(addr(1), held * 2)                          # really missing tokens: refused
+        ex._sellable(mint(1), held * 2)                          # really missing tokens: refused
+
+
+def test_live_mark_and_quote_go_to_sol(db, tmp_path):
+    ex, ch, jup = _live(db, tmp_path)
+    jup.calls.clear()
+    ex.quote_sell(mint(1), 10**6)
+    order = [o for o in jup.orders.values()]
+    assert jup.calls == ["/swap/v2/order"] and order == []  # a quote has no taker: nothing to sign
+
+
+# --- screen ------------------------------------------------------------------------------------------------------
+
+def _scr(settings, **kw):
+    args = dict(token=mint(1), stage="pool", pool_found=True, volume_h1_usd=30_000, liquidity_usd=45_000,
+                volume_h24_usd=240_000)
+    args.update(kw)
+    return screen_token(settings, **args)
+
+
+def test_screen_rules(settings):
+    good = _scr(settings, holders={"top10_share": 0.2, "top_holder_share": 0.05, "creator_share": 0.0})
+    assert good.eligible and good.metrics["volume_heat"] == 3.0 and good.stage == "pool"
+    for kw, msg in [({"pool_found": False}, "no market data"), ({"volume_h1_usd": 4_000}, "1h volume"),
+                    ({"liquidity_usd": 10_000}, "liquidity"), ({"quote_symbol": "USDC"}, "priced in USDC"),
+                    ({"safety": ["its creator can still mint more coins"]}, "unsafe mint"),
+                    ({"holders": {"top10_share": 0.5}}, "10 biggest wallets hold 50%"),
+                    ({"holders": {"creator_share": 0.2}}, "creator still holds 20%")]:
+        assert any(msg in b for b in _scr(settings, **kw).blockers), kw
+    wash = _scr(settings, volume_h1_usd=300_000)
+    assert any("wash" in f for f in wash.flags)

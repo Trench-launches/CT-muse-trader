@@ -12,13 +12,12 @@ import time
 from typing import Callable
 
 from ..context import Context, build
-from ..db import journal_append, kv_get, kv_set
+from ..db import journal_append, kv_set
 from ..social.outbox import recover_interrupted, send_pending
-from ..strategy.engine import assess, caller_once, decide_and_act, manage_positions, scanner_cycle, weekly_scorecard
+from ..strategy.engine import caller_once, manage_positions, scanner_cycle, weekly_scorecard
 from ..strategy.outcomes import track_outcomes
-from .indexer import index_once
+from ..units import sol
 from .research import research_once
-from ..launchpad.service import launchpad_once
 
 log = logging.getLogger("ct_agent")
 _stop = False
@@ -42,19 +41,11 @@ def trader_once(ctx: Context) -> dict:
 
 def decisions_once(ctx: Context) -> dict:
     killed, why = ctx.risk.kill_active()
-    decisions = []
-    if not killed:
-        scan = ctx.settings.candidate_source == "scanner"
-        if scan:
-            decisions = scanner_cycle(ctx)
-        if not scan or ctx.settings.pons_scan_enabled:
-            # the scanner's waiting coins stay on the research worker's list next to the Pons shortlist
-            for a in assess(ctx, extra=kv_get(ctx.conn, "candidates") if scan else None):
-                decisions.append(decide_and_act(ctx, a))
+    decisions = [] if killed else scanner_cycle(ctx)
     if ctx.settings.trading_mode.value == "live" and ctx.live.wallet:
         try:  # for the site: which wallet trades, and what it holds (the key never leaves the trader)
             kv_set(ctx.conn, "live_wallet", {"address": ctx.live.wallet,
-                                             "eth": round(ctx.rpc.get_balance(ctx.live.wallet) / 10**18, 6)})
+                                             "sol": round(sol(ctx.rpc.get_balance(ctx.live.wallet)), 6)})
         except Exception as exc:
             log.warning("wallet balance unavailable: %s", exc)
     weekly_scorecard(ctx)
@@ -95,9 +86,13 @@ def fast_caller_once(ctx: Context) -> dict:
     return {"bought": caller_once(ctx)}
 
 
+def launchpad_once(ctx: Context) -> dict:
+    from ..launchpad.service import launchpad_once as run  # imported here so a launchpad fault can't stop trading
+    return run(ctx)
+
+
 WORKERS: dict[str, tuple[Callable[[Context], dict], float]] = {
     "caller": (fast_caller_once, 10.0),
-    "indexer": (index_once, 10.0),
     "research": (research_once, 60.0),
     "exits": (exits_once, 3.0),
     "trader": (decisions_once, 60.0),
@@ -123,7 +118,7 @@ def run_worker(name: str, *, once: bool = False) -> None:
             result = fn(ctx)
             failures = 0
             quiet = ((name == "exits" and all(e.get("action") == "hold" for e in result["exits"]))
-                     or (name == "launchpad" and not (result.get("launched") or result.get("handed_over"))))
+                     or (name == "launchpad" and not any(result.get(k) for k in ("launched", "fee_splits", "distributed"))))
             if not quiet:  # the fast loops only log when something happened
                 log.info("%s: %s", name, _brief(result))
         except Exception as exc:

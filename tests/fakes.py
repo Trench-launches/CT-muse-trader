@@ -1,218 +1,317 @@
 """Offline fakes that speak the real wire formats.
 
-FakeChain answers JSON-RPC with properly ABI-encoded data, so tests go
-through the same encode/decode code as production.
+FakeSolana answers the JSON-RPC methods SolanaRpc uses (mints, token accounts, holders, balances, send/confirm),
+FakeJupiter answers Swap V2 order/execute (real unsigned VersionedTransactions, signatures checked on execute)
+and Price API v3, and `market_transport` answers DexScreener, CoinGecko and the scanners' Supabase. They all read
+the same coins, so moving a coin's price moves every feed at once.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import itertools
 import json
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
+import base58
 import httpx
-from eth_abi import encode
-from eth_utils import to_checksum_address
+from solders.hash import Hash
+from solders.message import MessageV0
+from solders.pubkey import Pubkey
+from solders.signature import Signature
+from solders.transaction import VersionedTransaction
 
-from ct_agent.chain.abi import ZERO_ADDRESS, address_topic, selector
-from ct_agent.chain.pons import CURVE_BUY, CURVE_SELL, LAUNCH_SWEPT, POOL_GRADUATED, TOKEN_LAUNCHED, TRANSFER
+from ct_agent.chain.keys import MAINNET_GENESIS, PUMP_AMM_PROGRAM, SOL_MINT, SYSTEM_PROGRAM, TOKEN_PROGRAM
 
-FACTORY = "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e"
-HOOK = "0xE5e702641eA86F4aE6CC3cdAED2b886f976be044"
-BLOCK_TIME = 0.1
-GENESIS_TS = 1_750_000_000
+SOL_USD = 150.0
 
 
-def addr(n: int) -> str:
-    return to_checksum_address("0x" + f"{n:040x}")
+def _b58(tag: str) -> str:
+    return base58.b58encode(hashlib.sha256(tag.encode()).digest()).decode()
+
+
+def mint(n: int) -> str:
+    """A deterministic, valid, mixed-case base58 address (so any lowercasing breaks the tests)."""
+    return _b58(f"mint{n}")
+
+
+def wallet(n: int) -> str:
+    return _b58(f"wallet{n}")
 
 
 @dataclass
-class FakeToken:
-    token: str
-    curve: str
-    deployer: str
-    pair_token: str = ZERO_ADDRESS
-    threshold: int = 4_200_000_000_000_000_000
-    real_quote: int = 0
-    phase: int = 0
-    fee_bps: int = 100
-    creator_tax_bps: int = 0
-    pool_fee: int = 0
-    tick_spacing: int = 200
-    name: str = "Test"
+class Coin:
+    mint: str
     symbol: str = "TST"
-    launch_block: int = 0
+    name: str = "Test"
+    decimals: int = 6
+    supply: int = 1_000_000_000 * 10**6
+    price_usd: float = 0.0001
+    liquidity_usd: float = 60_000.0
+    volume_h1_usd: float = 20_000.0
+    volume_h24_usd: float = 200_000.0
+    dex: str = "pumpswap"
+    mint_authority: str | None = None
+    freeze_authority: str | None = None
+    program: str = TOKEN_PROGRAM
+    extensions: list[dict[str, Any]] = field(default_factory=list)
+    # (owner, base units, owned by a program (curve/pool) rather than a wallet)
+    holders: list[tuple[str, int, bool]] = field(default_factory=list)
     description: str = ""
-    socials: str = ""
+    twitter: str = ""
+    website: str = ""
+    image: str = "https://ipfs.io/ipfs/QmLogo"
+    routable: bool = True
+    impact_pct: float = 0.1  # Jupiter's priceImpact for any swap, in percent
+
+    @property
+    def pool(self) -> str:
+        return _b58(f"pool{self.mint}")
+
+    def pair(self) -> dict[str, Any]:
+        return {"chainId": "solana", "dexId": self.dex, "pairAddress": self.pool,
+                "baseToken": {"address": self.mint, "name": self.name, "symbol": self.symbol},
+                "quoteToken": {"address": SOL_MINT, "symbol": "SOL"},
+                "priceUsd": str(self.price_usd), "priceNative": str(self.price_usd / SOL_USD),
+                "volume": {"h1": self.volume_h1_usd, "h24": self.volume_h24_usd},
+                "liquidity": {"usd": self.liquidity_usd}, "txns": {"h1": {"buys": 40, "sells": 30}},
+                "marketCap": self.price_usd * self.supply / 10 ** self.decimals,
+                "info": {"imageUrl": "https://dd.dexscreener.com/img.png",
+                         "websites": [{"url": self.website}] if self.website else [],
+                         "socials": [{"type": "twitter", "url": self.twitter}] if self.twitter else []}}
 
 
-@dataclass
-class FakeChain:
-    head: int = 1_000_000
-    tokens: dict[str, FakeToken] = field(default_factory=dict)
-    logs: list[dict[str, Any]] = field(default_factory=list)
-    calls: list[str] = field(default_factory=list)
-    can_launch: bool = True
+class FakeSolana:
+    """A Solana node over an httpx.MockTransport."""
 
-    # --- scenario builders --------------------------------------------------
+    def __init__(self, coins: list[Coin] | None = None):
+        self.coins: dict[str, Coin] = {c.mint: c for c in coins or []}
+        self.lamports: dict[str, int] = {}
+        self.balances: dict[tuple[str, str], int] = {}      # (owner, mint) -> base units
+        self.program_owned: set[str] = set()
+        self.statuses: dict[str, dict[str, Any]] = {}
+        self.genesis = MAINNET_GENESIS
+        self.das = True
+        self.calls: list[str] = []
 
-    def launch(self, t: FakeToken, block: int) -> None:
-        t.launch_block = block
-        self.tokens[t.token.lower()] = t
-        self.logs.append({
-            "address": FACTORY,
-            "topics": [TOKEN_LAUNCHED, address_topic(t.token), address_topic(t.curve), address_topic(t.deployer)],
-            "data": "0x" + encode(["address", "uint256", "uint256"], [t.pair_token, 0, t.threshold]).hex(),
-            "blockNumber": hex(block),
-            "transactionHash": "0x" + f"{block:064x}",
-            "logIndex": "0x0",
-        })
-
-    def graduate(self, t: FakeToken, block: int) -> None:
-        t.phase = 2
-        t.real_quote = t.threshold
-        for tp, data in ((LAUNCH_SWEPT, encode(["uint256", "uint256"], [t.threshold, 10**26])),
-                         (POOL_GRADUATED, encode(["uint256", "uint256", "uint256"], [1, 10**26, t.threshold]))):
-            self.logs.append({"address": FACTORY, "topics": [tp, address_topic(t.token)], "data": "0x" + data.hex(),
-                              "blockNumber": hex(block), "transactionHash": "0x" + f"{block:063x}9", "logIndex": "0x1"})
-
-    def trade(self, t: FakeToken, block: int, side: str, quote: int, tokens: int, trader: str,
-              log_index: int = 0) -> None:
-        a, b = (quote, tokens) if side == "buy" else (tokens, quote)
-        fee = quote * t.fee_bps // 10_000
-        self.logs.append({
-            "address": t.curve,
-            "topics": [CURVE_BUY if side == "buy" else CURVE_SELL, address_topic(trader), address_topic(trader)],
-            "data": "0x" + encode(["uint256"] * 4, [a, b, fee, 0]).hex(),
-            "blockNumber": hex(block),
-            "transactionHash": "0x" + f"{block:062x}{log_index:02x}",
-            "logIndex": hex(log_index),
-        })
-        frm, to = (t.curve, trader) if side == "buy" else (trader, t.curve)
-        self.logs.append({
-            "address": t.token,
-            "topics": [TRANSFER, address_topic(frm), address_topic(to)],
-            "data": "0x" + encode(["uint256"], [tokens]).hex(),
-            "blockNumber": hex(block),
-            "transactionHash": "0x" + f"{block:062x}{log_index:02x}",
-            "logIndex": hex(log_index + 100),
-        })
-        if side == "buy":
-            t.real_quote += quote - fee
-        else:
-            t.real_quote = max(0, t.real_quote - quote)
-
-    # --- rpc ----------------------------------------------------------------
+    def add(self, coin: Coin) -> Coin:
+        self.coins[coin.mint] = coin
+        return coin
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
 
+    # --- accounts -------------------------------------------------------------
+
+    def _token_accounts(self, c: Coin) -> list[tuple[str, str, int]]:
+        """(token account, owner, amount) for each holder."""
+        return [(_b58(f"ta{c.mint}{i}"), owner, amt) for i, (owner, amt, _) in enumerate(c.holders)]
+
+    def _account(self, pk: str, encoding: str) -> dict[str, Any] | None:
+        c = self.coins.get(pk)
+        if c:
+            return {"owner": c.program, "lamports": 1_461_600, "executable": False,
+                    "data": {"program": "spl-token", "parsed": {"type": "mint", "info": {
+                        "decimals": c.decimals, "supply": str(c.supply), "mintAuthority": c.mint_authority,
+                        "freezeAuthority": c.freeze_authority, "isInitialized": True,
+                        **({"extensions": c.extensions} if c.extensions else {})}}}}
+        for c in self.coins.values():
+            for i, (owner, amt, prog) in enumerate(c.holders):
+                if _b58(f"ta{c.mint}{i}") == pk:
+                    return {"owner": c.program, "lamports": 2_039_280, "executable": False,
+                            "data": {"program": "spl-token", "parsed": {"type": "account", "info": {
+                                "owner": owner, "mint": c.mint, "tokenAmount": {
+                                    "amount": str(amt), "decimals": c.decimals}}}}}
+                if owner == pk:
+                    return {"owner": PUMP_AMM_PROGRAM if prog else SYSTEM_PROGRAM, "lamports": 1, "executable": False,
+                            "data": ["", "base64"]}
+        if pk in self.program_owned:
+            return {"owner": PUMP_AMM_PROGRAM, "lamports": 1, "executable": False, "data": ["", "base64"]}
+        if pk in self.lamports:
+            return {"owner": SYSTEM_PROGRAM, "lamports": self.lamports[pk], "executable": False, "data": ["", "base64"]}
+        return None
+
+    # --- rpc ------------------------------------------------------------------
+
     def _handle(self, request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         if isinstance(body, list):
-            out = []
-            for item in body:
-                try:
-                    out.append({"jsonrpc": "2.0", "id": item["id"],
-                                "result": self._dispatch(item["method"], item["params"])})
-                except _Revert as exc:
-                    out.append({"jsonrpc": "2.0", "id": item["id"], "error": {"code": 3, "message": str(exc)}})
-            return httpx.Response(200, json=out)
+            return httpx.Response(200, json=[self._one(b) for b in body])
+        return httpx.Response(200, json=self._one(body))
+
+    def _one(self, body: dict[str, Any]) -> dict[str, Any]:
         try:
-            result = self._dispatch(body["method"], body["params"])
-            return httpx.Response(200, json={"jsonrpc": "2.0", "id": body["id"], "result": result})
-        except _Revert as exc:
-            return httpx.Response(200, json={"jsonrpc": "2.0", "id": body["id"],
-                                             "error": {"code": 3, "message": f"execution reverted: {exc}"}})
+            return {"jsonrpc": "2.0", "id": body["id"], "result": self._dispatch(body["method"], body["params"])}
+        except _RpcFail as exc:
+            return {"jsonrpc": "2.0", "id": body["id"], "error": {"code": -32601, "message": str(exc)}}
 
-    def _dispatch(self, method: str, params: list[Any]) -> Any:
+    def _dispatch(self, method: str, params: Any) -> Any:
         self.calls.append(method)
-        if method == "eth_chainId":
-            return hex(4663)
-        if method == "eth_blockNumber":
-            return hex(self.head)
-        if method == "eth_getBlockByNumber":
-            n = int(params[0], 16)
-            return {"number": params[0], "timestamp": hex(int(GENESIS_TS + n * BLOCK_TIME))}
-        if method == "eth_getCode":
-            a = params[0].lower()
-            known = a == FACTORY.lower() or a in self.tokens or any(t.curve.lower() == a for t in self.tokens.values())
-            return "0x6080" if known else "0x"
-        if method == "eth_getLogs":
-            return self._logs(params[0])
-        if method == "eth_call":
-            return self._call(params[0]["to"], params[0]["data"])
-        raise _Revert(f"unsupported {method}")
-
-    def _logs(self, f: dict[str, Any]) -> list[dict[str, Any]]:
-        lo, hi = int(f["fromBlock"], 16), int(f["toBlock"], 16)
-        a = f.get("address")
-        addrs = None if a is None else {x.lower() for x in (a if isinstance(a, list) else [a])}
-        t0 = f["topics"][0]
-        t0s = {t.lower() for t in (t0 if isinstance(t0, list) else [t0])}
-        out = []
-        for lg in self.logs:
-            n = int(lg["blockNumber"], 16)
-            if lo <= n <= hi and (addrs is None or lg["address"].lower() in addrs) and lg["topics"][0].lower() in t0s:
-                if len(f["topics"]) > 1 and f["topics"][1] and lg["topics"][1].lower() != f["topics"][1].lower():
-                    continue
-                out.append(lg)
-        return out
-
-    def _call(self, to: str, data: str) -> str:
-        sel, args = data[:10], data[10:]
-        to_l = to.lower()
-        enc = lambda types, vals: "0x" + encode(types, vals).hex()  # noqa: E731
-        if to_l == FACTORY.lower():
-            if sel == selector("getLaunchedToken(address)"):
-                a = "0x" + args[-40:]
-                t = self.tokens.get(a.lower())
-                if not t:
-                    rec = [ZERO_ADDRESS] * 5 + [0, 0, 0, 0, False, 0, 0, 0, 0, False]
-                else:
-                    rec = [t.token, t.curve, t.deployer, t.deployer, t.pair_token, t.threshold, t.pool_fee,
-                           t.tick_spacing, t.creator_tax_bps, False, t.phase, 0, 0, 0, True]
-                return enc(["(address,address,address,address,address,uint256,uint24,int24,uint16,bool,uint8,"
-                            "uint256,uint256,uint256,bool)"], [tuple(rec)])
-            if sel == selector("canLaunch(address)"):
-                return enc(["bool"], [self.can_launch])
-            if sel == selector("launchFee()"):
-                return enc(["uint256"], [500_000_000_000_000])
-            if sel == selector("snipeTaxStartBps()"):
-                return enc(["uint256"], [9_900])
-            if sel == selector("snipeTaxSeconds()"):
-                return enc(["uint256"], [3])
-            if sel == selector("memeHook()"):
-                return enc(["address"], [HOOK])
-        for t in self.tokens.values():
-            if to_l == t.curve.lower():
-                vals = {
-                    selector("realQuoteReserve()"): (["uint256"], [t.real_quote]),
-                    selector("graduationThreshold()"): (["uint256"], [t.threshold]),
-                    selector("feeBps()"): (["uint256"], [t.fee_bps]),
-                    selector("creatorTaxBps()"): (["uint256"], [t.creator_tax_bps]),
-                    selector("readyToGraduate()"): (["bool"], [t.real_quote >= t.threshold and t.phase == 0]),
-                    selector("graduated()"): (["bool"], [t.phase != 0]),
-                    # phantom 1.68 ETH + real reserve; token side shrinks as quote grows
-                    selector("getReserves()"): (["uint256", "uint256"], [
-                        1_680_000_000_000_000_000 + t.real_quote,
-                        (1_680_000_000_000_000_000 * 10**27) // (1_680_000_000_000_000_000 + t.real_quote)]),
-                }
-                if sel in vals:
-                    return enc(*vals[sel])
-            if to_l == t.token.lower():
-                vals = {
-                    selector("name()"): (["string"], [t.name]),
-                    selector("symbol()"): (["string"], [t.symbol]),
-                    selector("description()"): (["string"], [t.description]),
-                    selector("socials()"): (["string"], [t.socials]),
-                    selector("decimals()"): (["uint8"], [18]),
-                    selector("totalSupply()"): (["uint256"], [10**27]),
-                }
-                if sel in vals:
-                    return enc(*vals[sel])
-        raise _Revert(f"no handler for {to} {sel}")
+        ctx = {"context": {"slot": 123}}
+        if method == "getGenesisHash":
+            return self.genesis
+        if method == "getSlot":
+            return 123
+        if method == "getBalance":
+            return {**ctx, "value": self.lamports.get(params[0], 0)}
+        if method == "getAccountInfo":
+            return {**ctx, "value": self._account(params[0], params[1].get("encoding", "base64"))}
+        if method == "getMultipleAccounts":
+            return {**ctx, "value": [self._account(p, params[1].get("encoding", "base64")) for p in params[0]]}
+        if method == "getTokenSupply":
+            c = self.coins.get(params[0])
+            if not c:
+                raise _RpcFail("Invalid param: not a Token mint")
+            return {**ctx, "value": {"amount": str(c.supply), "decimals": c.decimals,
+                                     "uiAmount": c.supply / 10 ** c.decimals}}
+        if method == "getTokenLargestAccounts":
+            c = self.coins.get(params[0])
+            if not c:
+                raise _RpcFail("Invalid param: not a Token mint")
+            accts = sorted(self._token_accounts(c), key=lambda a: -a[2])[:20]
+            return {**ctx, "value": [{"address": a, "amount": str(amt), "decimals": c.decimals,
+                                      "uiAmount": amt / 10 ** c.decimals} for a, _, amt in accts]}
+        if method == "getTokenAccountsByOwner":
+            owner, m = params[0], params[1]["mint"]
+            amt = self.balances.get((owner, m))
+            if amt is None:
+                return {**ctx, "value": []}
+            dec = self.coins[m].decimals if m in self.coins else 6
+            return {**ctx, "value": [{"pubkey": _b58(f"ata{owner}{m}"), "account": {"data": {"parsed": {"info": {
+                "owner": owner, "mint": m, "tokenAmount": {"amount": str(amt), "decimals": dec}}}}}}]}
+        if method == "getSignatureStatuses":
+            return {**ctx, "value": [self.statuses.get(sig) for sig in params[0]]}
+        if method == "getAsset":
+            c = self.coins.get(params["id"])
+            if not self.das or not c:
+                raise _RpcFail("Method not found")
+            return {"id": c.mint, "content": {"json_uri": "", "links": {"image": c.image},
+                                              "metadata": {"name": c.name, "symbol": c.symbol,
+                                                           "description": c.description}}}
+        raise _RpcFail(f"unsupported {method}")
 
 
-class _Revert(Exception):
+class _RpcFail(Exception):
     pass
+
+
+class FakeJupiter:
+    """Jupiter Swap V2 (order/execute) and Price API v3, priced from FakeSolana's coins."""
+
+    def __init__(self, chain: FakeSolana, sol_usd: float = SOL_USD):
+        self.chain = chain
+        self.sol_usd = sol_usd
+        self.orders: dict[str, dict[str, Any]] = {}
+        self.calls: list[str] = []
+        self.execute_error: str | None = None   # e.g. "slippage": the swap fails
+        self.prices_down = False
+        self._ids = itertools.count(1)
+
+    def transport(self) -> httpx.MockTransport:
+        return httpx.MockTransport(self._handle)
+
+    def _handle(self, req: httpx.Request) -> httpx.Response:
+        self.calls.append(req.url.path)
+        q = {k: v[0] for k, v in parse_qs(urlsplit(str(req.url)).query).items()}
+        if req.url.path == "/swap/v2/order":
+            return httpx.Response(200, json=self._order(q))
+        if req.url.path == "/swap/v2/execute":
+            return httpx.Response(200, json=self._execute(json.loads(req.content)))
+        if req.url.path == "/price/v3":
+            if self.prices_down:
+                return httpx.Response(503, json={"error": "down"})
+            out = {}
+            for m in q["ids"].split(","):
+                if m == SOL_MINT:
+                    out[m] = {"usdPrice": self.sol_usd, "decimals": 9}
+                elif m in self.chain.coins and self.chain.coins[m].routable:
+                    c = self.chain.coins[m]
+                    out[m] = {"usdPrice": c.price_usd, "decimals": c.decimals, "liquidity": c.liquidity_usd}
+            return httpx.Response(200, json=out)
+        return httpx.Response(404, json={"error": "not found"})
+
+    def _order(self, q: dict[str, str]) -> dict[str, Any]:
+        inp, out, amount = q["inputMint"], q["outputMint"], int(q["amount"])
+        buy = inp == SOL_MINT
+        c = self.chain.coins.get(out if buy else inp)
+        if c is None or not c.routable:
+            return {"errorCode": 1, "errorMessage": "No routes found", "inAmount": str(amount), "outAmount": ""}
+        price_sol = c.price_usd / self.sol_usd  # SOL per whole token
+        keep = 1 - c.impact_pct / 100
+        if buy:
+            got = int(amount / 1e9 / price_sol * keep * 10 ** c.decimals)
+        else:
+            got = int(amount / 10 ** c.decimals * price_sol * keep * 1e9)
+        rid = f"r{next(self._ids)}"
+        order = {"requestId": rid, "inputMint": inp, "outputMint": out, "inAmount": str(amount), "outAmount": str(got),
+                 "priceImpact": -c.impact_pct, "priceImpactPct": str(-c.impact_pct / 100), "router": "iris",
+                 "slippageBps": int(q.get("slippageBps", 50)), "swapType": "aggregator", "transaction": None}
+        taker = q.get("taker")
+        if taker:
+            msg = MessageV0.try_compile(Pubkey.from_string(taker), [], [], Hash.default())
+            tx = VersionedTransaction.populate(msg, [Signature.default()])
+            order["transaction"] = base64.b64encode(bytes(tx)).decode()
+            self.orders[rid] = {**order, "taker": taker}
+        return order
+
+    def _execute(self, body: dict[str, Any]) -> dict[str, Any]:
+        o = self.orders.get(body["requestId"])
+        tx = VersionedTransaction.from_bytes(base64.b64decode(body["signedTransaction"]))
+        if o is None or not all(tx.verify_with_results()):
+            return {"status": "Failed", "code": -2, "error": "invalid signature"}
+        sig = str(tx.signatures[0])
+        if self.execute_error:
+            return {"status": "Failed", "code": -1, "error": self.execute_error, "signature": sig}
+        taker, a, b = o["taker"], int(o["inAmount"]), int(o["outAmount"])
+        ch = self.chain
+        if o["inputMint"] == SOL_MINT:
+            ch.lamports[taker] = ch.lamports.get(taker, 0) - a
+            ch.balances[(taker, o["outputMint"])] = ch.balances.get((taker, o["outputMint"]), 0) + b
+        else:
+            ch.balances[(taker, o["inputMint"])] = ch.balances.get((taker, o["inputMint"]), 0) - a
+            ch.lamports[taker] = ch.lamports.get(taker, 0) + b
+        ch.statuses[sig] = {"slot": 124, "err": None, "confirmationStatus": "confirmed"}
+        return {"status": "Success", "code": 0, "signature": sig, "slot": "124",
+                "totalInputAmount": str(a), "totalOutputAmount": str(b),
+                "inputAmountResult": str(a), "outputAmountResult": str(b)}
+
+
+def market_transport(chain: FakeSolana, *, supabase: list[dict[str, Any]] | None = None,
+                     fibbot: list[dict[str, Any]] | None = None, sol_usd: float = SOL_USD,
+                     seen: list[str] | None = None) -> httpx.MockTransport:
+    """DexScreener, GeckoTerminal (nothing), CoinGecko and the scanners' Supabase tables."""
+    def h(req: httpx.Request) -> httpx.Response:
+        url, host, path = str(req.url), req.url.host, req.url.path
+        if seen is not None:
+            seen.append(url)
+        if "dexscreener" in host:
+            if path.startswith("/token-pairs/v1/solana/"):
+                c = chain.coins.get(path.rsplit("/", 1)[-1])
+                return httpx.Response(200, json=[c.pair()] if c and c.dex else [])
+            if path.startswith("/tokens/v1/solana/"):
+                ms = path.rsplit("/", 1)[-1].split(",")
+                return httpx.Response(200, json=[chain.coins[m].pair() for m in ms
+                                                 if m in chain.coins and chain.coins[m].dex])
+            if path == "/latest/dex/search":
+                q = req.url.params.get("q", "").upper()
+                return httpx.Response(200, json={"pairs": [c.pair() for c in chain.coins.values()
+                                                           if c.symbol.upper() == q and c.dex]})
+        if "geckoterminal" in host:
+            return httpx.Response(404, json={})
+        if "coingecko" in host:
+            return httpx.Response(200, json={"solana": {"usd": sol_usd}})
+        if "supabase" in host:
+            if path.endswith("/alert_performance"):
+                if "chain=eq.solana" not in url:
+                    return httpx.Response(400, json={"message": "the test scanner only serves solana"})
+                rows_ = list(supabase or [])
+                if "select=id&" in url:
+                    return httpx.Response(200, json=[{"id": max((r["id"] for r in rows_), default=0)}])
+                return httpx.Response(200, json=rows_)
+            if path.endswith("/smart_money_calls"):
+                assert req.url.params.get("chain") == "eq.solana"
+                return httpx.Response(200, json=list(fibbot or []))
+        return httpx.Response(404)
+    return httpx.MockTransport(h)

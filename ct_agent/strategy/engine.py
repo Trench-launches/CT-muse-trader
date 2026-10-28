@@ -1,8 +1,13 @@
-"""Decision engine: screen -> brief Grok -> hard gates -> act -> post.
+"""The trading engine: smart-money calls in, Grok's read, a rule-based buy, rule-based exits, posts out.
 
-Grok can downgrade anything, but can never upgrade past a hard gate:
-screen blockers, onchain verification, evidence requirements, risk limits,
-slippage bounds and the kill switch all sit after Grok in the pipeline.
+Coins come from the scanner (sources/scanner.py). Grok analyses every new call and its read is posted, but the
+trade itself is a rule: a call is bought once the coin is up scanner_trigger_pct from the call (or the moment it
+lands, in buy-on-call mode). Nothing Grok says can force a buy: the kill switch, the risk limits and the price
+impact bound all sit between the rule and the swap. Exits are fixed rules too: a stop loss, a take-profit ladder
+(the stop moves to entry after the first rung) and a maximum hold.
+
+Every trade is one swap path on Solana: SOL for the coin and back, through Jupiter. Amounts are kept in whole SOL
+and whole tokens (floats); each coin's decimals come from the token cache.
 """
 from __future__ import annotations
 
@@ -12,171 +17,90 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..chain.abi import ZERO_ADDRESS
-from ..chain.pons import LaunchRecord, Phase
-from ..brain.grok import GrokDecision, GrokResult
+from ..chain import token as tok
+from ..chain.keys import SOL_MINT
+from ..chain.rpc import RpcError
 from ..context import Context
 from ..db import journal_append, journal_recent, kv_get, kv_set, rows, tx, utcnow
+from ..execution.jupiter import JupiterError
 from ..execution.live import LiveTradingBlocked
 from ..execution.paper import close_position, open_position, take_partial
-from ..execution.pricing import FillEstimate, curve_buy, curve_sell, pool_estimate
+from ..execution.pricing import FillEstimate, from_quote, pool_estimate
+from ..market import tokens
 from ..social import compose
 from ..social.outbox import enqueue
 from ..sources.store import evidence_for_token, independent_origins
-from .outcomes import record_call, spot_price
-from .screen import Candidate, activity_for, screen_almost_bonded, screen_migrated
+from ..units import QUOTE_SYMBOL, from_base, lamports, sol, to_base
+from .outcomes import record_call
+from .screen import Candidate, screen_token
 
 log = logging.getLogger(__name__)
-ETH = 10**18
-BUY_GRADE_CONFIDENCE = ("verified", "first_party", "reported")
-NO_EVIDENCE = "no source mentions this token yet, so there is nothing to act on"
+EST_FEE_BPS = 100  # pool fee assumed by the indicative estimate (pump.fun's curve takes about 1%)
 
 
 @dataclass
 class Assessed:
     cand: Candidate
-    launch: dict[str, Any]
-    record: LaunchRecord
-    pool: Any = None          # PoolStats for migrated
-    eth_usd: float | None = None
-    call: dict[str, Any] | None = None  # the scanner call this came from, if any
+    coin: dict[str, Any]                 # the token cache row (symbol, decimals, stage, dex_id, ...)
+    pool: Any = None                     # PoolStats of the coin's deepest SOL pool, if any
+    sol_usd: float | None = None
+    call: dict[str, Any] | None = None   # the scanner call this came from
+    info: tok.MintInfo | None = None
+    holders: dict[str, Any] | None = None
 
 
-# --- screening --------------------------------------------------------------
-
-def _meta(ctx: Context, launch: dict[str, Any]) -> dict[str, Any]:
-    if not launch.get("symbol"):
-        m = ctx.pons.token_meta(launch["token"])
-        ctx.conn.execute("UPDATE launches SET name=?, symbol=?, decimals=? WHERE token=?",
-                         (m.name, m.symbol, m.decimals, launch["token"]))
-        launch.update(name=m.name, symbol=m.symbol, decimals=m.decimals)
-    if launch.get("logo_url") is None:
-        logo = ctx.pons.token_logo(launch["token"])[:500]
-        ctx.conn.execute("UPDATE launches SET logo_url=? WHERE token=?", (logo, launch["token"]))
-        launch["logo_url"] = logo
-    if not launch.get("quote_symbol"):
-        # Many Pons launches are priced in Robinhood stock tokens or stablecoins
-        # (GLD, NVDA, META, USDG...), not ETH. Record which, once per token.
-        pair = (launch.get("pair_token") or "").lower()
-        if pair == ZERO_ADDRESS:
-            qs, qd = "ETH", 18
-        else:
-            q = ctx.pons.token_meta(launch["pair_token"])
-            qs, qd = (q.symbol or "ERC20"), q.decimals
-        ctx.conn.execute("UPDATE launches SET quote_symbol=?, quote_decimals=? WHERE token=?", (qs, qd, launch["token"]))
-        launch.update(quote_symbol=qs, quote_decimals=qd)
-    return launch
+def _symbol(ctx: Context, token: str) -> str:
+    row = ctx.conn.execute("SELECT symbol FROM tokens WHERE mint=?", (token,)).fetchone()
+    return (row["symbol"] if row else None) or "?"
 
 
-def assess_candidates(ctx: Context, extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
+def _decimals(ctx: Context, token: str) -> int:
+    return tokens.decimals(ctx, token)
+
+
+# --- assessing a call -------------------------------------------------------
+
+def _assess_call(ctx: Context, call: dict[str, Any], sol_usd: float | None, *, with_holders: bool = False) \
+        -> Assessed | None:
+    """Read one called coin: its mint, its deepest SOL pool, the screen (and its holders, for an analysis)."""
     s, conn = ctx.settings, ctx.conn
-    head = ctx.rpc.block_number()
-    bt = float((kv_get(conn, "block_time_s") or {}).get("value", 0.1))
+    mint = call["token"]
     try:
-        snipe_s = ctx.pons.snipe_tax()[1]
-    except Exception:
-        snipe_s = s.snipe_window_fallback_s
-    out: list[Assessed] = []
-
-    near = rows(conn, "SELECT * FROM launches WHERE last_phase=0 AND last_progress>=? "
-                      "ORDER BY last_progress DESC LIMIT 40", (s.almost_bonded_ratio,))
-    for l in near:
-        ok, why, rec = ctx.pons.verify_token(l["token"])
-        if not ok or rec is None:
-            continue
-        if rec.phase != Phase.NOT_GRADUATED:
-            conn.execute("UPDATE launches SET last_phase=? WHERE token=?", (int(rec.phase), l["token"]))
-            continue
-        l = _meta(ctx, l)
-        st = ctx.pons.curve_state(rec.curve)
-        conn.execute("UPDATE launches SET last_progress=?, fee_bps=?, creator_tax_bps=? WHERE token=?",
-                     (st.progress, st.fee_bps, st.creator_tax_bps, l["token"]))
-        act = activity_for(conn, l["token"], l["deployer"], head, bt, s.activity_windows_s)
-        c = screen_almost_bonded(s, token=l["token"], progress=st.progress, phase=int(rec.phase),
-                                 launch_age_s=(head - l["block_number"]) * bt, snipe_window_s=snipe_s,
-                                 fee_bps=st.fee_bps, creator_tax_bps=st.creator_tax_bps, activity=act,
-                                 quote_symbol=l["quote_symbol"])
-        out.append(Assessed(c, l, rec))
-
-    migrated = rows(conn, "SELECT * FROM launches WHERE last_phase=2 ORDER BY COALESCE(last_trade_block, block_number) "
-                          "DESC LIMIT 25")
-    eth_usd = ctx.market.eth_usd() if migrated else None
-    for l in migrated:
-        a = _assess_migrated(ctx, l, eth_usd)
-        if a:
-            out.append(a)
-    return _shortlist(ctx, out, extra)
-
-
-def _shortlist(ctx: Context, out: list[Assessed], extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
-    s, conn = ctx.settings, ctx.conn
-    eligible = sorted((a for a in out if a.cand.eligible), key=lambda a: a.cand.score, reverse=True)
-    # the research worker reads this list: coins still waiting on their move go on it too, so their X
-    # research is ready by the time they trigger
-    kv_set(conn, "candidates", [{"token": a.cand.token, "symbol": a.launch.get("symbol"), "stage": a.cand.stage,
-                                 "score": a.cand.score, "progress": a.cand.progress} for a in eligible[:20]]
-           + (extra or []))
-    journal_append(conn, "screen_cycle", {"assessed": len(out), "eligible": len(eligible),
-                                          "top": [a.cand.token for a in eligible[:5]]})
-    return eligible[: s.candidates_per_cycle]
-
-
-def _assess_migrated(ctx: Context, l: dict[str, Any], eth_usd: float | None) -> Assessed | None:
-    """Screen one graduated coin on its genuine Pons pool."""
-    s, conn = ctx.settings, ctx.conn
-    ok, why, rec = ctx.pons.verify_token(l["token"])
-    if not ok or rec is None or rec.phase != Phase.POOL_CREATED:
+        info = tok.mint_info(ctx.rpc, mint)
+    except RpcError as exc:
+        log.warning("mint read for %s failed: %s", mint, exc)
         return None
-    l = _meta(ctx, l)
-    pid = l.get("pool_id") or ctx.pons.genuine_pool_id(rec)
-    if not l.get("pool_id"):
-        conn.execute("UPDATE launches SET pool_id=?, pool_fee=?, tick_spacing=?, last_phase=2 WHERE token=?",
-                     (pid, rec.pool_fee, rec.tick_spacing, l["token"]))
-    pool = ctx.market.genuine_pool_stats(l["token"], pid)
+    if not info.exists:
+        return None
+    try:
+        pool = ctx.market.pool_stats(mint)
+    except Exception as exc:  # market data is indicative: the buy itself is priced by a Jupiter quote
+        log.warning("pool stats for %s unavailable: %s", mint, exc)
+        pool = None
+    coin = tokens.ensure(ctx, mint, info=info, pool=pool) or {"mint": mint, "decimals": info.decimals}
+    if info.decimals is not None:
+        kv_set(conn, f"supply:{mint}", from_base(info.supply, info.decimals))
     if pool:
         conn.execute("INSERT INTO market_snapshots(token,ts,source,pool_address,price_usd,volume_h1_usd,"
                      "volume_h24_usd,liquidity_usd,txns_h1) VALUES(?,?,?,?,?,?,?,?,?)",
-                     (l["token"], utcnow(), pool.source, pid, pool.price_usd, pool.volume_h1_usd,
+                     (mint, utcnow(), pool.source, pool.pool_id, pool.price_usd, pool.volume_h1_usd,
                       pool.volume_h24_usd, pool.liquidity_usd, pool.txns_h1))
-    fee = l.get("fee_bps") or 100
-    c = screen_migrated(s, token=l["token"], phase=int(rec.phase), pool_found=pool is not None,
-                        volume_h1_usd=pool.volume_h1_usd if pool else None,
-                        liquidity_usd=pool.liquidity_usd if pool else None,
-                        volume_h24_usd=pool.volume_h24_usd if pool else None,
-                        fee_bps=fee, creator_tax_bps=rec.creator_tax_bps, activity=None,
-                        quote_symbol=l["quote_symbol"])
-    return Assessed(c, l, rec, pool, eth_usd)
-
-
-def _ensure_launch(ctx: Context, token: str) -> dict[str, Any] | None:
-    """The launches row for a coin the scanner found. Coins launched before VIGIL's index started are
-    added from their onchain record (block = now, so no history is replayed for them)."""
-    conn = ctx.conn
-    row = conn.execute("SELECT * FROM launches WHERE token=? COLLATE NOCASE", (token,)).fetchone()
-    if row:
-        return dict(row)
-    rec = ctx.pons.launch_record(token)
-    if not rec.exists:
-        return None
-    eth = rec.pair_token.lower() == ZERO_ADDRESS
-    conn.execute("INSERT OR IGNORE INTO launches(token,curve,deployer,pair_token,launch_config_id,graduation_threshold,"
-                 "block_number,tx_hash,first_seen,quote_symbol,quote_decimals,last_phase,last_progress) "
-                 "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                 (rec.token, rec.curve, rec.deployer, rec.pair_token, 0, str(rec.graduation_threshold),
-                  ctx.rpc.block_number(), "scanner", utcnow(), "ETH" if eth else None, 18 if eth else None,
-                  int(rec.phase), 1.0 if rec.phase == Phase.POOL_CREATED else 0.0))
-    row = conn.execute("SELECT * FROM launches WHERE token=?", (rec.token,)).fetchone()
-    return dict(row) if row else None
-
-
-def _assess_call(ctx: Context, call: dict[str, Any], eth_usd: float | None) -> Assessed | None:
-    l = _ensure_launch(ctx, call["token"])
-    a = _assess_migrated(ctx, l, eth_usd) if l else None
-    if a:
-        a.call = call
-        if call.get("last_move_pct") is not None:
-            a.cand.metrics["move_since_call_pct"] = call["last_move_pct"]
-    return a
+    holders = None
+    if with_holders:
+        try:
+            holders = tok.holder_facts(ctx.rpc, mint, supply=info.supply, creator=coin.get("creator"))
+            if holders.get("error"):
+                holders = None
+        except Exception as exc:  # a failed read never blocks an analysis; the gate just can't apply
+            log.warning("holders unavailable for %s: %s", mint, exc)
+    c = screen_token(s, token=mint, stage=coin.get("stage"), pool_found=pool is not None,
+                     volume_h1_usd=pool.volume_h1_usd if pool else None,
+                     liquidity_usd=pool.liquidity_usd if pool else None,
+                     volume_h24_usd=pool.volume_h24_usd if pool else None,
+                     safety=tok.safety_blockers(info, s.max_transfer_fee_bps), holders=holders)
+    if call.get("last_move_pct") is not None:
+        c.metrics["move_since_call_pct"] = call["last_move_pct"]
+    return Assessed(c, coin, pool, sol_usd, call, info, holders)
 
 
 def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
@@ -195,7 +119,7 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
     except Exception as exc:  # Fibbot's Supabase down: the main scanner's calls still come through
         log.warning("fibbot fetch failed: %s", exc)
     ready = scanner.refresh(ctx)
-    eth_usd = ctx.market.eth_usd()
+    sol_usd = ctx.market.sol_usd()
     out: list[dict[str, Any]] = []
     ready_ids = {c["id"] for c in ready}
     # calls that arrive already up get analysed first, so the buy post can use Grok's read
@@ -206,17 +130,17 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
             did = analyse_untradeable(ctx, call)
             out.append({"token": call["token"], "analysed": did, "tradeable": False})
             continue
-        a = _assess_call(ctx, call, eth_usd)
+        a = _assess_call(ctx, call, sol_usd, with_holders=True)
         if a:
             did = analyse_call(ctx, a)
             call["decision_id"] = did
             out.append({"token": a.cand.token, "analysed": did})
     if not s.scanner_buy_on_call:  # in buy-on-call mode the fast caller loop does the buying
         for call in ready:
-            a = _assess_call(ctx, call, eth_usd)
+            a = _assess_call(ctx, call, sol_usd)
             if a:
                 out.append(buy_call(ctx, a))
-    waiting = [{"token": c["token"], "symbol": c["symbol"], "stage": "scanner_call", "score": 0, "progress": None}
+    waiting = [{"token": c["token"], "symbol": c["symbol"], "stage": "scanner_call", "score": 0}
                for c in rows(conn, "SELECT token, symbol FROM scanner_calls WHERE status='watching' AND pool_id IS NOT NULL "
                                    "ORDER BY id DESC LIMIT 10")]
     kv_set(conn, "candidates", waiting)  # the research worker gathers X chatter on these
@@ -224,22 +148,19 @@ def scanner_cycle(ctx: Context) -> list[dict[str, Any]]:
 
 
 def _dex_stats(ctx: Context, token: str) -> dict[str, Any]:
-    """The coin's most liquid pool on DexScreener, for coins outside the Pons ETH pools."""
+    """The coin's deepest SOL pool on DexScreener, for a call VIGIL can't trade."""
     try:
-        r = ctx.market._http.get(f"https://api.dexscreener.com/tokens/v1/{ctx.settings.dexscreener_chain}/{token}")
-        r.raise_for_status()
-        pairs = sorted(r.json() or [], key=lambda p: float((p.get("liquidity") or {}).get("usd") or 0), reverse=True)
+        p = ctx.market.pool_stats(token)
     except Exception as exc:
-        log.warning("dexscreener unavailable for %s: %s", token, exc)
+        log.warning("market data unavailable for %s: %s", token, exc)
         return {}
-    if not pairs:
+    if not p:
         return {}
-    p = pairs[0]
-    return {"source": "dexscreener", "dex": p.get("dexId"), "quote": (p.get("quoteToken") or {}).get("symbol"),
-            "name": (p.get("baseToken") or {}).get("name"), "price_usd": p.get("priceUsd"),
-            "market_cap_usd": p.get("marketCap"), "liquidity_usd": (p.get("liquidity") or {}).get("usd"),
-            "volume_usd": p.get("volume"), "price_change_pct": p.get("priceChange"), "txns": p.get("txns"),
-            "note": "aggregator data, indicative only"}
+    raw = p.raw if isinstance(p.raw, dict) else {}
+    return {"source": p.source, "dex": p.dex_id, "name": (raw.get("baseToken") or {}).get("name"),
+            "price_usd": p.price_usd, "market_cap_usd": p.market_cap_usd, "liquidity_usd": p.liquidity_usd,
+            "volume_h1_usd": p.volume_h1_usd, "volume_h24_usd": p.volume_h24_usd,
+            "price_change_pct": raw.get("priceChange"), "txns": raw.get("txns"), "note": "aggregator data, indicative only"}
 
 
 def analyse_untradeable(ctx: Context, call: dict[str, Any]) -> int:
@@ -251,7 +172,7 @@ def analyse_untradeable(ctx: Context, call: dict[str, Any]) -> int:
     facts = call_facts(call, s.scanner_trigger_pct)
     facts["rule"] = (f"VIGIL can't trade this coin ({call.get('note') or 'not tradeable'}), so it won't buy it. "
                      "Your job is only the analysis: what the coin is, why smart money may be in, what could go wrong.")
-    pack = {"token": token, "symbol": symbol, "chain": "Robinhood Chain (4663)", "tradeable_by_vigil": False,
+    pack = {"token": token, "symbol": symbol, "chain": "Solana", "tradeable_by_vigil": False,
             "why_not_tradeable": call.get("note"), "scanner_call": facts, "market": _dex_stats(ctx, token),
             "lore": _lore(ctx, token), "evidence": [], "limits": {"mode": s.trading_mode.value}}
     return _record_analysis(ctx, token, symbol, pack, call, None)
@@ -259,7 +180,7 @@ def analyse_untradeable(ctx: Context, call: dict[str, Any]) -> int:
 
 def analyse_call(ctx: Context, a: Assessed) -> int:
     """Grok's read on a new smart-money call: recorded, and posted to the radar. It does not decide the trade."""
-    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
+    token, symbol = a.cand.token, a.coin.get("symbol") or (a.call or {}).get("symbol") or "?"
     return _record_analysis(ctx, token, symbol, build_pack(ctx, a), a.call, a)
 
 
@@ -310,8 +231,7 @@ def _record_analysis(ctx: Context, token: str, symbol: str, pack: dict[str, Any]
 def _post_read_under_buy(ctx: Context, token: str, symbol: str, did: int, d: Any) -> None:
     """In buy-on-call mode the buy goes first; Grok's read on the coin follows as a reply under the BOUGHT post."""
     conn = ctx.conn
-    pos = conn.execute("SELECT id, mode FROM positions WHERE lower(token)=lower(?) ORDER BY id DESC LIMIT 1",
-                       (token,)).fetchone()
+    pos = conn.execute("SELECT id, mode FROM positions WHERE token=? ORDER BY id DESC LIMIT 1", (token,)).fetchone()
     if not pos:
         return
     enqueue(conn, compose.buy_read(symbol=symbol, token=token, key=f"analysis:{did}",
@@ -326,7 +246,7 @@ def caller_once(ctx: Context) -> list[dict[str, Any]]:
     the rest of the trading cycle run in the slower trader loop."""
     from ..sources import scanner
     s = ctx.settings
-    if s.candidate_source != "scanner" or not s.scanner_buy_on_call or ctx.risk.kill_active()[0]:
+    if not s.scanner_buy_on_call or ctx.risk.kill_active()[0]:
         return []
     try:
         if s.scanner_main_enabled:
@@ -336,59 +256,63 @@ def caller_once(ctx: Context) -> list[dict[str, Any]]:
         log.warning("caller fetch failed: %s", exc)
     out = []
     ready = scanner.refresh(ctx)
-    eth_usd = ctx.market.eth_usd() if ready else None  # cached for 5 minutes
+    sol_usd = ctx.market.sol_usd() if ready else None  # cached for 5 minutes
     for call in ready:
-        a = _assess_call(ctx, call, eth_usd)
+        a = _assess_call(ctx, call, sol_usd)
         if a:
             out.append(buy_call(ctx, a))
     return out
 
 
-def account_eth(ctx: Context) -> float | None:
-    """What the account is worth for sizing: live, the wallet's ETH plus open trades at cost; paper, the
+def account_sol(ctx: Context) -> float | None:
+    """What the account is worth for sizing: live, the wallet's SOL plus open trades at cost; paper, the
     starting balance plus closed P&L. None if the wallet can't be read."""
     s, risk = ctx.settings, ctx.risk
     if s.trading_mode.value == "paper":
-        return risk.paper_cash_eth() + risk.exposure_eth("paper")
+        return risk.paper_cash_sol() + risk.exposure_sol("paper")
     if not ctx.live.wallet:
         return None
     try:
-        return ctx.rpc.get_balance(ctx.live.wallet) / ETH + risk.exposure_eth("live")
+        return sol(ctx.rpc.get_balance(ctx.live.wallet)) + risk.exposure_sol("live")
     except Exception as exc:
         log.warning("wallet balance unavailable: %s", exc)
         return None
 
 
 def _trade_size(ctx: Context) -> float | None:
-    """position_size_pct of the account (capped by max_position_eth in the risk check), else None = the max."""
+    """position_size_pct of the account (capped by max_position_sol in the risk check), else None = the max."""
     pct = ctx.settings.position_size_pct
     if pct <= 0:
         return None
-    acct = account_eth(ctx)
+    acct = account_sol(ctx)
     return round(acct * pct / 100, 6) if acct else 0.0
 
 
 def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
-    """The +30% rule fired: buy. Only the wallet's safety limits can stop it."""
+    """The +30% rule fired: buy. Only the wallet's safety limits (and the price impact bound) can stop it."""
     s, conn = ctx.settings, ctx.conn
-    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
-    move = a.call.get("last_move_pct") or 0
-    verdict = ctx.risk.check_entry(token=token, quote_symbol="ETH", mode=s.trading_mode.value,
-                                   desired_eth=_trade_size(ctx))
+    token, symbol = a.cand.token, a.coin.get("symbol") or (a.call or {}).get("symbol") or "?"
+    move = (a.call or {}).get("last_move_pct") or 0
+    verdict = ctx.risk.check_entry(token=token, quote_symbol=QUOTE_SYMBOL, mode=s.trading_mode.value,
+                                   desired_sol=_trade_size(ctx))
     gates = list(verdict.reasons)
-    if s.trading_mode.value == "paper" and (a.pool is None or not a.pool.price_native or not a.pool.liquidity_usd
-                                              or not a.eth_usd):
-        gates.append("pool price unavailable this cycle")  # a paper fill needs it; live buys use the onchain quote
+    fill = None
+    if not gates and s.trading_mode.value == "paper":
+        fill = _fill_for(ctx, a, verdict.size_sol)
+        if fill is None:
+            gates.append("no price for a paper fill this cycle")  # live buys use their own Jupiter order
+        elif fill.price_impact_bps > s.max_slippage_bps:
+            gates.append(f"price impact {fill.price_impact_bps} bps > {s.max_slippage_bps}")
     if gates:
         journal_append(conn, "scanner_buy_held", {"token": token, "symbol": symbol, "move_pct": move, "why": gates},
                        ref=token)
         return {"token": token, "action": "held", "gates": gates}
-    prior = conn.execute("SELECT thesis, risks FROM decisions WHERE id=?", (a.call.get("decision_id"),)).fetchone()         if a.call.get("decision_id") else None
+    prior = conn.execute("SELECT thesis, risks FROM decisions WHERE id=?", (a.call.get("decision_id"),)).fetchone() \
+        if a.call and a.call.get("decision_id") else None
     risks = (json.loads(prior["risks"] or "[]") if prior else []) or ["a memecoin can go to zero fast"]
     thesis = (prior["thesis"] if prior else "") or "smart money called it"
     reasons = (["bought on the smart-money call"] if s.scanner_buy_on_call
                else [f"up {move:.0f}% since the smart-money call (buy rule: +{s.scanner_trigger_pct:g}%)"])
-    fill = _fill_for(ctx, a, verdict.size_eth) if a.pool and a.pool.price_native and a.pool.liquidity_usd and a.eth_usd else None
     with tx(conn):
         cur = conn.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,"
                            "model,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
@@ -398,14 +322,9 @@ def buy_call(ctx: Context, a: Assessed) -> dict[str, Any]:
         journal_append(conn, "decision", {"decision_id": did, "token": token, "symbol": symbol, "stage": "scanner_trigger",
                                           "action": "buy", "rule": f"+{s.scanner_trigger_pct:g}% from call",
                                           "move_pct": move, "gates": [], "reasons": reasons}, ref=token, in_tx=True)
-    res = _enter(ctx, a, did, fill, verdict.size_eth, [], risks, {"evidence": []},
+    res = _enter(ctx, a, did, fill, verdict.size_sol, [], risks, {"evidence": []},
                  catalyst="a smart-money call" if s.scanner_buy_on_call else f"a smart-money call, up {move:.0f}% since")
     return {"token": token, "decision_id": did, "action": "buy", **res}
-
-
-def assess(ctx: Context, extra: list[dict[str, Any]] | None = None) -> list[Assessed]:
-    """The Pons auto-scan's candidates (scanner calls run through scanner_cycle; both can run together)."""
-    return assess_candidates(ctx, extra)
 
 
 # --- briefing pack ----------------------------------------------------------
@@ -415,28 +334,33 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
     ev = evidence_for_token(conn, a.cand.token)
     for e in ev:
         e["independent_origins"] = independent_origins(conn, e["claim_key"]) if e.get("claim_key") else 1
-    attention = kv_get(conn, f"x_attention:{a.cand.token.lower()}")
+    attention = kv_get(conn, f"x_attention:{a.cand.token}")
     past = [{"ts": j["ts"], "kind": j["kind"], "payload": j["payload"]}
             for j in journal_recent(conn, ref=a.cand.token, limit=10)]
     # losses since the scorecard reset only: the testing-phase trades before it aren't lessons for live trading
     mistakes = rows(conn, "SELECT token, exit_reason, pnl_quote, closed_at FROM positions WHERE status='closed' "
                           "AND pnl_quote<0 AND opened_at>=? ORDER BY id DESC LIMIT 5", (s.score_since,))
-    quote = a.launch.get("quote_symbol") or "ERC20"
+    info = a.info
     pack: dict[str, Any] = {
-        "token": a.cand.token, "symbol": a.launch.get("symbol"), "name": a.launch.get("name"),
-        "chain": "Robinhood Chain (4663)", "launchpad": "Pons V2", "stage": a.cand.stage,
-        "phase": Phase(a.cand.phase).name, "curve_progress": a.cand.progress, "quote_asset": quote,
-        "fees": {"curve_fee_bps": a.launch.get("fee_bps"), "creator_tax_bps": a.record.creator_tax_bps},
-        "screen": {"score": a.cand.score, "flags": a.cand.flags, "metrics": a.cand.metrics},
+        "token": a.cand.token, "symbol": a.coin.get("symbol"), "name": a.coin.get("name"),
+        "chain": "Solana", "quote_asset": QUOTE_SYMBOL,
+        "where_it_trades": {"stage": a.cand.stage, "dex": a.coin.get("dex_id"),
+                            "meaning": {"curve": "still on its launchpad bonding curve (e.g. pump.fun)",
+                                        "pool": "graduated to a pool (e.g. PumpSwap, Raydium)"}.get(a.cand.stage or "",
+                                                                                                  "unknown")},
+        "mint_safety": {"red_flags": tok.safety_blockers(info, s.max_transfer_fee_bps) if info else [],
+                        "token_program": ("Token-2022" if info.is_token_2022 else "SPL Token") if info else None},
+        "screen": {"score": a.cand.score, "flags": a.cand.flags, "blockers": a.cand.blockers,
+                   "metrics": a.cand.metrics},
         "x_attention_24h": attention,
         "evidence": [{k: e.get(k) for k in ("id", "kind", "author", "channel", "published_at", "confidence",
                                              "origin_url", "excerpt", "independent_origins")} for e in ev],
         "past_journal_for_token": past,
         "recent_losing_trades": mistakes,
-        "limits": {"max_position_eth": s.max_position_eth, "mode": s.trading_mode.value},
+        "limits": {"max_position_sol": s.max_position_sol, "mode": s.trading_mode.value},
         "rules": {"verified_source_required": s.min_independent_sources_for_buy > 0},
-        "fees_and_size": _fee_facts(ctx, a),
-        "holders": pool_holder_facts(ctx, a.launch) if a.cand.stage == "migrated" else holder_facts(ctx, a.launch),
+        "market_cap_usd": (round(a.pool.market_cap_usd) if a.pool and a.pool.market_cap_usd else None),
+        "holders": a.holders,
         "lore": _lore(ctx, a.cand.token),
     }
     if a.call:
@@ -448,14 +372,14 @@ def build_pack(ctx: Context, a: Assessed) -> dict[str, Any]:
                 "honest read: what the coin is, why smart money may be in, what could go wrong. Don't say you are "
                 "watching, waiting or passing; the position is open.")
     if a.pool:
-        pack["pool_indicative"] = {"source": a.pool.source, "volume_h1_usd": a.pool.volume_h1_usd,
+        pack["pool_indicative"] = {"source": a.pool.source, "dex": a.pool.dex_id, "volume_h1_usd": a.pool.volume_h1_usd,
                                    "volume_h24_usd": a.pool.volume_h24_usd, "liquidity_usd": a.pool.liquidity_usd,
-                                   "price_native": a.pool.price_native, "eth_usd": a.eth_usd,
+                                   "trades_h1": a.pool.txns_h1, "price_sol": a.pool.price_native, "sol_usd": a.sol_usd,
                                    "note": "aggregator data, indicative only"}
     return pack
 
 
-# --- decide & act -----------------------------------------------------------
+# --- posts ------------------------------------------------------------------
 
 def _thread(conn, token: str, kind: str) -> tuple[bool, str | None]:
     """(skip, reply_to_key) for a new call on a token. The same call twice in
@@ -472,124 +396,29 @@ def _thread(conn, token: str, kind: str) -> tuple[bool, str | None]:
     return prev["kind"] == kind and kind != "trade_entry", prev["idempotency_key"]
 
 
-def _market_cap_usd(ctx: Context, token: str, price_eth: float | None) -> float | None:
-    """Market cap in USD: price x total supply x ETH/USD. None when any part is unknown."""
+def _market_cap_usd(ctx: Context, token: str, price_sol: float | None) -> float | None:
+    """Market cap in USD: price (SOL) x supply x SOL/USD. None when any part is unknown."""
     try:
-        if not price_eth:
+        if not price_sol:
             return None
-        row = ctx.conn.execute("SELECT decimals, quote_symbol FROM launches WHERE token=?", (token,)).fetchone()
-        if row and row["quote_symbol"] and row["quote_symbol"] != "ETH":
-            return None  # priced in a stock token or stablecoin: the price isn't in ETH
-        supply = kv_get(ctx.conn, f"supply:{token.lower()}")
+        supply = kv_get(ctx.conn, f"supply:{token}")
         if supply is None:
-            dec = row["decimals"] if row and row["decimals"] is not None else 18
-            supply = ctx.pons.total_supply(token) / 10 ** dec
-            kv_set(ctx.conn, f"supply:{token.lower()}", supply)
-        eth = ctx.market.eth_usd()
-        return price_eth * supply * eth if eth else None
+            info = tok.mint_info(ctx.rpc, token)
+            if not info.exists:
+                return None
+            supply = from_base(info.supply, info.decimals)
+            kv_set(ctx.conn, f"supply:{token}", supply)
+        usd = ctx.market.sol_usd()
+        return price_sol * supply * usd if usd else None
     except Exception as exc:  # a missing figure must never block a post or a trade
         log.warning("market cap unavailable for %s: %s", token, exc)
         return None
 
 
-def _market_cap(ctx: Context, token: str, price_eth: float | None) -> str:
+def _market_cap(ctx: Context, token: str, price_sol: float | None) -> str:
     """Live market cap for a post, e.g. '$42.1K'. '' when unknown, so a post never shows an invented figure."""
-    mc = _market_cap_usd(ctx, token, price_eth)
+    mc = _market_cap_usd(ctx, token, price_sol)
     return compose.usd_compact(mc) if mc else ""
-
-
-def fees_paid_eth(ctx: Context, launch: dict[str, Any]) -> float | None:
-    """Trading fees + creator tax traders have paid on the coin's curve over its whole life, in ETH.
-    Read from the chain's own trade events, cached, and extended from the last block read."""
-    try:
-        token = launch["token"]
-        key = f"fees_paid:{token.lower()}"
-        st = kv_get(ctx.conn, key) or {"to": int(launch["block_number"]) - 1, "wei": "0", "trades": 0}
-        head = ctx.rpc.block_number()
-        if head > st["to"]:
-            fee, n = ctx.pons.curve_fees(launch["curve"], st["to"] + 1, head, ctx.settings.launch_log_chunk_blocks)
-            st = {"to": head, "wei": str(int(st["wei"]) + fee), "trades": st["trades"] + n}
-            kv_set(ctx.conn, key, st)
-        return int(st["wei"]) / ETH
-    except Exception as exc:  # never let a failed read block a decision; the gate just can't apply
-        log.warning("fees paid unavailable for %s: %s", launch.get("token"), exc)
-        return None
-
-
-DEAD = {"0x0000000000000000000000000000000000000000", "0x000000000000000000000000000000000000dead"}
-
-
-def holder_facts(ctx: Context, launch: dict[str, Any]) -> dict[str, Any] | None:
-    """Who holds the supply: rebuilt from the token's own Transfer events (cached, extended from the last
-    block read). The curve, the pool manager, the hook, burn addresses and the token itself don't count."""
-    try:
-        token = launch["token"]
-        key = f"holders:{token.lower()}"
-        st = kv_get(ctx.conn, key) or {"to": int(launch["block_number"]) - 1, "bal": {}}
-        head = ctx.rpc.block_number()
-        if head > st["to"]:
-            bal = {a: int(v) for a, v in st["bal"].items()}
-            for frm, to, amt in ctx.pons.token_transfers(token, st["to"] + 1, head, ctx.settings.launch_log_chunk_blocks):
-                bal[frm] = bal.get(frm, 0) - amt
-                bal[to] = bal.get(to, 0) + amt
-            st = {"to": head, "bal": {a: str(v) for a, v in bal.items() if v > 0}}
-            kv_set(ctx.conn, key, st)
-        supply = ctx.pons.total_supply(token)
-        if not supply:
-            return None
-        skip = set(DEAD) | {token.lower(), str(launch.get("curve") or "").lower()}
-        for getter in (ctx.pons.pool_manager, ctx.pons.meme_hook):
-            try:
-                skip.add(getter().lower())
-            except Exception:
-                pass
-        wallets = sorted((int(v) for a, v in st["bal"].items() if a not in skip), reverse=True)
-        dev = int(st["bal"].get(str(launch.get("deployer") or "").lower(), 0))
-        return {"holders": len(wallets), "top10_share": round(sum(wallets[:10]) / supply, 4),
-                "top_wallet_share": round((wallets[0] if wallets else 0) / supply, 4),
-                "deployer_share": round(dev / supply, 4)}
-    except Exception as exc:  # a failed read never blocks a decision; the gate just can't apply
-        log.warning("holders unavailable for %s: %s", launch.get("token"), exc)
-        return None
-
-
-def pool_holder_facts(ctx: Context, launch: dict[str, Any]) -> dict[str, Any] | None:
-    """Holders of a graduated coin, without replaying its whole transfer history: GeckoTerminal's holder
-    count and top-10 share, less what Uniswap's pool manager holds (the pool itself, counted there as a
-    holder), and the deployer's balance read onchain."""
-    try:
-        token = launch["token"]
-        r = ctx.market._http.get(f"https://api.geckoterminal.com/api/v2/networks/{ctx.settings.geckoterminal_network}"
-                                 f"/tokens/{token}/info")
-        r.raise_for_status()
-        h = ((r.json().get("data") or {}).get("attributes") or {}).get("holders") or {}
-        top10 = float((h.get("distribution_percentage") or {}).get("top_10")) / 100
-        supply = ctx.pons.total_supply(token)
-        if not supply:
-            return None
-        pool = ctx.pons.erc20_balance(token, ctx.pons.pool_manager()) / supply
-        dev = ctx.pons.erc20_balance(token, launch["deployer"]) / supply if launch.get("deployer") else 0.0
-        return {"holders": int(h.get("count") or 0), "top10_share": round(max(0.0, top10 - pool), 4),
-                "deployer_share": round(dev, 4), "pool_share": round(pool, 4), "source": "geckoterminal"}
-    except Exception as exc:  # a failed read never blocks a decision by itself; the gate just can't apply
-        log.warning("pool holders unavailable for %s: %s", launch.get("token"), exc)
-        return None
-
-
-def _fee_facts(ctx: Context, a: Assessed) -> dict[str, Any]:
-    """Market cap and lifetime fees paid, for Grok and for the thin-chart gate."""
-    try:
-        price = spot_price(ctx, a.cand.token)[0]
-    except Exception:
-        price = None
-    # graduated coins: the pool's last 24h only (replaying a weeks-old curve's whole history is too slow)
-    fees = 0.0 if a.cand.stage == "migrated" else fees_paid_eth(ctx, a.launch)
-    if fees is not None and a.pool and a.pool.volume_h24_usd and a.eth_usd:
-        # graduated: add what the pool took in the last 24h (its lifetime isn't readable cheaply)
-        rate = (a.cand.metrics.get("trade_fee_bps") or 0) / 10_000
-        fees += a.pool.volume_h24_usd * rate / a.eth_usd
-    mc = _market_cap_usd(ctx, a.cand.token, price)
-    return {"market_cap_usd": round(mc) if mc else None, "trading_fees_paid_eth": round(fees, 4) if fees is not None else None}
 
 
 def _lore(ctx: Context, token: str) -> dict[str, Any]:
@@ -602,202 +431,67 @@ def _lore(ctx: Context, token: str) -> dict[str, Any]:
         return {}
 
 
-def _awaiting_research(ctx: Context, token: str) -> bool:
-    """True while a newly shortlisted token has no X research yet, for up to
-    research_wait_min. Deciding before the research exists would turn every
-    new token into an automatic 'no evidence' pass."""
-    if not ctx.settings.x_bearer_token or kv_get(ctx.conn, f"x_attention:{token.lower()}"):
-        return False
-    key = f"first_shortlisted:{token.lower()}"
-    first = kv_get(ctx.conn, key)
-    if not first:
-        kv_set(ctx.conn, key, utcnow())
-        return True
-    age = (datetime.now(timezone.utc) - datetime.fromisoformat(first)).total_seconds() / 60
-    return age < ctx.settings.research_wait_min
+# --- entries ----------------------------------------------------------------
 
-
-def _recent_decision(ctx: Context, token: str) -> bool:
-    since = (datetime.now(timezone.utc) - timedelta(minutes=ctx.settings.decision_cooldown_min)).isoformat()
-    return ctx.conn.execute("SELECT 1 FROM decisions WHERE token=? AND ts>=? LIMIT 1", (token, since)).fetchone() \
-        is not None
-
-
-def _fill_for(ctx: Context, a: Assessed, size_eth: float) -> FillEstimate:
-    fee = a.launch.get("fee_bps") or 100
-    if a.cand.stage == "almost_bonded":
-        q, t = ctx.pons.curve_reserves(a.record.curve)
-        return curve_buy(int(size_eth * ETH), q, t, fee, a.record.creator_tax_bps)
-    p = a.pool
-    return pool_estimate(size_eth, p.price_native, p.liquidity_usd, a.eth_usd or 0, fee + a.record.creator_tax_bps)
-
-
-def decide_and_act(ctx: Context, a: Assessed) -> dict[str, Any]:
-    conn, s = ctx.conn, ctx.settings
-    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
-    if _recent_decision(ctx, token):
-        return {"token": token, "skipped": "cooldown"}
-    if _awaiting_research(ctx, token):
-        return {"token": token, "skipped": "waiting for X research"}
-    pack = build_pack(ctx, a)
-    no_source_ok = not s.min_independent_sources_for_buy
-    if pack["evidence"] or (no_source_ok and a.cand.eligible):
-        res = ctx.brain.decide(pack)
-    else:
-        # Nothing Grok could buy: no source when one is required, or no source and the screen already
-        # blocks it. Recording the pass without asking Grok saves a paid call per token.
-        why = "screen blockers: " + "; ".join(a.cand.blockers) if no_source_ok else NO_EVIDENCE
-        res = GrokResult(GrokDecision(action="pass", confidence=1.0, thesis="", reasons=[why], risks=[],
-                                      evidence_ids=[], underfollowed=None, post_angle="", public_line=""),
-                         raw="", model="rule", prompt_hash="")
-    gates: list[str] = []
-    if res.decision is None:
-        action, conf, thesis, reasons, risks, used = "watch", 0.0, "", [res.error or "no decision"], [], []
-    else:
-        d = res.decision
-        action, conf, thesis, reasons, risks, used = d.action, d.confidence, d.thesis, d.reasons, d.risks, d.evidence_ids
-
-    if action == "buy":
-        provided = {e["id"]: e for e in pack["evidence"]}
-        cited = [provided[i] for i in used if i in provided]
-        if len(cited) != len(used):
-            gates.append("Grok cited evidence ids that were not provided")
-        # Rumors and chat can motivate a watch, never a buy on their own.
-        independent = {e.get("origin_url") for e in cited if e["confidence"] in BUY_GRADE_CONFIDENCE}
-        if len(independent) < s.min_independent_sources_for_buy:
-            gates.append(f"needs {s.min_independent_sources_for_buy} verified/first-party/reported source(s)")
-        if not a.cand.eligible:
-            gates.append("screen blockers: " + "; ".join(a.cand.blockers))
-        if not risks:
-            gates.append("no concrete risk named")
-        fz = pack.get("fees_and_size") or {}
-        mc, paid = fz.get("market_cap_usd"), fz.get("trading_fees_paid_eth")
-        # both guards fail safe: if the chain can't be read right now, don't buy (a later cycle can)
-        if s.min_fees_paid_eth > 0 and paid is None:
-            gates.append("couldn't check the fees traders have paid")
-        elif mc and paid is not None and mc > s.fee_check_mc_usd and paid < s.min_fees_paid_eth:
-            gates.append(f"only {paid:.3f} ETH of trading fees paid at a ${mc:,.0f} market cap: thin or botted chart")
-        hs = pack.get("holders") or {}
-        if not hs:
-            gates.append("couldn't check who holds the supply")
-        if hs.get("deployer_share", 0) > s.max_deployer_hold_share:
-            gates.append(f"the deployer still holds {hs['deployer_share']:.0%} of the supply")
-        if hs.get("top10_share", 0) > s.max_top10_hold_share:
-            gates.append(f"the 10 biggest wallets hold {hs['top10_share']:.0%} of the supply")
-        verdict = ctx.risk.check_entry(token=token, quote_symbol=a.launch.get("quote_symbol") or "", mode=s.trading_mode.value,
-                                       desired_eth=_trade_size(ctx))
-        gates.extend(verdict.reasons)
-        fill = None
-        if not gates:
-            fill = _fill_for(ctx, a, verdict.size_eth)
-            if fill.price_impact_bps > s.max_slippage_bps:
-                gates.append(f"price impact {fill.price_impact_bps} bps > {s.max_slippage_bps}")
-        if gates:
-            action = "watch"
-
-    with tx(conn):
-        cur = conn.execute("INSERT INTO decisions(ts,token,stage,action,confidence,thesis,reasons,risks,source_ids,"
-                           "model,raw) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-                           (utcnow(), token, a.cand.stage, action, conf, thesis, json.dumps(reasons + gates),
-                            json.dumps(risks), json.dumps(used), res.model, res.raw))
-        did = int(cur.lastrowid)
-        journal_append(conn, "decision", {"decision_id": did, "token": token, "symbol": symbol, "stage": a.cand.stage,
-                                          "action": action, "confidence": conf, "gates": gates, "reasons": reasons,
-                                          "narrative": res.decision.narrative.model_dump() if res.decision else None,
-                                          "risks": risks, "evidence_ids": used, "prompt_hash": res.prompt_hash,
-                                          "grok_error": res.error}, ref=token, in_tx=True)
-
+def _fill_for(ctx: Context, a: Assessed, size_sol: float) -> FillEstimate | None:
+    """A paper buy of `size_sol`: a real Jupiter quote (what the swap would get right now), else an estimate from
+    the pool's indicative liquidity. None if neither is available."""
+    dec = int(a.coin.get("decimals") if a.coin.get("decimals") is not None else _decimals(ctx, a.cand.token))
     try:
-        record_call(ctx, a, decision_id=did, action=action, confidence=conf, pack=pack, gates=gates, model=res.model)
-    except Exception as exc:  # tracking is for analysis; it must never stop a trade
-        log.warning("could not record call outcome for %s: %s", token, exc)
-    out: dict[str, Any] = {"token": token, "decision_id": did, "action": action, "gates": gates}
-    if action == "buy":
-        d = res.decision  # Grok's one-line take goes in the buy post, its reasons in a reply under it
-        out.update(_enter(ctx, a, did, fill, verdict.size_eth, used, risks, pack,
-                          catalyst=compose._phrase(d.public_line or d.thesis, 150)))
-        if out.get("entered"):
-            enqueue(conn, compose.buy_read(symbol=symbol, token=token, key=f"analysis:{did}",
-                                           reply_to=f"entry:{s.trading_mode.value}:{out['position_id']}",
-                                           why=d.public_thesis or d.narrative.take,
-                                           reasons=d.public_reasons or d.reasons[:2],
-                                           risk=d.public_risk or (risks or [""])[0]))
-    elif action == "watch" and conf >= 0.6 and res.decision:
-        skip, parent = _thread(conn, token, "watch")
-        if not skip:
-            pb = res.decision.post
-            d = compose.watch_note(symbol=symbol, token=token, decision_id=did, narrative=pb.narrative,
-                                   confirmation=pb.confirmation, watching=pb.watching, trigger=pb.trigger,
-                                   line=res.decision.public_line or thesis)
-            d.reply_to = parent
-            enqueue(conn, d)
-    elif action == "pass" and res.decision and pack["evidence"] and conf >= 0.7:
-        skip, parent = _thread(conn, token, "pass")
-        if not skip:
-            pb = res.decision.post
-            d = compose.pass_note(symbol=symbol, token=token, decision_id=did, narrative=pb.narrative,
-                                  concern=pb.concern, reconsider_if=pb.reconsider_if,
-                                  line=res.decision.public_line or (reasons or ["not convinced"])[0])
-            d.reply_to = parent
-            enqueue(conn, d)
-    return out
+        return from_quote(ctx.jupiter.order(SOL_MINT, a.cand.token, lamports(size_sol)), buy=True, decimals=dec)
+    except (JupiterError, KeyError, ValueError) as exc:
+        log.warning("jupiter quote for %s unavailable, estimating: %s", a.cand.token, exc)
+    p = a.pool
+    if p and p.price_native and p.liquidity_usd and a.sol_usd:
+        return pool_estimate(size_sol, p.price_native, p.liquidity_usd, a.sol_usd, EST_FEE_BPS)
+    return None
 
 
-def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate, size_eth: float, used: list[int],
+def _enter(ctx: Context, a: Assessed, did: int, fill: FillEstimate | None, size_sol: float, used: list[int],
            risks: list[str], pack: dict[str, Any], catalyst: str = "") -> dict[str, Any]:
     s, conn = ctx.settings, ctx.conn
-    token, symbol = a.cand.token, a.launch.get("symbol") or "?"
+    token, symbol = a.cand.token, a.coin.get("symbol") or (a.call or {}).get("symbol") or "?"
     mode = s.trading_mode.value
     if mode == "live":
         try:
-            if a.cand.stage == "almost_bonded":
-                lf = ctx.live.buy_on_curve(token=token, curve=a.record.curve, quote_in_wei=int(size_eth * ETH),
-                                           fee_bps=a.launch.get("fee_bps") or 100, tax_bps=a.record.creator_tax_bps)
-            else:
-                lf = ctx.live.swap_on_pool(token=token, side="buy", amount_in_wei=int(size_eth * ETH))
-        except LiveTradingBlocked as exc:
+            dec = _decimals(ctx, token)
+            lf = ctx.live.swap(token, "buy", lamports(size_sol))
+        except (LiveTradingBlocked, ValueError) as exc:
             journal_append(conn, "live_entry_blocked", {"token": token, "error": str(exc), "decision_id": did},
                            ref=token, mode="live")
             return {"entered": False, "error": str(exc)}
-        tokens = lf.token_amount / ETH
-        spent = lf.quote_amount / ETH
+        got, spent = from_base(lf.token_amount, dec), sol(lf.quote_amount)
+        entry_price = spent / got if got else 0
         with tx(conn):
             cur = conn.execute("INSERT INTO positions(token,mode,status,decision_id,quote_symbol,opened_at,entry_quote,"
                                "entry_tokens,entry_price) VALUES(?,?,?,?,?,?,?,?,?)",
-                               (token, "live", "open", did, "ETH", utcnow(), spent, tokens, spent / tokens if tokens else 0))
+                               (token, "live", "open", did, QUOTE_SYMBOL, utcnow(), spent, got, entry_price))
             pid = int(cur.lastrowid)
-        entry_price = spent / tokens if tokens else 0
+        spot = entry_price
     else:
-        pid = open_position(conn, token=token, symbol=symbol, decision_id=did, quote_symbol="ETH", fill=fill,
-                            stage=a.cand.stage, meta={"evidence_ids": used})
-        entry_price, spent = fill.avg_price, fill.quote_in
+        assert fill is not None
+        pid = open_position(conn, token=token, symbol=symbol, decision_id=did, quote_symbol=QUOTE_SYMBOL, fill=fill,
+                            stage=a.cand.stage or "unknown", meta={"evidence_ids": used})
+        entry_price, spent, spot = fill.avg_price, fill.quote_in, fill.spot_price
     if a.call:
         from ..sources.scanner import mark_bought
         mark_bought(conn, token)
     cited = [e for e in pack["evidence"] if e["id"] in used]
     catalyst = catalyst or (_describe_source(cited[0]) if cited else "broad onchain buying")
-    # Only claim momentum that was actually measured (curve tokens); graduated
-    # tokens are screened on pool volume instead, so say that.
-    windows = a.cand.metrics.get("windows") or []
-    if windows and a.cand.metrics.get("accelerating"):
-        momentum = "buys accelerating over " + "/".join(f"{w['seconds'] // 60}m" for w in windows)
-    elif a.cand.metrics.get("volume_heat"):
-        momentum = f"1h volume at {a.cand.metrics['volume_heat']:.1f}x its daily average"
-    else:
-        momentum = ""
-    d = compose.trade_entry(mode=mode, symbol=symbol, token=token, size=f"{spent:.4f} ETH",
-                            entry=f"{entry_price:.3g} ETH", catalyst=catalyst, progress=a.cand.progress,
+    heat = a.cand.metrics.get("volume_heat")
+    momentum = f"1h volume at {heat:.1f}x its daily average" if heat else ""
+    d = compose.trade_entry(mode=mode, symbol=symbol, token=token, size=f"{spent:.4f} {QUOTE_SYMBOL}",
+                            entry=f"{entry_price:.3g} {QUOTE_SYMBOL}", catalyst=catalyst, progress=None,
                             momentum=momentum, risk=risks[0], position_id=pid,
-                            own_token=token.lower() == s.agent_token_address.lower(),
-                            mc=_market_cap(ctx, token, fill.spot_price if mode == "paper" else entry_price),
-                            plan=_exit_plan(s))
+                            own_token=bool(s.agent_token_address) and token == s.agent_token_address,
+                            mc=_market_cap(ctx, token, spot), plan=_exit_plan(s))
     d.reply_to = _thread(conn, token, "trade_entry")[1]  # under an earlier watch/pass, if any
     enqueue(conn, d)
     return {"entered": True, "position_id": pid}
 
 
 def _exit_plan(s: Any) -> str:
-    """e.g. '-70% stop · 50% at 1.6x · 25% at 2x · 24h max'"""
+    """e.g. '-70% stop · 50% at 1.5x · 25% at 2x · 24h max'"""
     rungs = [f"{f * 100:g}% at {m:g}x" for m, f in sorted(s.take_profit_ladder)]
     return " · ".join([f"-{s.stop_loss_pct:g}% stop", *rungs, f"{s.max_hold_hours:g}h max"])
 
@@ -819,59 +513,80 @@ def _left(pos: dict[str, Any]) -> float:
     return pos["tokens_left"] if pos.get("tokens_left") is not None else pos["entry_tokens"]
 
 
-_GRADUATED: set[str] = set()  # coins seen in their pool, so the fast exit loop skips re-reading their phase
-
-
-def _mark(ctx: Context, pos: dict[str, Any], tokens: float) -> tuple[FillEstimate | None, str]:
-    """What selling `tokens` of this position would return right now. A graduated coin is priced by the pool's own
-    quoter onchain (exactly what a sell would pay, fees and tax in); the aggregator estimate is only the fallback."""
-    token = pos["token"]
-    if token.lower() in _GRADUATED:
+def _mark_prices(ctx: Context, mints: list[str]) -> dict[str, tuple[float, float | None, float]]:
+    """{mint: (SOL per token, USD liquidity or None, SOL/USD)} for every open position, from ONE batched Jupiter
+    price call (the exit loop runs every few seconds, and Jupiter's free tier allows about one call a second).
+    DexScreener covers whatever Jupiter can't price."""
+    mints = [m for m in dict.fromkeys(mints) if m]
+    out: dict[str, tuple[float, float | None, float]] = {}
+    if not mints:
+        return out
+    try:
+        px = ctx.jupiter.prices(mints + [SOL_MINT])
+        sol_usd = float((px.get(SOL_MINT) or {}).get("usdPrice") or 0)
+        if sol_usd > 0:
+            for m in mints:
+                p = px.get(m) or {}
+                if p.get("usdPrice"):
+                    liq = p.get("liquidity")
+                    out[m] = (float(p["usdPrice"]) / sol_usd, float(liq) if liq else None, sol_usd)
+    except Exception as exc:  # Jupiter down or rate limited: DexScreener below
+        log.warning("jupiter prices unavailable: %s", exc)
+    missing = [m for m in mints if m not in out]
+    if missing:
         try:
-            out = ctx.live.quote_sell(token, int(tokens * ETH)) / ETH
-            px = out / tokens if tokens else 0
-            return FillEstimate(out, tokens, px, px, 0, 0, "v4_quote_onchain"), "pool"
-        except Exception as exc:  # no quote this tick: fall back to the aggregator's estimate
-            log.warning("onchain quote failed for %s: %s", token, exc)
-    rec = ctx.pons.launch_record(token)
-    fee = 100
-    if rec.phase == Phase.POOL_CREATED and token.lower() not in _GRADUATED:
-        _GRADUATED.add(token.lower())  # a pool never goes back to the curve
-        return _mark(ctx, pos, tokens)
-    if rec.phase == Phase.NOT_GRADUATED:
-        q, t = ctx.pons.curve_reserves(rec.curve)
-        st = ctx.pons.curve_state(rec.curve)
-        return curve_sell(int(tokens * ETH), q, t, st.fee_bps, st.creator_tax_bps), "curve"
-    if rec.phase == Phase.POOL_CREATED:
-        pool = ctx.market.genuine_pool_stats(pos["token"], ctx.pons.genuine_pool_id(rec))
-        eth = ctx.market.eth_usd()
-        if pool and pool.price_native and pool.liquidity_usd and eth:
-            return pool_estimate(tokens, pool.price_native, pool.liquidity_usd, eth,
-                                 fee + rec.creator_tax_bps, buy=False), "pool"
-        return None, "pool data unavailable"
-    return None, f"phase {rec.phase.name}"
+            sol_usd = ctx.market.sol_usd()
+            if sol_usd:
+                for m, p in ctx.market.prices_usd(missing).items():
+                    out[m] = (p / sol_usd, None, sol_usd)
+        except Exception as exc:
+            log.warning("dexscreener prices unavailable: %s", exc)
+    return out
 
 
-def _live_sell(ctx: Context, pos: dict[str, Any], venue: str, tokens: float) -> FillEstimate:
-    """Sell `tokens` onchain. Raises LiveTradingBlocked if it can't."""
-    if venue == "pool":
-        lf = ctx.live.swap_on_pool(token=pos["token"], side="sell", amount_in_wei=int(tokens * ETH))
-        return FillEstimate(lf.quote_amount / ETH, lf.token_amount / ETH,
-                            (lf.quote_amount / lf.token_amount) if lf.token_amount else 0, 0, 0, 0, "onchain")
-    if venue != "curve":
-        raise LiveTradingBlocked(f"can't sell on {venue}")
-    rec = ctx.pons.launch_record(pos["token"])
-    st = ctx.pons.curve_state(rec.curve)
-    lf = ctx.live.sell_on_curve(token=pos["token"], curve=rec.curve, tokens_in_wei=int(tokens * ETH),
-                                fee_bps=st.fee_bps, tax_bps=st.creator_tax_bps)
-    return FillEstimate(lf.quote_amount / ETH, lf.token_amount / ETH,
-                        (lf.quote_amount / lf.token_amount) if lf.token_amount else 0, 0, 0, 0, "onchain")
+def _mark(pos: dict[str, Any], tokens_held: float, mark: tuple[float, float | None, float] | None) \
+        -> FillEstimate | None:
+    """What selling `tokens_held` would return at the current mark: the pool estimate when Jupiter reports the
+    coin's liquidity (so a thin pool marks lower), else plain spot."""
+    if not mark or not mark[0]:
+        return None
+    price, liq, sol_usd = mark
+    if liq and sol_usd:
+        return pool_estimate(tokens_held, price, liq, sol_usd, EST_FEE_BPS, buy=False)
+    return FillEstimate(tokens_held * price, tokens_held, price, price, 0, 0.0, "jupiter_price")
+
+
+def _paper_sell(ctx: Context, pos: dict[str, Any], tokens_sold: float, mark: FillEstimate) -> FillEstimate:
+    """A paper sale priced by a real Jupiter quote for exactly this amount (only taken when actually selling);
+    the mark is the fallback."""
+    try:
+        dec = _decimals(ctx, pos["token"])
+        q = ctx.jupiter.order(pos["token"], SOL_MINT, to_base(tokens_sold, dec))
+        return from_quote(q, buy=False, decimals=dec)
+    except (JupiterError, KeyError, ValueError) as exc:
+        log.warning("jupiter sell quote for %s unavailable, using the mark: %s", pos["token"], exc)
+    if abs(mark.tokens_out - tokens_sold) < 1e-12:
+        return mark
+    scale = tokens_sold / mark.tokens_out if mark.tokens_out else 0
+    return FillEstimate(mark.quote_in * scale, tokens_sold, mark.avg_price, mark.spot_price, mark.price_impact_bps,
+                        mark.fee_and_tax_quote * scale, mark.method)
+
+
+def _live_sell(ctx: Context, pos: dict[str, Any], tokens_sold: float) -> FillEstimate:
+    """Sell `tokens_sold` onchain. Raises LiveTradingBlocked if it can't."""
+    try:
+        dec = _decimals(ctx, pos["token"])
+    except ValueError as exc:
+        raise LiveTradingBlocked(str(exc)) from exc
+    lf = ctx.live.swap(pos["token"], "sell", to_base(tokens_sold, dec))
+    got, sold = sol(lf.quote_amount), from_base(lf.token_amount, dec)
+    return FillEstimate(got, sold, got / sold if sold else 0, 0, 0, 0, "onchain")
 
 
 def _at(ctx: Context, token: str, fill: FillEstimate) -> str:
     """Where a sell happened, for the post: market cap if known, else the fill price."""
     mc = _market_cap(ctx, token, fill.spot_price or fill.avg_price)
-    return f"{mc} MC" if mc else f"{fill.avg_price:.3g} ETH"
+    return f"{mc} MC" if mc else f"{fill.avg_price:.3g} {QUOTE_SYMBOL}"
 
 
 def _post_mortem(ctx: Context, pos: dict[str, Any], reason: str, pnl_pct: float, age_h: float,
@@ -882,7 +597,7 @@ def _post_mortem(ctx: Context, pos: dict[str, Any], reason: str, pnl_pct: float,
     d = conn.execute("SELECT thesis, reasons, risks FROM decisions WHERE id=?", (pos["decision_id"],)).fetchone() \
         if pos.get("decision_id") else None
     buy = {"thesis": d["thesis"], "reasons": json.loads(d["reasons"] or "[]"), "risks": json.loads(d["risks"] or "[]")} if d else {}
-    r = ctx.brain.review_loss({"symbol": symbol, "token": pos["token"], "entry_eth": pos["entry_quote"],
+    r = ctx.brain.review_loss({"symbol": symbol, "token": pos["token"], "entry_sol": pos["entry_quote"],
                                "pnl_pct": round(pnl_pct, 1), "held_hours": round(age_h, 1), "exit_reason": reason,
                                "buy_decision": buy, "marks": kv_get(conn, f"marks:{pos['id']}") or [],
                                "evidence": evidence_for_token(conn, pos["token"], 10)})
@@ -907,18 +622,19 @@ def _plan(s: Any, hits: int) -> str:
 
 def manage_positions(ctx: Context) -> list[dict[str, Any]]:
     """Exits are fixed rules, no judgement calls: a stop loss, the take-profit rungs, and a timer. After the
-    first rung the stop moves to entry; whatever is left when the timer runs out is sold. (Grok's thesis
-    review used to sell here too, but a fresh position always looks down by the round-trip fees, so it
-    sold new trades within a minute.)"""
+    first rung the stop moves to entry; whatever is left when the timer runs out is sold. Every open position is
+    marked from one batched price call; a real quote (paper) or swap (live) is only taken when something sells."""
     s, conn = ctx.settings, ctx.conn
     ladder = sorted(s.take_profit_ladder)
     results = []
     modes = ["paper", "live"] if s.trading_mode.value == "live" else ["paper"]
-    for pos in [p for m in modes for p in ctx.risk.open_positions(m)]:
+    open_pos = [p for m in modes for p in ctx.risk.open_positions(m)]
+    marks_now = _mark_prices(ctx, [p["token"] for p in open_pos]) if open_pos else {}
+    for pos in open_pos:
         left, hits = _left(pos), pos.get("tp_hits") or 0
-        fill, venue = _mark(ctx, pos, left)
+        fill = _mark(pos, left, marks_now.get(pos["token"]))
         if fill is None:
-            journal_append(conn, "mark_failed", {"position_id": pos["id"], "why": venue}, ref=pos["token"])
+            journal_append(conn, "mark_failed", {"position_id": pos["id"], "why": "no price"}, ref=pos["token"])
             continue
         realized = pos.get("realized_quote") or 0.0
         value = realized + fill.quote_in  # the whole trade: sold so far plus the rest at market
@@ -936,8 +652,7 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
         kv_set(conn, f"marks:{pos['id']}", marks)
         age_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
         crossed = [i for i, (m, _) in enumerate(ladder) if i >= hits and mult >= m]
-        row = conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone()
-        symbol = (row["symbol"] if row else None) or "?"
+        symbol = _symbol(ctx, pos["token"])
         reason = why = None  # reason is the record; why is how the post says it ("...because <why>")
         if not hits and pnl_pct <= -s.stop_loss_pct:
             reason, why = f"stop loss at {pnl_pct:.1f}%", f"it hit my -{s.stop_loss_pct:.0f}% stop"
@@ -950,7 +665,7 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
             if sell >= left * 0.999:  # the rungs add up to everything that's left
                 reason, why = f"final take profit at {mult:.1f}x", f"it hit my final target at {mult:.1f}x"
             else:
-                results.append(_take_profit(ctx, pos, venue, sell, top + 1, mult, symbol, ladder))
+                results.append(_take_profit(ctx, pos, fill, sell, top + 1, mult, symbol, ladder))
                 continue
         elif age_h >= s.max_hold_hours:  # the timer covers the whole trade, the runner included
             reason = f"max hold {s.max_hold_hours:.0f}h reached"
@@ -960,10 +675,11 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
             results.append({"position_id": pos["id"], "pnl_pct": round(pnl_pct, 2), "action": "hold"})
             continue
         if pos["mode"] == "paper":
+            fill = _paper_sell(ctx, pos, left, fill)
             close_position(conn, pos, fill=fill, reason=reason, symbol=symbol)
         else:
             try:
-                fill = _live_sell(ctx, pos, venue, left)
+                fill = _live_sell(ctx, pos, left)
                 total = realized + fill.quote_in
                 conn.execute("UPDATE positions SET status='closed', closed_at=?, exit_quote=?, exit_price=?, pnl_quote=?, "
                              "exit_reason=?, tokens_left=0 WHERE id=?",
@@ -973,30 +689,28 @@ def manage_positions(ctx: Context) -> list[dict[str, Any]]:
                                ref=pos["token"], mode="live")
                 results.append({"position_id": pos["id"], "action": "exit_blocked", "error": str(exc)})
                 continue
-        pnl_eth = realized + fill.quote_in - pos["entry_quote"]
-        pnl_pct = pnl_eth / pos["entry_quote"] * 100 if pos["entry_quote"] else 0
+        pnl_sol = realized + fill.quote_in - pos["entry_quote"]
+        pnl_pct = pnl_sol / pos["entry_quote"] * 100 if pos["entry_quote"] else 0
         _post_later(ctx, "trade_exit", dict(mode=pos["mode"], symbol=symbol, token=pos["token"], pnl_pct=pnl_pct,
-                                            pnl_eth=pnl_eth, sold_pct=left / pos["entry_tokens"] * 100 if pos["entry_tokens"] else 100,
+                                            pnl_sol=pnl_sol, sold_pct=left / pos["entry_tokens"] * 100 if pos["entry_tokens"] else 100,
                                             at=_at(ctx, pos["token"], fill), why=why or reason, position_id=pos["id"],
                                             last_bit=bool(hits)),
                     {"type": "post_mortem", "pos": pos, "reason": reason, "pnl_pct": pnl_pct, "age_h": age_h}
-                    if pnl_eth < 0 else None)
+                    if pnl_sol < 0 else None)
         results.append({"position_id": pos["id"], "action": "exit", "reason": reason, "pnl_pct": round(pnl_pct, 2)})
     return results
 
 
-def _take_profit(ctx: Context, pos: dict[str, Any], venue: str, tokens: float, rung: int, mult: float, symbol: str,
-                 ladder: list[tuple[float, float]]) -> dict[str, Any]:
+def _take_profit(ctx: Context, pos: dict[str, Any], mark: FillEstimate, tokens_sold: float, rung: int, mult: float,
+                 symbol: str, ladder: list[tuple[float, float]]) -> dict[str, Any]:
     """Sell one or more take-profit rungs; the rest of the position stays open."""
     conn = ctx.conn
     reason = f"take profit at {mult:.1f}x"
     if pos["mode"] == "paper":
-        fill, _ = _mark(ctx, pos, tokens)
-        if fill is None:
-            return {"position_id": pos["id"], "action": "take_profit_failed", "error": "no mark"}
+        fill = _paper_sell(ctx, pos, tokens_sold, mark)
     else:
         try:
-            fill = _live_sell(ctx, pos, venue, tokens)
+            fill = _live_sell(ctx, pos, tokens_sold)
         except LiveTradingBlocked as exc:
             journal_append(conn, "live_exit_blocked", {"position_id": pos["id"], "error": str(exc), "reason": reason},
                            ref=pos["token"], mode="live")
@@ -1016,34 +730,35 @@ def _take_profit(ctx: Context, pos: dict[str, Any], venue: str, tokens: float, r
     _post_later(ctx, "take_profit", dict(mode=pos["mode"], symbol=symbol, token=pos["token"], sold_pct=share * 100,
                                          at=_at(ctx, pos["token"], fill),
                                          why=f"{nth} target hit at {mult:.1f}x, stop moved to entry{nxt}",
-                                         left_pct=left_pct, realized_eth=fill.quote_in - pos["entry_quote"] * share,
+                                         left_pct=left_pct, realized_sol=fill.quote_in - pos["entry_quote"] * share,
                                          position_id=pos["id"], rung=rung),
                 {"type": "thesis", "pos": pos, "pnl_pct": pnl_pct,
                  "mc": _market_cap(ctx, pos["token"], fill.spot_price or fill.avg_price),
                  "note": f"just sold {share * 100:.0f}% at {mult:.1f}x; say why the other {left_pct:.0f}% is still "
                          "worth holding, under 120 characters"} if left_pct > 0 else None)
     return {"position_id": pos["id"], "action": "take_profit", "rung": rung, "multiple": round(mult, 2),
-            "sold_eth": round(fill.quote_in, 6)}
+            "sold_sol": round(fill.quote_in, 6)}
 
 
 def _milestone_update(ctx: Context, pos: dict[str, Any], pnl_pct: float, fill: FillEstimate, hits: int = 0) -> None:
-    """Post once per milestone crossed (every +30%, and -15%), under the entry
+    """Post once per milestone crossed (every +x_update_step_pct, and the down marks), under the entry
     post. If several are crossed at once, only the furthest one is posted."""
     s, conn = ctx.settings, ctx.conn
     key = f"milestones:{pos['id']}"
     hit = set(kv_get(conn, key, []) or [])
-    ups = [s.x_update_step_pct * k for k in range(1, int(pnl_pct // s.x_update_step_pct) + 1)]         if s.x_update_step_pct > 0 and pnl_pct > 0 else []
+    ups = [s.x_update_step_pct * k for k in range(1, int(pnl_pct // s.x_update_step_pct) + 1)] \
+        if s.x_update_step_pct > 0 and pnl_pct > 0 else []
     downs = [m for m in s.x_update_down_pct if pnl_pct <= m]
     crossed = [m for m in ups + downs if m not in hit]
     if not crossed:
         return
     kv_set(conn, key, sorted(hit | set(crossed)))
     m = max(crossed, key=abs)
-    symbol = (conn.execute("SELECT symbol FROM launches WHERE token=?", (pos["token"],)).fetchone() or {"symbol": "?"})["symbol"]
+    symbol = _symbol(ctx, pos["token"])
     mc = _market_cap(ctx, pos["token"], fill.spot_price)
-    _post_later(ctx, "position_update", dict(mode=pos["mode"], symbol=symbol or "?", token=pos["token"], pnl_pct=pnl_pct,
-                                             price=f"{fill.avg_price:.3g} ETH", milestone=m, plan=_plan(s, hits),
-                                             position_id=pos["id"], mc=mc),
+    _post_later(ctx, "position_update", dict(mode=pos["mode"], symbol=symbol, token=pos["token"], pnl_pct=pnl_pct,
+                                             price=f"{fill.avg_price:.3g} {QUOTE_SYMBOL}", milestone=m,
+                                             plan=_plan(s, hits), position_id=pos["id"], mc=mc),
                 {"type": "thesis", "pos": pos, "pnl_pct": pnl_pct, "mc": mc} if m > 0 else None)
 
 
@@ -1061,7 +776,7 @@ def post_jobs_once(ctx: Context) -> int:
     jobs = rows(conn, "SELECT id, payload FROM journal WHERE kind='post_job' AND id>? ORDER BY id", (last,))
     for j in jobs:
         p = json.loads(j["payload"]) if isinstance(j["payload"], str) else j["payload"]
-        kw, m = p["kwargs"], p.get("grok") or p.get("muse") or {}  # jobs left by the pre-Grok build use "muse"
+        kw, m = p["kwargs"], p.get("grok") or {}
         try:
             if m.get("type") == "post_mortem":
                 kw.update(_post_mortem(ctx, m["pos"], m["reason"], m["pnl_pct"], m["age_h"], kw["symbol"]))
@@ -1087,10 +802,10 @@ def _updated_thesis(ctx: Context, pos: dict[str, Any], symbol: str, pnl_pct: flo
         held_h = (datetime.now(timezone.utc) - datetime.fromisoformat(pos["opened_at"])).total_seconds() / 3600
         r = ctx.brain.update_thesis({
             "symbol": symbol, "token": pos["token"], "pnl_pct": round(pnl_pct, 1), "held_hours": round(held_h, 1),
-            "market_cap_now": mc or None, "entry_eth": pos["entry_quote"], "just_now": note or None,
+            "market_cap_now": mc or None, "entry_sol": pos["entry_quote"], "just_now": note or None,
             "original_decision": {"thesis": d["thesis"], "reasons": json.loads(d["reasons"] or "[]"),
                                   "risks": json.loads(d["risks"] or "[]")} if d else {},
-            "x_attention_24h": kv_get(conn, f"x_attention:{pos['token'].lower()}"),
+            "x_attention_24h": kv_get(conn, f"x_attention:{pos['token']}"),
             "evidence": evidence_for_token(conn, pos["token"], 10), "lore": _lore(ctx, pos["token"])})
     except Exception as exc:  # the update post never waits on this
         log.warning("updated thesis unavailable for %s: %s", pos["token"], exc)
@@ -1109,7 +824,7 @@ def weekly_scorecard(ctx: Context, now: datetime | None = None) -> bool:
     week = now.strftime("%G-W%V")
     mode = ctx.settings.trading_mode.value
     since = (now - timedelta(days=7)).isoformat()
-    closed = rows(ctx.conn, "SELECT p.*, l.symbol FROM positions p LEFT JOIN launches l ON l.token=p.token "
+    closed = rows(ctx.conn, "SELECT p.*, t.symbol FROM positions p LEFT JOIN tokens t ON t.mint=p.token "
                             "WHERE p.status='closed' AND p.mode=? AND p.closed_at>=?", (mode, since))
     if not closed:
         return False
@@ -1122,6 +837,6 @@ def weekly_scorecard(ctx: Context, now: datetime | None = None) -> bool:
         own = f"Disclosure: my own token is {ctx.settings.agent_token_address}; treasury {ctx.settings.treasury_address or 'n/a'}."
     _, created = enqueue(ctx.conn, compose.weekly_scorecard(
         week=week, mode=mode, trades=len(closed), wins=len(wins), losses=len(closed) - len(wins),
-        pnl_quote=sum(c["pnl_quote"] or 0 for c in closed), quote_symbol="ETH", best=fmt(best), worst=fmt(worst),
+        pnl_quote=sum(c["pnl_quote"] or 0 for c in closed), quote_symbol=QUOTE_SYMBOL, best=fmt(best), worst=fmt(worst),
         own_token_line=own))
     return created
