@@ -30,36 +30,28 @@ class Settings(BaseSettings):
     treasury_address: str = ""     # public treasury/creator-fee wallet, for disclosure only
 
     # --- storage --------------------------------------------------------
-    database_path: str = "data/ct_agent.db"
+    database_path: str = "data/vigil.db"  # Solana build: a fresh file, nothing shared with the Robinhood-era DB
 
-    # --- Robinhood Chain ------------------------------------------------
-    chain_id: int = 4663
-    rpc_url: str = "https://rpc.mainnet.chain.robinhood.com"  # public, rate limited
-    # Log scans (eth_getLogs). Alchemy free tier allows only 10 blocks per query,
-    # so by default these go to the public node, which allows 10,000 logs per query.
-    logs_rpc_url: str = "https://rpc.mainnet.chain.robinhood.com"
-    explorer_url: str = "https://robinhoodchain.blockscout.com"
-    pons_v2_factory: str = "0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e"
-    # First block to index from. 0 means "start near head" on first run.
-    pons_start_block: int = 0
-    log_chunk_blocks: int = 5_000          # curve trades: ~0.7 logs/block, provider cap 10k logs/query
-    launch_log_chunk_blocks: int = 200_000  # factory events are sparse
-    launch_backfill_hours: float = 168      # how far back to index launches on first run
-    trade_retention_hours: float = 2        # rolling window of curve trades kept locally
+    # --- Solana -------------------------------------------------------------
+    # Use a provider URL with its key (e.g. Helius: https://mainnet.helius-rpc.com/?api-key=...): the public node is
+    # rate limited and "not intended for production". The backup answers when the main one is out of retries.
+    solana_rpc_url: str = "https://api.mainnet-beta.solana.com"
+    solana_backup_rpc_url: str = "https://api.mainnet-beta.solana.com"
     rpc_timeout_s: float = 20.0
+    explorer_url: str = "https://solscan.io"
+
+    # --- Jupiter: swaps and prices (free key from developers.jup.ag) -----------
+    jupiter_api_url: str = "https://api.jup.ag"
+    jupiter_api_key: str = ""
 
     # --- market data ----------------------------------------------------
-    geckoterminal_network: str = "robinhood"
-    dexscreener_chain: str = "robinhood"
+    geckoterminal_network: str = "solana"
+    dexscreener_chain: str = "solana"
 
     # --- screening thresholds (prototype filters, not a strategy) -------
-    almost_bonded_ratio: float = 0.85
-    min_migrated_volume_h1_usd: float = 5_000
-    min_migrated_liquidity_usd: float = 15_000
-    snipe_window_fallback_s: int = 15  # used only if the factory read fails; live value is read onchain
-    # Robinhood Chain blocks are ~0.1s, so windows are in seconds, not blocks.
-    activity_windows_s: list[int] = Field(default_factory=lambda: [300, 900, 3_600])
-    trade_lookback_s: int = 3_600
+    min_volume_h1_usd: float = 5_000
+    min_liquidity_usd: float = 15_000
+    max_transfer_fee_bps: int = 0  # Token-2022 coins that tax every transfer are skipped (0 = any tax)
 
     # --- Grok (xAI API, key from console.x.ai; not the X developer keys) ----
     grok_api_key: str = ""
@@ -117,16 +109,15 @@ class Settings(BaseSettings):
 
     # --- trading & risk -------------------------------------------------
     trading_mode: TradingMode = TradingMode.PAPER
-    paper_starting_balance_eth: float = 1.0
-    max_position_eth: float = 0.05     # hard cap on one trade, whatever the sizing rule says
-    # Size each trade as this % of the account (wallet ETH + open trades at cost; on paper: the paper
-    # balance). 0 = every trade is max_position_eth.
+    paper_starting_balance_sol: float = 10.0
+    max_position_sol: float = 0.5      # hard cap on one trade, whatever the sizing rule says
+    # Size each trade as this % of the account (wallet SOL + open trades at cost; on paper: the paper
+    # balance). 0 = every trade is max_position_sol.
     position_size_pct: float = 0.0
     max_open_positions: int = 3
-    max_total_exposure_eth: float = 0.15
-    max_daily_loss_eth: float = 0.05
+    max_total_exposure_sol: float = 1.5
+    max_daily_loss_sol: float = 0.5
     max_slippage_bps: int = 300
-    max_trade_tax_bps: int = 1_000
     kill_switch_file: str = "data/KILL"
     stop_loss_pct: float = 70.0
     # Take-profit ladder: (price multiple of entry, share of the ORIGINAL position to sell).
@@ -137,19 +128,12 @@ class Settings(BaseSettings):
     # 0 = a buy can rest on onchain activity alone; 1+ = that many verified/first-party/reported sources required
     min_independent_sources_for_buy: int = 0
     max_deployer_buy_share: float = 0.30
-    # Thin-chart guard: above this market cap, a coin must have paid at least this much in trading fees
-    # over its life, or the chart was likely pumped by a handful of (bundled or botted) trades.
-    fee_check_mc_usd: float = 20_000
-    min_fees_paid_eth: float = 0.02
     # Holder guard: skip coins whose deployer still holds too much of the supply, or whose 10 biggest wallets
     # (not counting the curve, the pool or burn addresses) hold too much: they can dump on everyone else.
     max_deployer_hold_share: float = 0.10
     max_top10_hold_share: float = 0.35
     max_top_buyer_share: float = 0.40
-    # Where coins come from: "scanner" (the smart-money scanner's calls in Supabase) or "pons" (VIGIL's own
-    # Pons auto-scan of near-bonded and freshly graduated coins).
-    candidate_source: str = "scanner"
-    pons_scan_enabled: bool = False  # with the scanner source, also run the Pons auto-scan (Grok decides those)
+    # Coins come from the smart-money scanner's Solana calls (Supabase alert_performance, plus Fibbot's).
     supabase_url: str = ""
     supabase_key: str = ""
     # Fibbot: a second source of calls, in its own Supabase project
@@ -180,36 +164,33 @@ class Settings(BaseSettings):
     max_entries_per_day: int = 10  # hard cap on new trades in any rolling 24h
     research_wait_min: int = 10  # wait this long for a token's X research before deciding without it
 
-    # Live trading wallet. Only the capped trading wallet key ever lives here.
-    # The owner and treasury keys must never be given to this process.
+    # Live trading wallet (base58 secret key, as Phantom exports it). Only the capped trading wallet ever lives
+    # here: never the owner's or the treasury's.
     trading_wallet_private_key: str = ""
-    # Uniswap on Robinhood Chain (Uniswap/contracts deployments/json/4663.json; the router is the one real
-    # swaps on this chain go through). Graduated coins are bought and sold in their Pons ETH pool here.
-    uniswap_universal_router: str = "0x204FAca1764B154221e35c0d20aBb3c525710498"
-    uniswap_v4_quoter: str = "0x8dc178efb8111bb0973dd9d722ebeff267c98f94"
-    permit2: str = "0x000000000022D473030F116dDEE9F6B43aC78BA3"
     live_execution_reviewed: bool = False  # flipped only after a human review
-    # Where graduated coins are swapped: "router" (VIGIL signs Uniswap router calls itself) or "gmgn" (GMGN's
-    # trading API, from the wallet bound to the API key). Curve (not yet graduated) trades stay on the router.
-    live_venue: str = "router"
+    # Where swaps go: "jupiter" (VIGIL signs Jupiter-built swaps itself) or "gmgn" (GMGN's trading API, from the
+    # wallet bound to the API key).
+    live_venue: str = "jupiter"
     gmgn_api_key: str = ""
     gmgn_private_key: str = ""  # the Ed25519 key GMGN checks request signatures against (not a wallet key)
     gmgn_host: str = "https://openapi.gmgn.ai"
-    gmgn_chain: str = "robinhood"
+    gmgn_chain: str = "sol"
     gmgn_slippage_pct: float = 0.0  # 0 = GMGN's auto slippage
 
-    # --- Launchpad: coins launched for people who ask on X ---------------------
-    # Its own wallet (never the trading wallet): it pays each launch (~0.00065 ETH), is the coin's creator-fee
-    # recipient until the fees have paid that back, then hands the fees to the requester.
+    # --- Launchpad: coins launched on pump.fun for people who ask on X ---------------
+    # Its own wallet (never the trading wallet) pays each launch. The coin's creator fees are split once, at
+    # launch, and pump.fun locks the split: launch_creator_share_bps to the requester, the rest to the launcher.
     launchpad_enabled: bool = False
     launcher_wallet_private_key: str = ""
-    launch_daily_cap_eth: float = 0.1      # total launch spend per 24h; past it, requests wait for tomorrow
+    launch_daily_cap_sol: float = 0.5      # total launch spend per 24h; past it, requests wait for tomorrow
+    launch_dev_buy_sol: float = 0.0        # optional first buy by the launcher at creation (0 = none)
+    launch_creator_share_bps: int = 9_000  # the requester's share of creator fees (VIGIL keeps the rest)
     launch_per_user_day: int = 1           # launches per X account per 24h
     launch_vip_handles: list[str] = []     # X handles with a higher daily limit (the team, for tests)
     launch_vip_per_day: int = 10
     launch_min_account_days: int = 30      # the requester's X account must be at least this old
-    launch_creator_tax_bps: int = 200      # the coin's creator tax (Pons allows up to 1000)
-    pons_fee_escrow: str = "0xd3afeb2a57f70ef218aa82451c51b2fb0416ac9e"  # where Pons credits creator fees
+    pumpportal_url: str = "https://pumpportal.fun/api/trade-local"
+    pinata_jwt: str = ""                   # uploads each coin's image + metadata to IPFS (pinata.cloud)
 
     # --- API ------------------------------------------------------------
     api_admin_token: str = ""  # required for mutating endpoints; at least 32 random characters (see safety.py)

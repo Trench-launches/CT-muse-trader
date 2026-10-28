@@ -26,68 +26,21 @@ CREATE TABLE IF NOT EXISTS kv (
     value TEXT NOT NULL
 );
 
--- Every Pons V2 launch seen via TokenLaunched.
-CREATE TABLE IF NOT EXISTS launches (
-    token                 TEXT PRIMARY KEY,
-    curve                 TEXT NOT NULL,
-    deployer              TEXT NOT NULL,
-    pair_token            TEXT NOT NULL,
-    launch_config_id      INTEGER NOT NULL,
-    graduation_threshold  TEXT NOT NULL,
-    block_number          INTEGER NOT NULL,
-    block_ts              INTEGER,
-    tx_hash               TEXT NOT NULL,
-    name                  TEXT,
-    symbol                TEXT,
-    decimals              INTEGER,
-    quote_symbol          TEXT,
-    quote_decimals        INTEGER,
-    first_seen            TEXT NOT NULL,
-    last_phase            INTEGER NOT NULL DEFAULT 0,
-    last_progress         REAL NOT NULL DEFAULT 0,
-    last_trade_block      INTEGER,
-    last_snapshot_at      TEXT,
-    fee_bps               INTEGER,
-    creator_tax_bps       INTEGER,
-    pool_fee              INTEGER,
-    tick_spacing          INTEGER,
-    pool_id               TEXT,
-    logo_url              TEXT            -- from the token's own logo() function; '' if it has none
+-- Every Solana coin VIGIL has looked at (from scanner calls, chat look-ups, launches), filled on demand.
+CREATE TABLE IF NOT EXISTS tokens (
+    mint            TEXT PRIMARY KEY,        -- base58, case-sensitive: never lowercased
+    name            TEXT,
+    symbol          TEXT,
+    decimals        INTEGER NOT NULL,
+    program         TEXT,                    -- SPL Token or Token-2022
+    stage           TEXT,                    -- 'curve' (still on a launchpad bonding curve) | 'pool' (graduated)
+    dex_id          TEXT,                    -- the deepest SOL pool's DEX (pumpfun, pumpswap, raydium, ...)
+    pool_id         TEXT,                    -- that pool's address
+    logo_url        TEXT,                    -- '' if it has none
+    creator         TEXT,
+    first_seen      TEXT NOT NULL,
+    last_checked    TEXT
 );
-CREATE INDEX IF NOT EXISTS ix_launch_stage ON launches(last_phase, last_progress);
-
--- Point-in-time onchain state (append).
-CREATE TABLE IF NOT EXISTS token_snapshots (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    token                 TEXT NOT NULL REFERENCES launches(token),
-    ts                    TEXT NOT NULL,
-    block_number          INTEGER NOT NULL,
-    phase                 INTEGER NOT NULL,
-    real_quote_reserve    TEXT NOT NULL,
-    graduation_threshold  TEXT NOT NULL,
-    progress              REAL NOT NULL,
-    fee_bps               INTEGER,
-    creator_tax_bps       INTEGER,
-    buyback_enabled       INTEGER,
-    ready_to_graduate     INTEGER
-);
-CREATE INDEX IF NOT EXISTS ix_snap_token ON token_snapshots(token, id);
-
-CREATE TABLE IF NOT EXISTS curve_trades (
-    tx_hash       TEXT NOT NULL,
-    log_index     INTEGER NOT NULL,
-    token         TEXT NOT NULL,
-    curve         TEXT NOT NULL,
-    block_number  INTEGER NOT NULL,
-    side          TEXT NOT NULL CHECK (side IN ('buy','sell')),
-    trader        TEXT NOT NULL,
-    quote_amount  TEXT NOT NULL,
-    token_amount  TEXT NOT NULL,
-    fee           TEXT NOT NULL,
-    tax           TEXT NOT NULL,
-    PRIMARY KEY (tx_hash, log_index)
-);
-CREATE INDEX IF NOT EXISTS ix_trades_token_block ON curve_trades(token, block_number);
 
 -- DEX aggregator snapshots. Indicative only, never a live quote.
 CREATE TABLE IF NOT EXISTS market_snapshots (
@@ -172,7 +125,7 @@ CREATE TABLE IF NOT EXISTS positions (
     pnl_quote       REAL,
     exit_reason     TEXT,
     tokens_left     REAL,               -- NULL until the first partial sell; then what is still held
-    realized_quote  REAL NOT NULL DEFAULT 0,  -- ETH already taken off by partial sells
+    realized_quote  REAL NOT NULL DEFAULT 0,  -- SOL already taken off by partial sells
     tp_hits         INTEGER NOT NULL DEFAULT 0 -- take-profit rungs already sold
 );
 CREATE INDEX IF NOT EXISTS ix_positions_status ON positions(status, mode);
@@ -249,32 +202,30 @@ CREATE TABLE IF NOT EXISTS chat_requests (
 CREATE INDEX IF NOT EXISTS ix_chat_requests_who ON chat_requests(who, ts);
 CREATE INDEX IF NOT EXISTS ix_chat_requests_ts ON chat_requests(ts);
 
--- Launchpad: coins VIGIL launches for people who ask on X. One row per request, from the tweet to the hand-over
--- of the coin's creator fees to the requester once the launch cost is paid back.
+-- Launchpad: coins VIGIL launches on pump.fun for people who ask on X. One row per request, from the tweet to
+-- the coin's creator-fee split (90% to the requester, 10% to VIGIL, set once at launch and locked by pump.fun).
 CREATE TABLE IF NOT EXISTS launch_requests (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    x_post_id     TEXT NOT NULL UNIQUE,   -- the request tweet (VIGIL replies under it)
-    author_id     TEXT NOT NULL,
-    handle        TEXT,
-    created_at    TEXT NOT NULL,
-    status        TEXT NOT NULL
-                  CHECK (status IN ('refused','approved','launching','launched','failed','handed_over')),
-    reason        TEXT,                   -- why it was refused or failed
-    name          TEXT,
-    symbol        TEXT,
-    description   TEXT,
-    logo          TEXT,
-    socials       TEXT,                   -- JSON {twitter, telegram, discord, website, farcaster}
-    recipient     TEXT,                   -- the requester's wallet: gets the creator fees once the cost is back
-    token         TEXT,
-    curve         TEXT,
-    tx_hash       TEXT,
-    cost_wei      TEXT,                   -- launch fee + gas, what the fees pay back first
-    earned_wei    TEXT,                   -- creator fees VIGIL has collected for this coin
-    launched_at   TEXT,
-    handed_at     TEXT,
-    pair_symbol   TEXT,                   -- a stock the coin trades against (TSLA...); NULL for ETH
-    pair_token    TEXT                    -- that stock token's address
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    x_post_id       TEXT NOT NULL UNIQUE,   -- the request tweet (VIGIL replies under it)
+    author_id       TEXT NOT NULL,
+    handle          TEXT,
+    created_at      TEXT NOT NULL,
+    status          TEXT NOT NULL
+                    CHECK (status IN ('refused','approved','launching','launched','failed')),
+    reason          TEXT,                   -- why it was refused or failed
+    name            TEXT,
+    symbol          TEXT,
+    description     TEXT,
+    logo            TEXT,
+    socials         TEXT,                   -- JSON {twitter, telegram, website}
+    recipient       TEXT,                   -- the requester's Solana wallet: gets their share of the creator fees
+    token           TEXT,                   -- the new coin's mint
+    metadata_uri    TEXT,                   -- IPFS metadata the coin points to
+    tx_hash         TEXT,                   -- the create transaction signature
+    cost_lamports   TEXT,                   -- what the launch cost VIGIL (fees, rent, dev buy)
+    fee_share_tx    TEXT,                   -- the transaction that set the creator-fee split
+    fee_shares      TEXT,                   -- JSON [{address, bps}] as set on chain
+    launched_at     TEXT
 );
 CREATE INDEX IF NOT EXISTS ix_launch_requests_author ON launch_requests(author_id, created_at);
 CREATE INDEX IF NOT EXISTS ix_launch_requests_status ON launch_requests(status);
