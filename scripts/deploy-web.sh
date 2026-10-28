@@ -58,22 +58,23 @@ print("site config:", json.dumps(cfg))
 
 # <head> tags crawlers read (they don't run config.js). Each must be found exactly once, or the deploy stops.
 site = html.escape(env("SITE_URL").rstrip("/"), quote=True)
-tags = [
-    (r'(<link rel="canonical" href=")[^"]*(")', site + "/"),
-    (r'(<meta property="og:url" content=")[^"]*(")', site + "/"),
-    (r'(<meta property="og:image" content=")https?://[^/"]+(/[^"]*")', site),
-    (r'(<meta name="twitter:image" content=")https?://[^/"]+(/[^"]*")', site),
-    (r'(<meta name="twitter:site" content=")[^"]*(")', "@" + handle if handle else ""),
-]
-page = os.path.join(sys.argv[1], "index.html")
-with open(page, encoding="utf-8", newline="") as f:
-    doc = f.read()
-for pat, val in tags:
-    doc, n = re.subn(pat, lambda m: m.group(1) + val + m.group(2), doc)
-    if n != 1:
-        sys.exit(f"web/index.html: expected one tag matching {pat}, found {n}")
-with open(page, "w", encoding="utf-8", newline="") as f:
-    f.write(doc)
+for name, path in (("index.html", "/"), ("launchpad.html", "/launchpad")):  # every page and the address it's served at
+    tags = [
+        (r'(<link rel="canonical" href=")[^"]*(")', site + path),
+        (r'(<meta property="og:url" content=")[^"]*(")', site + path),
+        (r'(<meta property="og:image" content=")https?://[^/"]+(/[^"]*")', site),
+        (r'(<meta name="twitter:image" content=")https?://[^/"]+(/[^"]*")', site),
+        (r'(<meta name="twitter:site" content=")[^"]*(")', "@" + handle if handle else ""),
+    ]
+    page = os.path.join(sys.argv[1], name)
+    with open(page, encoding="utf-8", newline="") as f:
+        doc = f.read()
+    for pat, val in tags:
+        doc, n = re.subn(pat, lambda m: m.group(1) + val + m.group(2), doc)
+        if n != 1:
+            sys.exit(f"web/{name}: expected one tag matching {pat}, found {n}")
+    with open(page, "w", encoding="utf-8", newline="") as f:
+        f.write(doc)
 print("head tags set for", site)
 EOF
 cd "$TMP"

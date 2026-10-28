@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIGIL launchpad</title>
+<meta name="description" content="Launch a coin on pump.fun with one post on X. VIGIL checks every request, pays the launch and locks 90% of the creator fees to you on chain.">
+<!-- canonical, og:url, the share image and twitter:site are filled in from SITE_URL and SITE_X_HANDLE by scripts/deploy-web.sh -->
+<link rel="canonical" href="https://example.com/launchpad">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://example.com/launchpad">
+<meta property="og:title" content="VIGIL launchpad">
+<meta property="og:description" content="Launch a coin on pump.fun with one post on X. 90% of the creator fees, locked to you on chain.">
+<meta property="og:image" content="https://example.com/assets/og-vigil.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="">
+<meta name="twitter:image" content="https://example.com/assets/og-vigil.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+/* The launchpad dashboard. Same structure and layout as the Hookd launchpad (sidebar, sticky top bar, centred hero,
+   a 6-column bento of tiles with a footer, then two lists), in VIGIL's black, white and cool glow. One page: the
+   sidebar links jump to its sections. */
+:root {
+  --bg: #0a0a0a; --card: #141416; --card-border: rgba(255,255,255,.07); --panel: rgba(255,255,255,.04);
+  --panel-2: rgba(255,255,255,.07); --hover: rgba(255,255,255,.06); --line: rgba(255,255,255,.12);
+  --line-strong: rgba(255,255,255,.22); --text: #fff; --text-2: rgba(255,255,255,.72); --text-3: rgba(255,255,255,.49);
+  --text-4: rgba(255,255,255,.3); --glow: 222,230,255; --on: #5BF29B; --on-soft: rgba(91,242,155,.12);
+  --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --side-w: 248px; --page-gutter: 24px; --head-h: 66px; --head-pad: 10px;
+  --cut: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 90px; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+body { background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 48px 48px; background-attachment: fixed; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.ic { width: 16px; height: 16px; flex: none; }
+.mono { font-family: var(--mono); }
+
+.app { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); min-height: 100vh; }
+
+/* sidebar */
+.sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 0 14px 18px; gap: 22px; background: var(--bg); }
+.sidebar .logo { flex: none; display: flex; align-items: center; gap: 10px; height: var(--head-h); padding: var(--head-pad) 10px 0; }
+.logo .face { width: 34px; height: 34px; border-radius: 50%; background: #000 url("assets/vigil-face.webp") center 58% / 90% no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 0 18px rgba(var(--glow), .14); }
+.logo .word { font-weight: 600; font-size: 21px; letter-spacing: .28em; }
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav a { display: flex; align-items: center; gap: 14px; padding: 11px 12px; font-family: var(--mono); font-size: 13.5px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-2); transition: background .2s, color .2s; }
+.nav a:hover { background: var(--hover); color: var(--text); }
+.nav a.active { color: var(--text); background: linear-gradient(90deg, rgba(var(--glow), .14), rgba(var(--glow), .04)); clip-path: var(--cut); }
+.nav .grow { flex: 1; }
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
+
+/* top bar */
+.topbar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; min-height: calc(var(--head-h) + var(--head-pad));
+  padding: var(--head-pad) var(--page-gutter) 0; background: color-mix(in srgb, var(--bg) 86%, transparent);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.search { flex: 1; max-width: 360px; position: relative; }
+.search input { width: 100%; padding: 9px 14px 9px 36px; background: transparent; border: 1px solid var(--line); border-radius: 0; color: var(--text);
+  font: 13.5px var(--sans); outline: none; }
+.search input:focus { border-color: var(--line-strong); }
+.search input::placeholder { color: var(--text-3); }
+.search .ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--text-3); width: 15px; height: 15px; }
+.actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.icon-btn { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; background: transparent; border: 1px solid var(--line); color: var(--text-2); }
+.icon-btn:hover { color: var(--text); border-color: var(--line-strong); }
+.menu-btn { display: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; min-height: 36px; font-family: var(--mono); font-size: 12px;
+  font-weight: 600; letter-spacing: .09em; text-transform: uppercase; border: 1px solid var(--line); background: transparent; color: var(--text); clip-path: var(--cut);
+  white-space: nowrap; }
+.btn.primary { background: #fff; border-color: #fff; color: #050507; }
+.btn.primary:hover { opacity: .88; }
+.btn.big { padding: 10px 22px; min-height: 40px; }
+.btn[aria-disabled="true"] { color: var(--text-3); cursor: default; }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn small { font-size: 9.5px; padding: 1px 5px; background: var(--panel-2); color: var(--text-3); letter-spacing: .08em; }
+
+/* page */
+main { padding: 22px var(--page-gutter) 48px; max-width: 1180px; }
+.hero { text-align: center; padding: 34px 0 40px; }
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 12.5px; color: var(--text-2);
+  background: var(--panel); }
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--on); box-shadow: 0 0 8px var(--on); }
+.pill.off .dot { background: #f5b14c; box-shadow: 0 0 8px #f5b14c; }
+.pill b { color: var(--text); font-weight: 600; }
+.hero h1 { margin: 22px auto 0; max-width: 900px; font-size: clamp(34px, 5vw, 51px); font-weight: 500; letter-spacing: -0.035em; line-height: 1.08; }
+.hero h1 span { color: var(--text-3); display: block; }
+.hero p { margin: 18px auto 0; max-width: 620px; color: var(--text-3); font-size: 15.5px; line-height: 1.6; }
+.hero .ctas { display: flex; gap: 10px; justify-content: center; margin-top: 26px; flex-wrap: wrap; }
+
+/* bento */
+.bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.tile { grid-column: span 2; height: 290px; display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--card-border);
+  overflow: hidden; position: relative; transition: border-color .2s ease; }
+.tile.span-2 { grid-column: span 3; }
+.tile:hover { border-color: var(--line-strong); }
+.tile:hover .tile-open { color: var(--text); }
+.tile:hover .tile-open .ic { transform: translateX(3px); }
+.tile-body { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.tile-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; font-size: 13px; font-weight: 500; color: var(--text-2);
+  border-top: 1px solid var(--card-border); background: var(--card); position: relative; z-index: 2; }
+.tile-open { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); }
+.tile-open .ic { width: 14px; height: 14px; transition: transform .2s ease; }
+.tile-pad { padding: 16px; }
+.tile-big { font-size: 34px; font-weight: 500; letter-spacing: -.03em; margin: 6px 0 2px; }
+.tile-kicker { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: 12px; }
+.tile-label { font-size: 13px; color: var(--text-2); }
+.tile-sub { font-size: 12.5px; color: var(--text-3); }
+
+/* tile: the token wall */
+.wall { position: absolute; inset: 0; padding: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-content: start;
+  -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.wall.moving { animation: wall 40s linear infinite; }
+@keyframes wall { to { transform: translateY(-50%); } }
+.wt { background: var(--panel); padding: 6px 6px 8px; clip-path: var(--cut); }
+.wt .img { aspect-ratio: 1; background: #222 center / cover no-repeat; display: grid; place-items: center; font-weight: 600; color: var(--text-3); font-size: 22px; }
+.wt b { display: block; margin-top: 6px; font-size: 11.5px; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt.ghost .img { background: linear-gradient(135deg, rgba(var(--glow), .07), rgba(var(--glow), .02)); }
+.wt.ghost b { color: var(--text-4); }
+.wall-empty { position: absolute; inset: 0; display: grid; place-items: center; z-index: 1; text-align: center; padding: 20px; }
+.wall-empty[hidden] { display: none; }
+.wall-empty span { background: rgba(10,10,10,.82); border: 1px solid var(--line); padding: 10px 16px; font-size: 13px; color: var(--text-2); }
+
+/* tile: the rules */
+.rules { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.rule { display: flex; align-items: center; gap: 12px; padding: 7px 10px; background: var(--panel); }
+.rule .ri { width: 30px; height: 30px; display: grid; place-items: center; background: var(--panel-2); color: var(--text-2); flex: none; }
+.rule b { display: block; font-size: 13.5px; font-weight: 600; }
+.rule small { display: block; font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rule div { min-width: 0; flex: 1; }
+.on { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; font-size: 11.5px; color: var(--on); background: var(--on-soft); }
+.on .ic { width: 12px; height: 12px; }
+
+/* tile: launches over time */
+.bars { position: absolute; left: 0; right: 0; bottom: 0; height: 46%; display: flex; align-items: flex-end; gap: 4px; padding: 0 16px; }
+.bars i { flex: 1; min-height: 2px; background: linear-gradient(180deg, rgba(var(--glow), .55), rgba(var(--glow), .12)); }
+.bars.none i { background: rgba(255,255,255,.07); }
+
+/* tile: token setup */
+.setup { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.setup .row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel); }
+.setup .sw { width: 22px; height: 22px; background: linear-gradient(135deg, #cfd6ff, #8d9cff); }
+.setup .row .k { color: var(--text-3); font-size: 13px; }
+.setup .row .v { margin-left: auto; font-weight: 600; font-size: 13.5px; }
+.checks { display: flex; gap: 6px; align-items: center; }
+.checks i { width: 28px; height: 28px; display: grid; place-items: center; background: var(--panel-2); color: var(--text-2); }
+.checks span { margin-left: auto; font-size: 12.5px; color: var(--text-3); }
+.ready { display: flex; align-items: center; gap: 6px; color: var(--on); font-size: 12.5px; font-weight: 500; }
+.ready.off { color: #f5b14c; }
+.setup .btn { width: 100%; clip-path: none; }
+
+/* tile: where fees go */
+.split { display: flex; gap: 4px; margin-top: 4px; }
+.split div { padding: 9px 10px; font-weight: 600; font-size: 13px; }
+.split .you { flex: 9; border: 1px solid var(--on); color: var(--on); background: var(--on-soft); }
+.split .us { flex: 1; min-width: 46px; background: var(--panel-2); color: var(--text-2); text-align: center; }
+.split-k { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-3); margin-top: 6px; }
+.steps { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; font-family: var(--mono); font-size: 12.5px; color: var(--text-2); }
+.steps li:before { content: "▾"; color: var(--on); margin-right: 10px; }
+
+/* the two lists */
+.lists { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 12px; }
+.section-head h2 { margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.section-head a, .section-head span { font-size: 13px; color: var(--text-2); }
+.section-head a:hover { color: var(--text); text-decoration: underline; }
+.card { background: var(--card); border: 1px solid var(--card-border); }
+.empty { padding: 18px 14px; font-size: 13px; color: var(--text-3); line-height: 1.6; }
+.lrow { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--card-border); font-size: 13.5px; }
+.lrow:first-child { border-top: 0; }
+.lrow .av { width: 30px; height: 30px; flex: none; background: #222 center / cover no-repeat; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--text-3); clip-path: var(--cut); }
+.lrow .nm { min-width: 0; flex: 1; }
+.lrow .nm b { display: block; font-weight: 600; }
+.lrow .nm small { display: block; color: var(--text-3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog { width: 110px; flex: none; }
+.prog .track { height: 6px; background: var(--panel-2); }
+.prog .fill { height: 100%; background: linear-gradient(90deg, rgba(var(--glow), .5), #fff); }
+.prog small { display: block; text-align: right; font-family: var(--mono); font-size: 11.5px; color: var(--text-2); margin-top: 3px; }
+.amt { font-family: var(--mono); color: var(--on); font-size: 13px; flex: none; }
+.when { font-family: var(--mono); color: var(--text-3); font-size: 12px; flex: none; }
+.lrow a.ext { color: var(--text-3); flex: none; }
+.lrow a.ext:hover { color: var(--text); }
+
+/* the sections the sidebar jumps to */
+.sec { margin-top: 44px; }
+.tokens { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.tok { background: var(--card); border: 1px solid var(--card-border); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.tok-top { display: flex; gap: 12px; align-items: center; }
+.tok-top .av { width: 52px; height: 52px; flex: none; background: #222 center / cover no-repeat; clip-path: var(--cut); display: grid; place-items: center;
+  font-weight: 600; color: var(--text-3); }
+.tok-top b { font-size: 15px; display: block; }
+.tok-top small { color: var(--text-3); font-size: 12.5px; display: block; }
+.tok-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 12.5px; }
+.tok-meta div { background: var(--panel); padding: 7px 9px; }
+.tok-meta span { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.tok-links { display: flex; gap: 12px; font-size: 12.5px; color: var(--text-3); }
+.tok-links a:hover { color: var(--text); }
+.panel-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; }
+.panel { background: var(--card); border: 1px solid var(--card-border); padding: 20px; }
+.panel h3 { margin: 0 0 6px; font-size: 18px; font-weight: 500; letter-spacing: -.01em; }
+.panel p { margin: 0; color: var(--text-3); font-size: 14px; }
+.lsteps { counter-reset: s; list-style: none; padding: 0; margin: 16px 0 0; display: flex; flex-direction: column; gap: 14px; }
+.lsteps li { counter-increment: s; display: grid; grid-template-columns: 30px 1fr; gap: 12px; font-size: 14px; color: var(--text-2); }
+.lsteps li:before { content: counter(s); width: 30px; height: 30px; display: grid; place-items: center; background: var(--panel-2); font-family: var(--mono); font-size: 13px; color: var(--text); }
+.lsteps b { color: var(--text); font-weight: 600; display: block; }
+.form { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.form label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--text-3); }
+.form label em { font-style: normal; color: var(--text-4); }
+.form input, .form textarea { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 9px 11px; font: 14px var(--sans); outline: none; border-radius: 0; }
+.form input:focus, .form textarea:focus { border-color: var(--line-strong); }
+.form input.bad { border-color: #ff6b6b; }
+.form .two { display: grid; grid-template-columns: 1fr 120px; gap: 10px; }
+.form #fWallet { font-family: var(--mono); font-size: 13px; }
+.preview { white-space: pre-wrap; background: var(--panel); border: 1px solid var(--card-border); padding: 12px 14px; font-size: 13.5px; color: var(--text-2); min-height: 120px; }
+.note { font-size: 12.5px; color: var(--text-3); }
+.note.warn { color: #f5b14c; }
+.facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.fact { background: var(--card); border: 1px solid var(--card-border); padding: 16px; }
+.fact span { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.fact b { display: block; font-size: 26px; font-weight: 500; letter-spacing: -.02em; margin-top: 6px; }
+.fact small { color: var(--text-3); font-size: 12.5px; }
+.foot { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--card-border); font-size: 12.5px; color: var(--text-3); }
+
+/* phones and small tablets: the sidebar slides in, tiles stack */
+@media (max-width: 980px) {
+  :root { --page-gutter: 16px; --head-h: 60px; --head-pad: 0px; }
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: fixed; z-index: 60; left: 0; top: 0; bottom: 0; width: 272px; border-right: 1px solid var(--card-border); transform: translateX(-100%); transition: transform .2s ease; }
+  .sidebar.open { transform: none; }
+  .menu-btn { display: grid; }
+  .topbar { flex-wrap: wrap; row-gap: 8px; padding-block: 10px; }
+  .search { order: 3; flex: 1 0 100%; max-width: none; }
+  .search input { font-size: 16px; }
+  .bento { grid-template-columns: minmax(0, 1fr); }
+  .tile, .tile.span-2 { grid-column: auto; }
+  .lists, .panel-grid { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 520px) { .hide-sm { display: none !important; } .hero h1 { font-size: 32px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-coins" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="9" r="6"/><path d="M15.5 9.5a6 6 0 1 1-6 6"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4V5Z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4V4Z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7V4Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="currentColor"><path d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8L17.8 3Zm-1.1 16.2h1.7L7.4 4.7H5.5l11.2 14.5Z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7h16v13H3z"/><path d="M3 7V5h13v2"/><circle cx="15.5" cy="13.5" r="1.3" fill="currentColor"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <a class="logo" href="/" aria-label="VIGIL home"><span class="face" aria-hidden="true"></span><span class="word">VIGIL</span></a>
+    <nav class="nav" aria-label="Launchpad">
+      <a href="#top" class="active"><svg class="ic"><use href="#i-home"/></svg>Home</a>
+      <a href="#tokens"><svg class="ic"><use href="#i-grid"/></svg>Tokens</a>
+      <a href="#launch"><svg class="ic"><use href="#i-plus"/></svg>Launch</a>
+      <a href="#rules"><svg class="ic"><use href="#i-shield"/></svg>Rules</a>
+      <a href="#fees"><svg class="ic"><use href="#i-coins"/></svg>Fees &amp; payouts</a>
+    </nav>
+    <nav class="nav side-foot" aria-label="Help">
+      <a data-x-link href="https://x.com/" target="_blank" rel="noopener"><svg class="ic"><use href="#i-msg"/></svg>Support</a>
+      <a href="https://github.com/Trench-launches/vigil#readme" target="_blank" rel="noopener"><svg class="ic"><use href="#i-book"/></svg>Docs</a>
+    </nav>
+  </aside>
+
+  <div class="page">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu" aria-controls="sidebar" aria-expanded="false"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <label class="search"><svg class="ic"><use href="#i-search"/></svg><input id="q" type="search" placeholder="Search name, ticker or mint" aria-label="Search launched coins" autocomplete="off"></label>
+      <div class="actions">
+        <a class="icon-btn hide-sm" data-x-link href="https://x.com/" target="_blank" rel="noopener" aria-label="VIGIL on X"><svg class="ic"><use href="#i-x"/></svg></a>
+        <a class="icon-btn hide-sm" href="/#score" aria-label="VIGIL's trading scorecard"><svg class="ic"><use href="#i-chart"/></svg></a>
+        <a class="btn primary hide-sm" href="#launch">Launch</a>
+        <span class="btn" aria-disabled="true" title="Connect a wallet to launch and set your own buy: coming soon"><svg class="ic"><use href="#i-wallet"/></svg>Connect wallet <small>soon</small></span>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <span class="pill" id="statusPill"><span class="dot"></span>Launches on <b>pump.fun</b></span>
+        <h1>Launch a coin with one post.<span>Your fees, locked on chain.</span></h1>
+        <p>Tag <span data-x-handle>VIGIL</span> on X with a name, a ticker, an image and your Solana wallet. VIGIL checks the request, pays the launch on pump.fun and locks 90% of the coin's creator fees to you.</p>
+        <div class="ctas"><a class="btn primary big" href="#tokens">Explore tokens</a><a class="btn big" href="#launch">Launch</a></div>
+      </section>
+
+      <div class="bento">
+        <a class="tile span-2" href="#tokens">
+          <div class="tile-body"><div class="wall" id="wall"></div><div class="wall-empty" id="wallEmpty" hidden><span>No launches yet. Be the first.</span></div></div>
+          <div class="tile-foot">Tokens <span class="tile-open">Open <svg class="ic"><use href="#i-arrow"/></svg></span></div>
+        </a>
+        <a class="tile span-2" href="#rules">
+          <div class="tile-body rules">
+            <div class="rule"><span class="ri"><svg class="ic"><use href="#i-eye"/></svg></span><div><b>Grok checks every request</b><small>No hate, scams or fake "official" coins</small></div><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span></div>
+            <div class="rule"><span class="ri"><svg class="ic"><use href="#i-user"/></svg></span><div><b id="tRuleDay">One launch per account a day</b><small>Per X account, every 24 hours</small></div><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span></div>
+            <div class="rule"><span class="ri"><svg class="ic"><use href="#i-clock"/></svg></span><div><b id="tRuleAge">Accounts older than 30 days</b><small>Brand-new accounts wait</small></div><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span></div>
+            <div class="rule"><span class="ri"><svg class="ic"><use href="#i-lock"/></svg></span><div><b>Creator fees locked to you</b><small>Split once on chain, then nobody can change it</small></div><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span></div>
+          </div>
+          <div class="tile-foot">Rules <span class="tile-open">Open <svg class="ic"><use href="#i-arrow"/></svg></span></div>
+        </a>
+        <a class="tile" href="#tokens">
+          <div class="tile-body tile-pad">
+            <div class="tile-label">Coins launched</div>
+            <div class="tile-big" id="tLaunched">0</div>
+            <div class="tile-sub" id="tToday">0 in the last 24 hours</div>
+            <div class="bars none" id="bars"></div>
+          </div>
+          <div class="tile-foot">Last 14 days <span class="tile-open">Open <svg class="ic"><use href="#i-arrow"/></svg></span></div>
+        </a>
+        <a class="tile" href="#launch">
+          <div class="tile-body setup">
+            <div class="tile-kicker" style="margin:0">Token setup</div>
+            <div class="row"><span class="sw"></span><span class="k">Ticker</span><span class="v">$YOURS</span></div>
+            <div class="checks"><i><svg class="ic"><use href="#i-img"/></svg></i><i><svg class="ic"><use href="#i-wallet"/></svg></i><i><svg class="ic"><use href="#i-eye"/></svg></i><i><svg class="ic"><use href="#i-lock"/></svg></i><span>4 checks</span></div>
+            <div class="ready" id="ready"><svg class="ic"><use href="#i-check"/></svg>Ready to launch</div>
+            <span class="btn primary">Launch</span>
+          </div>
+          <div class="tile-foot">Launch <span class="tile-open">Open <svg class="ic"><use href="#i-arrow"/></svg></span></div>
+        </a>
+        <a class="tile" href="#fees">
+          <div class="tile-body tile-pad">
+            <div class="tile-kicker">Where fees go</div>
+            <div class="split"><div class="you">90%</div><div class="us">10%</div></div>
+            <div class="split-k"><span>to you, the creator</span><span>VIGIL</span></div>
+            <ul class="steps"><li>trading fees build up</li><li>split, locked on chain</li><li>paid to your wallet</li></ul>
+          </div>
+          <div class="tile-foot">Fees &amp; payouts <span class="tile-open">Open <svg class="ic"><use href="#i-arrow"/></svg></span></div>
+        </a>
+      </div>
+
+      <div class="lists">
+        <section>
+          <div class="section-head"><h2>Closest to graduation</h2><a href="#tokens">All tokens</a></div>
+          <div class="card" id="closest"><div class="empty">No tokens yet.</div></div>
+        </section>
+        <section>
+          <div class="section-head"><h2>Latest payouts</h2><a href="#fees">Where fees go</a></div>
+          <div class="card" id="payouts"><div class="empty">No payouts yet: creator fees are paid out every few hours once a coin is trading.</div></div>
+        </section>
+      </div>
+
+      <section class="sec" id="tokens" aria-labelledby="h-tokens">
+        <div class="section-head"><h2 id="h-tokens">All tokens</h2><span id="tokCount">0 coins</span></div>
+        <div class="tokens" id="tokenGrid"><div class="card empty">No launches yet. When VIGIL launches a coin it shows up here with its creator, curve progress and links.</div></div>
+      </section>
+
+      <section class="sec" id="launch" aria-labelledby="h-launch">
+        <div class="section-head"><h2 id="h-launch">Launch</h2><span>One post on X</span></div>
+        <div class="panel-grid">
+          <div class="panel">
+            <h3>Launch your coin. Just tag <span data-x-handle>VIGIL</span>.</h3>
+            <p>VIGIL pays the launch. You get 90% of the creator fees from the first trade.</p>
+            <ol class="lsteps">
+              <li><div><b>Fill in your coin</b>Name, ticker, a line about it and the Solana wallet for your fees.</div></li>
+              <li><div><b>Post it on X with your image</b>VIGIL checks every request before it launches anything.</div></li>
+              <li><div><b>VIGIL launches it on pump.fun</b>It replies under your post with the contract address, and the coin appears on this page.</div></li>
+            </ol>
+          </div>
+          <div class="panel">
+            <form class="form" id="lform" autocomplete="off" novalidate>
+              <div class="two"><label>Coin name<input id="fName" maxlength="32" placeholder="Purr Capital" required></label><label>Ticker<input id="fSym" maxlength="11" placeholder="PURR" required></label></div>
+              <label>A line about it <em>optional</em><input id="fDesc" maxlength="140" placeholder="a cat that runs a hedge fund"></label>
+              <label>Coin's X or website <em>optional</em><input id="fLink" maxlength="80" placeholder="x.com/purrcapital"></label>
+              <label>Wallet for your creator fees<input id="fWallet" maxlength="44" placeholder="Your Solana wallet" spellcheck="false" required></label>
+              <div class="preview" id="fPreview" aria-live="polite"></div>
+              <div class="note" id="fNote">Attach your coin's image on X before you post.</div>
+              <button class="btn primary big" id="fGo" type="submit" disabled>Post on X</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="sec" id="rules" aria-labelledby="h-rules">
+        <div class="section-head"><h2 id="h-rules">Rules</h2><span>The same for everyone</span></div>
+        <div class="card">
+          <div class="lrow"><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span><div class="nm"><b>Grok reads every request</b><small>A real request, no impersonation of people or projects, nothing hateful or unsafe. Refusals get a short reply.</small></div></div>
+          <div class="lrow"><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span><div class="nm"><b id="rDay">One launch per X account a day</b><small>Requests past the limit are refused until tomorrow.</small></div></div>
+          <div class="lrow"><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span><div class="nm"><b id="rAge">X accounts older than 30 days</b><small>Keeps throwaway accounts from flooding the launchpad.</small></div></div>
+          <div class="lrow"><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span><div class="nm"><b>An image, a name, a ticker and one wallet</b><small>Tickers are letters and numbers, up to 10. $VIGIL is VIGIL's own and can't be launched again.</small></div></div>
+          <div class="lrow"><span class="on"><svg class="ic"><use href="#i-check"/></svg>on</span><div class="nm"><b>A daily launch budget</b><small>VIGIL pays for launches, so there's a daily cap. Once it's used, requests wait for the next day.</small></div></div>
+        </div>
+      </section>
+
+      <section class="sec" id="fees" aria-labelledby="h-fees">
+        <div class="section-head"><h2 id="h-fees">Fees &amp; payouts</h2><span>Locked on chain</span></div>
+        <div class="facts">
+          <div class="fact"><span>Your share</span><b id="fShare">90%</b><small>of the coin's creator fees</small></div>
+          <div class="fact"><span>VIGIL's share</span><b id="fOurs">10%</b><small>funds future launches</small></div>
+          <div class="fact"><span>Paid to creators</span><b id="fPaid">0 SOL</b><small>in recent payouts</small></div>
+          <div class="fact"><span>Launch cost to you</span><b>0 SOL</b><small>VIGIL pays it</small></div>
+        </div>
+        <div class="card" style="margin-top:12px"><div class="empty">pump.fun pays a coin's creator a small fee on every trade. Right after launch VIGIL splits that fee on chain: your share to your wallet, the rest to VIGIL, then the split is locked so nobody, VIGIL included, can change it. VIGIL pays out what has built up every few hours.</div></div>
+      </section>
+
+      <div class="foot">VIGIL is an automated account run by software. Coins launched here are made by their requesters; VIGIL checks requests but doesn't vouch for any coin. Memecoins are extremely risky. Not financial advice. <span id="dataNote">Waiting for live data.</span></div>
+    </main>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+(() => {
+  const C = window.SITE_CONFIG || {};
+  const NAME = C.name || "VIGIL";
+  const X_HANDLE = C.xHandle || "";
+  const API = (C.api || "http://localhost:8000").replace(/\/+$/, "");
+  const EXPLORER = "https://solscan.io";
+  const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const isAddr = a => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a || "");
+  const ago = iso => { if (!iso) return ""; const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    return s < 60 ? `${Math.floor(s)}s` : s < 3600 ? `${Math.floor(s / 60)}m` : s < 86400 ? `${Math.floor(s / 3600)}h` : `${Math.floor(s / 86400)}d`; };
+  const usd = n => n == null ? "–" : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : `$${Math.round(n)}`;
+  const solAmt = n => `${(+n || 0).toFixed(n >= 1 ? 2 : 4)} SOL`;
+  const initial = s => esc(String(s || "?").charAt(0).toUpperCase());
+  // coin images are the ones attached on X (pbs.twimg.com); only https URLs are used as backgrounds
+  const bg = url => /^https:\/\/[^"'()\s]+$/.test(url || "") ? `style="background-image:url('${esc(url)}')"` : "";
+
+  // the account, wherever it's named
+  $$("[data-x-link]").forEach(a => { a.href = X_HANDLE ? `https://x.com/${X_HANDLE}` : "https://x.com/"; });
+  $$("[data-x-handle]").forEach(el => { el.textContent = X_HANDLE ? "@" + X_HANDLE : NAME; });
+
+  // sidebar: open on phones, and the section in view is the active link
+  const side = $("#sidebar"), menu = $("#menuBtn");
+  menu.addEventListener("click", e => { e.stopPropagation(); const open = !side.classList.contains("open"); side.classList.toggle("open", open); menu.setAttribute("aria-expanded", String(open)); });
+  document.addEventListener("click", e => { if (side.classList.contains("open") && !side.contains(e.target)) { side.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); } });
+  $$(".sidebar a").forEach(a => a.addEventListener("click", () => { side.classList.remove("open"); menu.setAttribute("aria-expanded", "false"); }));
+  const links = $$(".sidebar .nav:not(.side-foot) a");
+  const secs = ["top", "tokens", "launch", "rules", "fees"].map(id => document.getElementById(id));
+  const mark = () => { const y = scrollY + 140; let cur = "top"; secs.forEach(s => { if (s && s.id !== "top" && s.offsetTop <= y) cur = s.id; });
+    links.forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + cur)); };
+  addEventListener("scroll", mark, { passive: true }); mark();
+
+  // the token wall: real coins, or quiet placeholders until the first launch
+  const wallTile = c => `<div class="wt"><div class="img" ${bg(c.logo)}>${c.logo ? "" : initial(c.symbol)}</div><b>${esc(c.symbol)}</b></div>`;
+  const renderWall = coins => {
+    const wall = $("#wall");
+    if (!coins.length) {
+      wall.classList.remove("moving");
+      wall.innerHTML = Array.from({ length: 12 }, () => `<div class="wt ghost"><div class="img"></div><b>$ — — —</b></div>`).join("");
+      $("#wallEmpty").hidden = false;
+      return;
+    }
+    $("#wallEmpty").hidden = true;
+    let list = coins.slice(0, 16);
+    while (list.length < 12) list = list.concat(coins);
+    const html = list.slice(0, 16).map(wallTile).join("");
+    wall.innerHTML = html + (list.length >= 12 ? html : "");  // twice, so the slow scroll loops seamlessly
+    wall.classList.toggle("moving", !matchMedia("(prefers-reduced-motion: reduce)").matches);
+  };
+
+  const renderBars = coins => {
+    const days = Array(14).fill(0), now = Date.now();
+    coins.forEach(c => { const d = Math.floor((now - Date.parse(c.launched_at)) / 864e5); if (d >= 0 && d < 14) days[13 - d]++; });
+    const max = Math.max(1, ...days);
+    $("#bars").innerHTML = days.map(n => `<i style="height:${Math.max(4, n / max * 100)}%" title="${n} launch${n === 1 ? "" : "es"}"></i>`).join("");
+    $("#bars").classList.toggle("none", !coins.length);
+  };
+
+  const links3 = c => `<a href="https://pump.fun/coin/${esc(c.token)}" target="_blank" rel="noopener">pump.fun ↗</a>`
+    + (c.tx_hash ? `<a href="${EXPLORER}/tx/${esc(c.tx_hash)}" target="_blank" rel="noopener">Launch tx ↗</a>` : "")
+    + `<a href="https://dexscreener.com/solana/${esc(c.token)}" target="_blank" rel="noopener">Chart ↗</a>`;
+  const progressText = c => c.graduated ? "graduated" : c.progress_pct == null ? "–" : `${c.progress_pct.toFixed(1)}%`;
+  const renderClosest = coins => {
+    const live = coins.filter(c => !c.graduated && c.progress_pct != null).sort((a, b) => b.progress_pct - a.progress_pct).slice(0, 5);
+    $("#closest").innerHTML = live.length ? live.map(c => `<a class="lrow" href="https://pump.fun/coin/${esc(c.token)}" target="_blank" rel="noopener">
+        <span class="av" ${bg(c.logo)}>${c.logo ? "" : initial(c.symbol)}</span>
+        <span class="nm"><b>$${esc(c.symbol)}</b><small>${esc(c.name)}${c.handle ? " · @" + esc(c.handle) : ""}</small></span>
+        <span class="prog"><div class="track"><div class="fill" style="width:${c.progress_pct}%"></div></div><small>${progressText(c)}</small></span></a>`).join("")
+      : `<div class="empty">${coins.length ? "No coins on their bonding curve right now." : "No tokens yet."}</div>`;
+  };
+  const renderPayouts = payouts => {
+    $("#payouts").innerHTML = payouts.length ? payouts.slice(0, 5).map(p => `<div class="lrow">
+        <span class="nm"><b>$${esc(p.symbol || "?")}</b><small>${solAmt(p.total_sol)} paid out, ${solAmt(p.creator_sol)} to the creator</small></span>
+        <span class="amt">+${solAmt(p.creator_sol)}</span><span class="when">${ago(p.at)}</span>
+        ${p.signature ? `<a class="ext" href="${EXPLORER}/tx/${esc(p.signature)}" target="_blank" rel="noopener" aria-label="Payout transaction">↗</a>` : ""}</div>`).join("")
+      : `<div class="empty">No payouts yet: creator fees are paid out every few hours once a coin is trading.</div>`;
+  };
+
+  let COINS = [];
+  const renderTokens = () => {
+    const q = $("#q").value.trim().toLowerCase();
+    const list = COINS.filter(c => !q || [c.symbol, c.name, c.token, c.handle].some(v => String(v || "").toLowerCase().includes(q)));
+    $("#tokCount").textContent = q ? `${list.length} of ${COINS.length} coins` : `${COINS.length} coin${COINS.length === 1 ? "" : "s"}`;
+    $("#tokenGrid").innerHTML = list.length ? list.map(c => `<article class="tok">
+        <div class="tok-top"><span class="av" ${bg(c.logo)}>${c.logo ? "" : initial(c.symbol)}</span>
+          <div><b>$${esc(c.symbol)}</b><small>${esc(c.name)}</small><small>${c.handle ? "by @" + esc(c.handle) + " · " : ""}${ago(c.launched_at)} ago</small></div></div>
+        <div class="tok-meta"><div><span>Curve</span>${progressText(c)}</div><div><span>Market cap</span>${usd(c.market_cap_usd)}</div>
+          <div><span>Creator fees</span>${c.fee_split_locked ? (c.creator_share_bps / 100) + "% to creator" : "split pending"}</div><div><span>Mint</span><span class="mono" style="text-transform:none;font-size:12px;color:var(--text-2)">${esc(c.token.slice(0, 4))}…${esc(c.token.slice(-4))}</span></div></div>
+        <div class="tok-links">${links3(c)}</div></article>`).join("")
+      : `<div class="card empty">${COINS.length ? "No coin matches that search." : "No launches yet. When VIGIL launches a coin it shows up here with its creator, curve progress and links."}</div>`;
+  };
+  $("#q").addEventListener("input", () => { renderTokens(); if ($("#q").value.trim()) document.getElementById("tokens").scrollIntoView({ block: "start" }); });
+
+  // the launch form: builds the post VIGIL reads on X (same format as the main site's form)
+  let launchOpen = true;
+  const f = { name: $("#fName"), sym: $("#fSym"), desc: $("#fDesc"), link: $("#fLink"), wallet: $("#fWallet") };
+  const post = () => {
+    const v = Object.fromEntries(Object.entries(f).map(([k, el]) => [k, el.value.trim()]));
+    v.sym = v.sym.replace(/^\$/, "").toUpperCase();
+    const ok = { name: v.name.length > 0, sym: /^[A-Z0-9]{1,10}$/.test(v.sym), wallet: isAddr(v.wallet) };
+    const text = `@${X_HANDLE || NAME} launch $${v.sym || "TICKER"} ${v.name || "Coin name"}` + (v.desc ? `\n\n${v.desc}` : "")
+      + (v.link ? `\n\n${v.link}` : "") + `\n\nfees to: ${v.wallet || "your Solana wallet"}`;
+    return { ok, text, valid: ok.name && ok.sym && ok.wallet };
+  };
+  const renderForm = (touched = false) => {
+    const p = post();
+    $("#fPreview").textContent = p.text;
+    [["name", f.name], ["sym", f.sym], ["wallet", f.wallet]].forEach(([k, el]) => el.classList.toggle("bad", touched && el.value.trim() !== "" && !p.ok[k]));
+    $("#fGo").disabled = !p.valid || !launchOpen || !X_HANDLE;
+    const bad = touched && f.wallet.value.trim() !== "" && !p.ok.wallet;
+    $("#fNote").classList.toggle("warn", bad || !launchOpen);
+    $("#fNote").textContent = !launchOpen ? "Launches open soon. Get your coin ready." : bad
+      ? "That wallet doesn't look right: it should be a Solana wallet address (32 to 44 letters and numbers)." : "Attach your coin's image on X before you post.";
+  };
+  Object.values(f).forEach(el => el.addEventListener("input", () => renderForm(true)));
+  $("#lform").addEventListener("submit", e => { e.preventDefault(); const p = post(); if (!p.valid) return;
+    window.open("https://x.com/intent/post?text=" + encodeURIComponent(p.text), "_blank", "noopener"); });
+  renderForm();
+
+  // live data
+  const render = d => {
+    const st = d.stats || {}, coins = d.coins || [];
+    COINS = coins;
+    launchOpen = !!st.enabled;
+    const pill = $("#statusPill");
+    pill.classList.toggle("off", !launchOpen);
+    pill.innerHTML = launchOpen ? `<span class="dot"></span>Launches on <b>pump.fun</b> · open` : `<span class="dot"></span>Launches on <b>pump.fun</b> · opening soon`;
+    $("#ready").classList.toggle("off", !launchOpen);
+    $("#ready").innerHTML = `<svg class="ic"><use href="#i-check"/></svg>${launchOpen ? "Ready to launch" : "Opening soon"}`;
+    $("#tLaunched").textContent = (st.launched || 0).toLocaleString("en-US");
+    $("#tToday").textContent = `${st.launched_24h || 0} in the last 24 hours`;
+    const share = (st.creator_share_bps ?? 9000) / 100;
+    $("#fShare").textContent = `${share}%`; $("#fOurs").textContent = `${100 - share}%`;
+    $(".split .you").textContent = `${share}%`; $(".split .us").textContent = `${100 - share}%`;
+    $("#fPaid").textContent = solAmt(st.creator_fees_paid_sol || 0);
+    if (st.per_user_day) {
+      const n = st.per_user_day;
+      $("#rDay").textContent = n === 1 ? "One launch per X account a day" : `${n} launches per X account a day`;
+      $("#tRuleDay").textContent = n === 1 ? "One launch per account a day" : `${n} launches per account a day`;
+    }
+    if (st.min_account_days) {
+      $("#rAge").textContent = `X accounts older than ${st.min_account_days} days`;
+      $("#tRuleAge").textContent = `Accounts older than ${st.min_account_days} days`;
+    }
+    renderWall(coins); renderBars(coins); renderClosest(coins); renderPayouts(d.payouts || []); renderTokens(); renderForm();
+    $("#dataNote").textContent = `Live from ${NAME}'s public API, updated ${ago(d.generated_at) || "just now"} ago.`;
+  };
+  const load = async () => {
+    try { const r = await fetch(API + "/launchpad/board", { cache: "no-store" }); if (!r.ok) throw new Error(r.status); render(await r.json()); }
+    catch { $("#dataNote").textContent = `Couldn't reach ${NAME}'s API just now; showing what was last loaded.`; }
+  };
+  renderWall([]); renderBars([]); renderTokens();
+  load(); setInterval(load, 60000);
+})();
+</script>
+</body>
+</html>

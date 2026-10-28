@@ -362,6 +362,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .lrecent { margin-top: clamp(18px, 3vh, 26px); display: grid; gap: 8px; }
 .lrh { display: flex; align-items: center; gap: 10px; }
 .lrh .example { margin-left: auto; }
+.lrh .lp-link { margin-left: auto; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.lrh .lp-link:hover { color: var(--ink); text-decoration: underline; }
 .lview { padding-block: 4px; }
 .lcard { flex: none; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; width: 265px; margin-right: 10px;
   padding: 10px 12px; border-radius: 18px; background: var(--white); box-shadow: 0 1px 0 var(--line), 0 6px 16px -12px rgba(15,20,25,.25); }
@@ -1396,7 +1398,7 @@ footer nav a:hover { color: var(--ink); }
         <li><b>3</b><div><strong>VIGIL launches it on pump.fun</strong><span>It replies with your CA. VIGIL pays the launch, and you get 90% of the creator fees from the first trade (VIGIL keeps 10%).</span></div></li>
       </ol>
       <p class="lrules">Call it whatever you like · one launch per X account a day · accounts older than 30 days · no hate, scams or fake "official" coins</p>
-      <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span></div><div class="rc-view lview" id="lRecentList"></div></div>
+      <div class="lrecent" id="lRecent"><div class="lrh"><span class="sc-lbl">Recently launched</span><a class="lp-link" href="/launchpad">Launchpad →</a></div><div class="rc-view lview" id="lRecentList"></div></div>
     </div>
     <div class="panel grid-bg launch-panel">
       <form class="lform" id="launchForm" autocomplete="off" novalidate>
