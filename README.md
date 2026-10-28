@@ -65,7 +65,7 @@ docker compose), so an X outage can't stop trading and a crash in one worker can
 You need Python 3.12+. Nothing else is required to start: with no keys the bot indexes the chain read-only.
 
 ```bash
-git clone https://github.com/Trench-launches/CT-muse-trader.git vigil && cd vigil
+git clone https://github.com/Trench-launches/vigil.git && cd vigil
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"        # Windows: .venv\Scripts\pip install -e ".[dev]"
 cp .env.example .env                     # then fill in what you have (see "Keys" below)
@@ -164,18 +164,20 @@ the repo has configs for Railway and Vercel.
 
 ### Site on Vercel (or any static host)
 
-The site reads its settings from `web/config.js`. `scripts/deploy-web.sh` writes that file from `SITE_*`
-variables in a temporary copy, so your values never need committing. Put them in a gitignored `.env.site`:
+The site reads its settings from `web/config.js`, and link previews read a few `<head>` tags in
+`web/index.html` (canonical URL, `og:*`, `twitter:*`), which ship with `example.com` placeholders.
+`scripts/deploy-web.sh` fills in both from `SITE_*` variables in a temporary copy, so your values never need
+committing. Put them in a gitignored `.env.site`:
 
 ```bash
+SITE_URL=https://www.your-site.example          # required: the site's own address
 SITE_API_URL=https://your-backend.example.com   # required
 SITE_X_HANDLE=YourBot                           # optional, no @
 SITE_NAME=VIGIL                                 # optional
 ```
 
-Then `vercel link` once and `scripts/deploy-web.sh`. On another static host, edit `web/config.js` and upload
-`web/`. Also update the `<head>` tags in `web/index.html` (canonical URL, `og:*`, `twitter:site`) to your
-domain and X account.
+Then `vercel link` once and `scripts/deploy-web.sh`. On another static host, edit `web/config.js` and those
+`<head>` tags by hand, then upload `web/`.
 
 ### Make it yours
 
