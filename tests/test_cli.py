@@ -29,3 +29,12 @@ def test_every_worker_run_all_starts_is_a_valid_run_command():
     assert out.returncode == 0
     for name in WORKERS:
         assert name in out.stdout, name
+
+
+def test_docker_compose_runs_every_worker():
+    """docker compose has one service per worker; a missing one (say exits) would silently never run."""
+    from pathlib import Path
+    from ct_agent.workers.runner import WORKERS
+    compose = (Path(__file__).resolve().parent.parent / "docker-compose.yml").read_text(encoding="utf-8")
+    for name in WORKERS:
+        assert f'"run", "{name}"' in compose, name

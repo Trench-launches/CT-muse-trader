@@ -42,7 +42,8 @@ def _scenario() -> tuple[FakeChain, FakeToken, FakeToken]:
 def _settings(tmp_path, **kw) -> Settings:
     base = dict(_env_file=None, database_path=str(tmp_path / "e2e.db"), kill_switch_file=str(tmp_path / "KILL"),
                 x_posting_enabled=True, x_user_access_token="user-token", api_admin_token="admin-secret",
-                decision_cooldown_min=0, min_fees_paid_eth=0, candidate_source="pons")  # the thin-chart gate has its own test
+                decision_cooldown_min=0, min_fees_paid_eth=0, candidate_source="pons",  # the thin-chart gate has its own test
+                chat_enabled=True, site_origins=["https://site.example", "https://www.site.example"])
     base.update(kw)
     return Settings(**base)
 
@@ -161,12 +162,12 @@ def test_full_paper_cycle(tmp_path):
     # the website's one-call payload: real figures from the same database
     from ct_agent.api import site as site_mod
     site_mod._CACHE.clear()
-    r = api.get("/site", headers={"origin": "https://www.mooseonmuse.com"})
-    assert r.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
-    new = api.get("/site", headers={"origin": "https://www.moosebymuse.com"})  # the new domain
-    assert new.headers["access-control-allow-origin"] == "https://www.moosebymuse.com"
-    vigil = api.get("/site", headers={"origin": "https://vigiltrades.vercel.app"})  # the VIGIL site
-    assert vigil.headers["access-control-allow-origin"] == "https://vigiltrades.vercel.app"
+    r = api.get("/site", headers={"origin": "https://site.example"})
+    assert r.headers["access-control-allow-origin"] == "https://site.example"
+    www = api.get("/site", headers={"origin": "https://www.site.example"})  # every origin in CT_SITE_ORIGINS
+    assert www.headers["access-control-allow-origin"] == "https://www.site.example"
+    other = api.get("/site", headers={"origin": "https://evil.example"})  # anyone else's page gets no CORS grant
+    assert "access-control-allow-origin" not in other.headers
     d = r.json()
     assert d["score"]["closed"] == 1 and d["score"]["losses"] == 1 and len(d["score"]["series"]) == 2
     sc = d["score"]
@@ -518,10 +519,10 @@ def test_ask_vigil_researches_a_contract(tmp_path):
     assert d["token"] is None and '"is_pons_v2_launch_on_robinhood_chain": false' in grok.calls[-1]
 
     assert api.post("/chat", json={"message": "x" * 501}).status_code == 400
-    pre = api.options("/chat", headers={"origin": "https://www.mooseonmuse.com", "access-control-request-method": "POST",
+    pre = api.options("/chat", headers={"origin": "https://site.example", "access-control-request-method": "POST",
                                         "access-control-request-headers": "content-type"})
-    assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
-    pre = api.options("/chat", headers={"origin": "https://www.mooseonmuse.com", "access-control-request-method": "POST",
+    assert pre.status_code == 200 and pre.headers["access-control-allow-origin"] == "https://site.example"
+    pre = api.options("/chat", headers={"origin": "https://site.example", "access-control-request-method": "POST",
                                         "access-control-request-headers": "authorization"})
     assert pre.status_code == 400  # no Authorization header from browsers: admin calls stay server-side
 

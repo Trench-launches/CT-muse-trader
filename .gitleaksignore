@@ -1,0 +1,7 @@
+# Known findings gitleaks should stop reporting, one fingerprint per line (commit:file:rule:line).
+# Git history keeps a committed secret forever, so a line here is only for a finding that has been handled:
+# the credential revoked (or shown to be harmless). Say which, and when.
+
+# A UUID pasted at the end of .railwayignore on 2026-09-23 (the shape of a Railway token), removed 2026-10-28.
+# Reported to the owner on 2026-10-28 to revoke any Railway token with this value.
+47d4b760e857e394d5b3155ddae953383d7e18e4:.railwayignore:bare-uuid-token:18

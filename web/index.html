@@ -1564,10 +1564,13 @@ footer nav a:hover { color: var(--ink); }
   </div>
 </footer>
 
+<script src="config.js"></script>
 <script>
 (() => {
-  const NAME = "VIGIL";
-  const X_HANDLE = "MooseByMuse";  // the X account, without the @. Renamed it on X? Change it here (and twitter:site in <head>)
+  // Per-deployment settings live in config.js (written by scripts/deploy-web.sh from SITE_* variables)
+  const C = window.SITE_CONFIG || {};
+  const NAME = C.name || "VIGIL";
+  const X_HANDLE = C.xHandle || "";  // the X account, without the @ (also set twitter:site in <head>)
   const X_PROFILE = "https://x.com/" + X_HANDLE;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const $ = (s, r = document) => r.querySelector(s);
@@ -1583,12 +1586,12 @@ footer nav a:hover { color: var(--ink); }
   // p.name / p.who override the account (the launch form previews the visitor's own post)
   const xPost = p => `<article class="xp"><span class="face" aria-hidden="true"></span><div><div class="xp-head"><span class="xp-name">${p.name || NAME}</span><span class="xp-meta">${p.who || "@" + X_HANDLE} · ${p.t}</span><span class="xp-more" aria-hidden="true">${I("ellipsis")}</span></div><p class="xp-text">${xText(p.body)}</p><div class="xp-actions">${xAct("r", "message-circle", p.s && p.s[0])}${xAct("rt", "repeat-2", p.s && p.s[1])}${xAct("lk", "heart", p.s && p.s[2])}${xAct("vw", "chart-no-axes-column", p.s && p.s[3])}<span class="xp-end">${xAct("", "bookmark")}${xAct("", "share")}</span></div></div></article>`;
   /* live data: text from X and the news is escaped before it touches the page */
-  // VIGIL's server on Railway. When it gets its own domain (api.<domain>), put that here and keep this one as the
-  // fallback: some internet providers cache a brand-new domain as missing for a while.
-  const API = "https://vigil-production-99cf.up.railway.app", API_OLD = API;
+  // The backend's public URL. When it moves to a new domain, keep the old one as apiFallback for a while:
+  // some internet providers cache a brand-new domain as missing.
+  const API = (C.api || "http://localhost:8000").replace(/\/+$/, ""), API_OLD = (C.apiFallback || API).replace(/\/+$/, "");
   const apiFetch = async (path, opts) => { try { return await fetch(API + path, opts); } catch { return fetch(API_OLD + path, opts); } };
   // $VIGIL: set both once the token is live and every Buy button goes to GMGN; until then they show "soon"
-  const OWN_TOKEN = { ca: "", gmgn: "" };
+  const OWN_TOKEN = { ca: "", gmgn: "", ...(C.token || {}) };
   // The chat needs the newest API; on a local preview it talks to a local API on port 8000.
   const chatFetch = (path, opts) => location.hostname === "localhost" ? fetch("http://localhost:8000" + path, opts) : apiFetch(path, opts);
   let LIVE = false;   // true once real data has loaded; the example animations then stand down

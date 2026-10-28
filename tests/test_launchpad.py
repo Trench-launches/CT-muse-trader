@@ -26,11 +26,11 @@ class _Brain:
 
 
 def _ctx(settings, db, brain=None, **kw):
-    s = settings.model_copy(update={"launchpad_enabled": True, **kw})
+    s = settings.model_copy(update={"launchpad_enabled": True, "x_handle": "VigilBot", **kw})
     return SimpleNamespace(settings=s, conn=db, brain=brain or _Brain(), pons=None, rpc=None)
 
 
-def _m(i="1", text=f"@MooseByMuse launch $CAT Cat Coin, a cat that trades stocks. fees to {WALLET}", images=("https://pbs.twimg.com/a.jpg",),
+def _m(i="1", text=f"@VigilBot launch $CAT Cat Coin, a cat that trades stocks. fees to {WALLET}", images=("https://pbs.twimg.com/a.jpg",),
        author=None):
     return {"id": i, "author_id": "u1", "text": text, "images": list(images),
             "author": author or {"username": "catfan", "created_at": OLD}}
@@ -121,7 +121,7 @@ def test_launch_replies_with_the_address_then_hands_over_once_the_cost_is_back(s
     _announced(db)
     assert launchpad_once(ctx, lp) == {"launched": 1, "handed_over": 0}
     assert lp.last["socials"]["twitter"] == "https://x.com/catcoin"  # they gave their own link: it stays
-    assert lp.last["description"] == "a cat that trades stocks. Created by @catfan, launched via @MooseByMuse"  # one full stop
+    assert lp.last["description"] == "a cat that trades stocks. Created by @catfan, launched via @VigilBot"  # one full stop
     receipt = rows(db, "SELECT * FROM posts WHERE kind='launch_receipt'")[0]
     assert receipt["reply_to_key"] == ann["idempotency_key"] and "/tx/0xtx" in receipt["body"]
     assert ("0x" + "c0" * 20) in receipt["body"] and "paid by VIGIL" in receipt["body"]
@@ -188,7 +188,7 @@ def test_the_site_lists_recent_launches_with_their_proof(settings, db):
 def test_fees_pointed_at_the_launcher_stay_there_and_sweeps_stop_once_repaid(settings, db):
     ctx = _ctx(settings, db, _Brain(twitter=""))
     lw = "0x" + "77" * 20
-    take_request(ctx, _m("30", text=f"@MooseByMuse launch $CAT Cat Coin fees to {lw}"))
+    take_request(ctx, _m("30", text=f"@VigilBot launch $CAT Cat Coin fees to {lw}"))
     ctx.pons = SimpleNamespace(launch_record=lambda t: SimpleNamespace(phase=Phase.NOT_GRADUATED))
     lp = _Launcher(pending=10**15, swept=10**15)
     lp.wallet = lw
@@ -238,7 +238,7 @@ def test_any_name_goes_even_a_ticker_that_exists_but_not_ours(settings, db):
     ctx = _ctx(settings, db)
     other = "0x" + "cd" * 20
     assert take_request(ctx, _m("60")) == "approved"
-    assert take_request(ctx, {**_m("61", text=f"@MooseByMuse launch $CAT Cat Coin fees to {other}"), "author_id": "u9"}) \
+    assert take_request(ctx, {**_m("61", text=f"@VigilBot launch $CAT Cat Coin fees to {other}"), "author_id": "u9"}) \
         == "approved"  # a second $CAT from someone else is fine
     api = TestClient(create_app(ctx.settings))
     assert api.get("/launchpad/status", params={"symbol": "CAT", "wallet": WALLET}).json()["status"] == "approved"
@@ -254,7 +254,7 @@ TSLA = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
 
 def test_a_stock_paired_coin_pays_its_creator_from_the_start(settings, db):
     ctx = _ctx(settings, db)
-    assert take_request(ctx, _m("70", text=f"@MooseByMuse launch $CAT Cat Coin\n\npaired with $tsla\n\nfees to {WALLET}")) \
+    assert take_request(ctx, _m("70", text=f"@VigilBot launch $CAT Cat Coin\n\npaired with $tsla\n\nfees to {WALLET}")) \
         == "approved"
     r = rows(db, "SELECT * FROM launch_requests")[0]
     assert (r["symbol"], r["pair_symbol"], r["pair_token"]) == ("CAT", "TSLA", TSLA)

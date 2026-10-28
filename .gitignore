@@ -1,12 +1,30 @@
+# Python
 .venv/
+venv/
 __pycache__/
 *.pyc
-.env
-data/*.db
-data/*.db-*
-.pytest_cache/
 *.egg-info/
+.pytest_cache/
 
-.vercel
-.env*
+# Secrets: settings live in .env (copy .env.example), never in git
+.env
+.env.*
+!.env.example
 .railway-token
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+id_rsa*
+id_ed25519*
+secrets/
+keys/
+
+# Runtime data: the database, the journal and the kill switch file
+data/*
+!data/.gitkeep
+
+# Deploy tooling
+.vercel
+.railway/

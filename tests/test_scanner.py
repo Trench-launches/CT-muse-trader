@@ -72,8 +72,9 @@ def test_scanner_only_hands_over_calls_that_ran_30pct_in_their_eth_pool(settings
     assert facts["signals"] == {"positive": ["SM net buy $5k"]} and facts["move_since_call_pct"] == 35.0
 
 
-def test_scanner_never_trades_the_old_moose_token(settings, db):
-    old = settings.skip_tokens[0]
+def test_scanner_never_trades_a_skipped_token(settings, db):
+    old = "0x" + "6a" * 20  # e.g. the project's own older coin, listed in CT_SKIP_TOKENS
+    settings = settings.model_copy(update={"skip_tokens": [old.upper().replace("0X", "0x")]})  # any case
     ctx = _ctx(settings, db, [_call(1, old, 1.0, 1)], {old: 2.0}, {old: (ETH_ADDR, Phase.POOL_CREATED)})
     scanner.fetch_new(ctx)
     assert scanner.refresh(ctx) == []  # up 100%, a genuine ETH pool, and still skipped

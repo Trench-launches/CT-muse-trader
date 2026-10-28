@@ -1,5 +1,6 @@
 # One container per process, sharing one SQLite volume on one host.
 # Social and trading are separate so an X outage cannot affect trading.
+# Keep this list in step with WORKERS in ct_agent/workers/runner.py (tests/test_cli.py checks it).
 x-agent: &agent
   build: .
   env_file: .env
@@ -10,19 +11,28 @@ services:
   api:
     <<: *agent
     command: ["ctagent", "api", "--host", "0.0.0.0", "--port", "8000"]
-    ports: ["127.0.0.1:8000:8000"]
+    ports: ["127.0.0.1:8000:8000"]  # only this machine; put a reverse proxy with TLS in front to publish it
+  caller:
+    <<: *agent
+    command: ["ctagent", "run", "caller"]
   indexer:
     <<: *agent
     command: ["ctagent", "run", "indexer"]
   research:
     <<: *agent
     command: ["ctagent", "run", "research"]
+  exits:
+    <<: *agent
+    command: ["ctagent", "run", "exits"]  # stops, take-profits and the hold timer
   trader:
     <<: *agent
     command: ["ctagent", "run", "trader"]
   social:
     <<: *agent
     command: ["ctagent", "run", "social"]
+  launchpad:
+    <<: *agent
+    command: ["ctagent", "run", "launchpad"]  # does nothing unless CT_LAUNCHPAD_ENABLED=true
 
 volumes:
   agent-data:
