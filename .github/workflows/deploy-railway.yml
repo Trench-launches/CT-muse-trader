@@ -1,4 +1,4 @@
-# Deploys the VIGIL backend to Railway (project "moose", service "moose") on
+# Deploys the VIGIL backend to Railway (project "vigil", service "vigil") on
 # every push to main that touches backend files. Tests must pass first.
 # Uses a Railway project token stored as the RAILWAY_TOKEN repository secret.
 name: Deploy backend to Railway
@@ -41,6 +41,6 @@ jobs:
           for i in 1 2 3 4; do npm install -g @railway/cli && exit 0; echo "retry $i"; sleep $((i * 10)); done
           exit 1
       - name: Deploy to Railway
-        run: railway up --service moose --ci
+        run: railway up --service vigil --ci
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
