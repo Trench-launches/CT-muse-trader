@@ -8,6 +8,7 @@ the rotation that has something to say:
   holdings the open bags and how each one is doing
   musing   a short line from Grok (musings.py)
   score    the running scorecard, losses included
+  goals    what VIGIL is aiming for next and what its data has taught it (goals.py), every few hours
 
 So every hour carries a mix of kinds. Replies to people and thread replies never count toward the timeline.
 The facts come from the same numbers the website shows. Each post names at most one cashtag (X refuses more).
@@ -23,8 +24,8 @@ from .compose import Draft
 from .outbox import QUOTE_KINDS, enqueue, sent_last_24h
 
 log = logging.getLogger(__name__)
-ROTATION = ("scan", "holdings", "musing", "score")
-FILLER_KINDS = {"scan_report", "holdings", "musing", "scorecard_hourly"}
+ROTATION = ("scan", "holdings", "musing", "score", "goals")
+FILLER_KINDS = {"scan_report", "holdings", "musing", "scorecard_hourly", "goals"}
 RESERVED_FOR_TRADES = 30  # posts per day a filler may never take
 
 
@@ -133,6 +134,19 @@ def cadence_once(ctx: Any, site: dict[str, Any] | None = None, now: datetime | N
                 continue
             kv_set(conn, "cadence_next", (start + i + 1) % len(ROTATION))
             return {"cadence": "musing"}
+        if kind == "goals":
+            if not s.x_goals_enabled:
+                continue
+            from .goals import write_goals
+            try:
+                got = write_goals(ctx, site, now)
+            except Exception as e:
+                log.warning("cadence goals post failed: %s", e)
+                continue
+            if got != "queued":
+                continue  # not due yet (one every x_goals_every_hours), or nothing good to say
+            kv_set(conn, "cadence_next", (start + i + 1) % len(ROTATION))
+            return {"cadence": "goals"}
         try:
             body = scan_post(conn, site, now) if kind == "scan" else holdings_post(site) if kind == "holdings" \
                 else score_post(site)

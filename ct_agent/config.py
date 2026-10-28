@@ -89,8 +89,12 @@ class Settings(BaseSettings):
     # Original crypto musings (social/musings.py), on top of trade posts and replies
     x_musings_enabled: bool = False
     x_musing_every_min: float = 30.0
+    # Goal posts (social/goals.py): what VIGIL is aiming for next and what its own data has taught it, in the cadence
+    x_goals_enabled: bool = False
+    x_goals_every_hours: float = 6.0
     # A timeline post at least this often (social/cadence.py): trades count, and gaps are filled in rotation with a
-    # scan report, the open bags, a musing and the scorecard. 0 turns it off (musings then run on their own timer).
+    # scan report, the open bags, a musing, the scorecard and a goal post. 0 turns it off (musings then run on their
+    # own timer).
     x_cadence_min: float = 17.0
     x_daily_post_cap: int = 60  # safety net only; trade posts are sent first
     x_update_step_pct: float = 50.0  # post an update, with Grok's updated thesis, at every +50% (50, 100, 150, ...)

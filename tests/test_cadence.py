@@ -15,8 +15,17 @@ SITE = {"funnel": {"calls_24h": 93},
 
 
 class _Brain:
+    goal = "eleven calls read, two earned a buy.\nnext: fifty, with the same filter.\nmore data in, sharper exits out."
+
+    def __init__(self):
+        self.goal_ctx = None
+
     def musing(self, ctx):
         return GrokResult(GrokMusing(tweet="patience is also a position."), "", "m", "h")
+
+    def goals(self, ctx):
+        self.goal_ctx = ctx
+        return GrokResult(GrokMusing(tweet=self.goal), "", "m", "h")
 
 
 def _ctx(settings, db, **kw):
@@ -83,3 +92,58 @@ def test_a_broken_kind_is_skipped_not_retried_forever(settings, db, monkeypatch)
 
 def test_off_when_the_cadence_is_zero(settings, db):
     assert cadence_once(_ctx(settings, db, x_cadence_min=0), SITE, NOW) == {}
+
+
+def _history(db):
+    """A day like the first live one: 11 calls (2 bought, 2 refused for a transfer tax, 2 never ran), 2 trades."""
+    for i, st in enumerate(["bought"] * 2 + ["skipped"] * 2 + ["expired"] * 2 + ["watching"] * 5):
+        db.execute("INSERT INTO scanner_calls(id,token,symbol,called_at,call_price_usd,data,status,first_seen,note) "
+                   "VALUES(?,?,?,?,1.0,'{}',?,?,?)", (i, f"T{i}", f"C{i}", "2026-09-25T06:00:00+00:00", st,
+                                                      "2026-09-25T06:00:00+00:00",
+                                                      "unsafe coin: a 1% tax on every transfer" if st == "skipped" else None))
+    for tp in (2, 0):
+        db.execute("INSERT INTO positions(token,mode,status,quote_symbol,opened_at,entry_quote,entry_tokens,entry_price,"
+                   "tp_hits) VALUES(?,?,?,?,?,?,?,?,?)", (f"P{tp}", "paper", "open", "SOL", "2026-09-25T16:49:00+00:00",
+                                                         0.01, 1000.0, 1e-5, tp))
+    db.execute("INSERT INTO launch_requests(x_post_id,author_id,created_at,status) VALUES('1','a',?,'launched')",
+               ("2026-09-25T15:10:00+00:00",))
+
+
+def test_a_goal_post_comes_round_every_few_hours_with_real_numbers(settings, db):
+    _history(db)
+    ctx = _ctx(settings, db, x_musings_enabled=False, x_goals_enabled=True)
+    import ct_agent.social.cadence as cadence
+    cadence.kv_set(db, "cadence_next", 4)  # the goal post's turn
+    early = {**SITE, "score": {**SITE["score"], "closed": 0}}
+    assert cadence_once(ctx, early, NOW)["cadence"] == "goals"
+    body = rows(db, "SELECT body FROM posts WHERE kind='goals'")[0]["body"]
+    assert body == "🎯 Where I'm headed\n\n" + _Brain.goal
+    f = ctx.brain.goal_ctx  # what Grok was given: only counts from the database
+    assert (f["smart_money_calls_read"], f["calls_bought"], f["calls_refused_for_a_tax_on_every_transfer"],
+            f["calls_that_never_ran_30pct_in_6h"], f["take_profits_hit"], f["coins_launched_for_people"]) == (11, 2, 2, 2, 2, 1)
+    assert f["next_milestones"] == ["my first fully closed trade, so the scorecard has a real win rate",
+                                    "50 smart-money calls read (now 11)", "10 take-profits hit (now 2)",
+                                    "10 coins launched through the launchpad (now 1)"]
+    # one every x_goals_every_hours: next time round it's not due, so the rotation moves on
+    _send_all(db, NOW)
+    cadence.kv_set(db, "cadence_next", 4)
+    assert cadence_once(ctx, SITE, NOW + timedelta(minutes=17))["cadence"] == "scan"
+
+
+def test_a_goal_post_that_breaks_the_rules_is_dropped(settings, db):
+    ctx = _ctx(settings, db, x_musings_enabled=False, x_goals_enabled=True)
+    import ct_agent.social.cadence as cadence
+    for k, bad in enumerate(("next stop: 10x on $BONK, easy money.", "x" * 241)):  # a cashtag; too long for the header
+        ctx.brain.goal, t = bad, NOW + timedelta(minutes=17 * k)
+        cadence.kv_set(db, "cadence_next", 4)
+        assert cadence_once(ctx, SITE, t)["cadence"] != "goals"  # the rotation moves on
+        _send_all(db, t)
+    assert rows(db, "SELECT * FROM posts WHERE kind='goals'") == []
+    assert len(rows(db, "SELECT * FROM journal WHERE kind='goals_dropped'")) == 2
+
+
+def test_goal_posts_are_off_unless_switched_on(settings, db):
+    ctx = _ctx(settings, db, x_musings_enabled=False)
+    import ct_agent.social.cadence as cadence
+    cadence.kv_set(db, "cadence_next", 4)
+    assert cadence_once(ctx, SITE, NOW)["cadence"] == "scan" and ctx.brain.goal_ctx is None
