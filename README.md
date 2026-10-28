@@ -156,7 +156,11 @@ the repo has configs for Railway and Vercel.
 
 ### Backend on Railway (or any container host)
 
-1. Create a project and a service from this repo; Railway reads `railway.json` and the `Dockerfile`.
+1. Create a project and a service from this repo. In the service's **Settings**, set:
+   - Dockerfile path: `/Dockerfile`
+   - Start command: `ctagent run-all` (the Dockerfile's default)
+   - Healthcheck path: `/health`, healthcheck timeout: `120` seconds
+   - Restart policy: on failure, 10 retries (Railway's default)
 2. Attach a volume mounted at `/app/data` (the database and journal live there).
 3. Add your settings as service **Variables** (never commit them). At minimum `CT_GROK_API_KEY`,
    `CT_API_ADMIN_TOKEN` and `CT_SITE_ORIGINS=["https://your-site.example"]`.
