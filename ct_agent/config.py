@@ -185,6 +185,9 @@ class Settings(BaseSettings):
     launch_daily_cap_sol: float = 0.5      # total launch spend per 24h; past it, requests wait for tomorrow
     launch_dev_buy_sol: float = 0.0        # optional first buy by the launcher at creation (0 = none)
     launch_creator_share_bps: int = 9_000  # the requester's share of creator fees (VIGIL keeps the rest)
+    # The fee split is irreversible, so it isn't sent until a real one has been checked: set true once
+    # `ctagent launch-test` has locked a split and you've seen it on Solscan.
+    launch_fee_split_verified: bool = False
     launch_per_user_day: int = 1           # launches per X account per 24h
     launch_vip_handles: list[str] = []     # X handles with a higher daily limit (the team, for tests)
     launch_vip_per_day: int = 10
