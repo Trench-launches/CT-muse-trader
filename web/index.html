@@ -1495,13 +1495,11 @@ footer nav a:hover { color: var(--ink); }
     <div class="live-grid">
       <article class="lc on">
         <div class="lc-h"><span class="kicker lc-k"><svg class="ic"><use href="#i-eye"/></svg>Watching</span><span class="example">example</span><span class="lc-meta" id="wlCount"></span></div>
-        <p class="lc-sub" id="wlSub">Smart-money calls</p>
         <div class="lc-scroll"><div id="wl"></div></div>
         <div class="lc-foot"><span id="wlFootL">Move since the call</span><span class="num" id="wlFootR">+30% = buy</span></div>
       </article>
       <article class="lc">
         <div class="lc-h"><span class="kicker lc-k sand"><svg class="ic"><use href="#i-wallet"/></svg>Holding</span><span class="lc-meta" id="holdCount"></span></div>
-        <p class="lc-sub" id="holdSub">Testing Phase</p>
         <div class="lc-scroll">
           <div class="lc-label">Open now</div>
           <div id="posList" style="display:grid;gap:8px"></div>
@@ -1512,7 +1510,6 @@ footer nav a:hover { color: var(--ink); }
       </article>
       <article class="lc">
         <div class="lc-h"><span class="kicker lc-k ink"><svg class="ic"><use href="#b-x"/></svg>Posting</span><span class="pill blue" id="npPill">in 2 min</span></div>
-        <p class="lc-sub">Every coin it bought and why, as posted on X</p>
         <div class="twrap"><div class="tslider" id="tSlider" tabindex="0" aria-label="Trade posts on X"></div><span class="tmore" id="tMore">scroll for more ↓</span></div>
         <div class="lc-foot"><span id="postsTxt">4 of 6 posts today</span><span class="tnav"><button type="button" id="tPrev" aria-label="Previous trade">‹</button><span class="tdots" id="tDots"></span><button type="button" id="tNext" aria-label="Next trade">›</button></span></div>
       </article>
@@ -2345,13 +2342,11 @@ footer nav a:hover { color: var(--ink); }
         ? `${w.status === "skipped" ? "Skipped" : "Expired"}${w.note ? " · " + skipWhy(w.note) : ""}`
         : `${w.source === "pons" ? "Pons scan" : "Smart money"} · ${ago(w.called_at)} ago`),
       tip: sm ? esc(w.note || (w.left_h != null ? `${Math.max(0, w.left_h).toFixed(1)}h left to reach +${d.trigger_pct}%` : `called ${ago(w.called_at)} ago`)) : "" }));
-    $("#wlSub").textContent = sm ? (d.pons_scan ? "Smart-money calls and Pons scan picks" : "Smart-money calls") : "Close to graduating";
     const nb = watch.filter(w => w.st === "bought").length;
     const ns = watch.filter(w => w.st === "skipped" || w.st === "expired").length;
     $("#wlCount").textContent = sm ? `${nb} bought` + (ns ? ` · ${ns} skipped` : "") : `${watch.length} coins`;
     $("#wlFootL").textContent = sm ? (d.buy_on_call ? "Bought the moment a call lands" : `+${d.trigger_pct}% = buy`) : "Curve progress to graduation";
     $("#wlFootR").textContent = sm ? (d.buy_on_call ? "P&L since the buy" : `${d.window_h}h window`) : "85% = almost bonded";
-    $("#holdSub").textContent = d.mode === "live" ? "Live trades, onchain" : "Testing Phase";
     $("#holdCount").textContent = `${d.positions.length} open`;
     const wal = d.wallet;
     $("#walletTxt").innerHTML = d.mode !== "live" ? "testing phase" : !wal ? "live wallet"
