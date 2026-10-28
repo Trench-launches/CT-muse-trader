@@ -2,7 +2,6 @@
 # Setup (repo Settings -> Secrets and variables -> Actions):
 #   secret   RAILWAY_TOKEN    a Railway *project* token for the project you deploy to (not an account token)
 #   variable RAILWAY_SERVICE  the Railway service name; deploys are skipped while it is unset (so forks don't try)
-# The upstream repo falls back to its own service, "vigil", until RAILWAY_SERVICE is set there.
 name: Deploy backend to Railway
 
 on:
@@ -38,7 +37,7 @@ jobs:
 
   deploy:
     needs: test
-    if: vars.RAILWAY_SERVICE != '' || github.repository == 'Trench-launches/CT-muse-trader'
+    if: vars.RAILWAY_SERVICE != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,4 +49,4 @@ jobs:
         run: railway up --service "$SERVICE" --ci
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          SERVICE: ${{ vars.RAILWAY_SERVICE || 'vigil' }}
+          SERVICE: ${{ vars.RAILWAY_SERVICE }}
