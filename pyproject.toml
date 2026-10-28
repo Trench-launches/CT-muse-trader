@@ -3,6 +3,8 @@ name = "ct-agent"
 version = "0.1.0"
 description = "VIGIL: Robinhood Chain research and trading persona, powered by Grok (xAI API)"
 requires-python = ">=3.12"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
@@ -25,7 +27,7 @@ dev = ["pytest>=8"]
 ctagent = "ct_agent.cli:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]  # SPDX license expressions
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

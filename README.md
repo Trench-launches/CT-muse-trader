@@ -210,4 +210,4 @@ Interactive docs at `/docs` while the API runs.
 See [CONTRIBUTING.md](CONTRIBUTING.md). To report a vulnerability, follow [SECURITY.md](SECURITY.md) and
 please don't open a public issue.
 
-VIGIL is an independent project, not affiliated with xAI, X, Robinhood or Pons.
+Released under the [MIT License](LICENSE). VIGIL is an independent project, not affiliated with xAI, X, Robinhood or Pons.

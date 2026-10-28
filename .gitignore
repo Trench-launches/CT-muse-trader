@@ -5,6 +5,8 @@ __pycache__/
 *.pyc
 *.egg-info/
 .pytest_cache/
+build/
+dist/
 
 # Secrets: settings live in .env (copy .env.example), never in git
 .env
