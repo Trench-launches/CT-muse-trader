@@ -165,6 +165,8 @@ def test_full_paper_cycle(tmp_path):
     assert r.headers["access-control-allow-origin"] == "https://www.mooseonmuse.com"
     new = api.get("/site", headers={"origin": "https://www.moosebymuse.com"})  # the new domain
     assert new.headers["access-control-allow-origin"] == "https://www.moosebymuse.com"
+    vigil = api.get("/site", headers={"origin": "https://vigiltrades.vercel.app"})  # the VIGIL site
+    assert vigil.headers["access-control-allow-origin"] == "https://vigiltrades.vercel.app"
     d = r.json()
     assert d["score"]["closed"] == 1 and d["score"]["losses"] == 1 and len(d["score"]["series"]) == 2
     sc = d["score"]

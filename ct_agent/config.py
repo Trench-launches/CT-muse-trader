@@ -167,7 +167,8 @@ class Settings(BaseSettings):
     score_history_v1: dict = {}
     # The site's scorecard counts trades opened from this time on (ISO, UTC). A reset keeps the history.
     score_since: str = ""
-    site_origins: list[str] = ["https://www.moosebymuse.com", "https://moosebymuse.com",
+    site_origins: list[str] = ["https://vigiltrades.vercel.app",  # the VIGIL site until its own domain is set up
+                               "https://www.moosebymuse.com", "https://moosebymuse.com",
                                "https://www.mooseonmuse.com", "https://mooseonmuse.com",
                                "https://moose-theta.vercel.app", "http://127.0.0.1:5173", "http://localhost:5173"]
     # Public "Ask VIGIL" chat on the website. Every request is a paid Grok call, so it is capped per
