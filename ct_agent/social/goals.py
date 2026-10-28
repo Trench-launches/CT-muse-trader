@@ -16,7 +16,7 @@ from .compose import Draft
 from .outbox import enqueue
 from .replies import clean
 
-HEADER = "🎯 Where I'm headed\n\n"
+HEADER = "🎯 Progress update\n\n"
 MAX_TEXT = 240  # with the header, inside X's 280
 STEPS = {"closed trades": (1, 10, 25, 50, 100, 250, 500, 1000),
          "smart-money calls read": (50, 100, 250, 500, 1000, 2500, 5000, 10000),
