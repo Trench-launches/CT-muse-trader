@@ -27,7 +27,12 @@ for v in SITE_URL SITE_API_URL; do
   fi
 done
 [ -n "${SITE_X_HANDLE:-}" ] || echo "note: SITE_X_HANDLE is not set; the site won't link to an X account" >&2
-PY="$(command -v python3 || command -v python)"
+# The first Python that runs (on Windows, `python3` can be the Microsoft Store stub, which doesn't)
+PY=""
+for p in "${PYTHON:-}" python3 python py; do
+  if [ -n "$p" ] && "$p" -c "" >/dev/null 2>&1; then PY="$p"; break; fi
+done
+[ -n "$PY" ] || { echo "No working Python found (set PYTHON=/path/to/python)." >&2; exit 1; }
 TMP="$(mktemp -d)"
 trap 'cd "$ROOT"; rm -rf "$TMP" 2>/dev/null || true' EXIT  # Windows may still hold the folder briefly; leftover temp files are harmless
 mkdir -p "$TMP/.vercel"
@@ -72,4 +77,16 @@ with open(page, "w", encoding="utf-8", newline="") as f:
 print("head tags set for", site)
 EOF
 cd "$TMP"
-vercel deploy --prod --yes < /dev/null
+out="$(vercel deploy --prod --yes < /dev/null 2>&1)" || { echo "$out" >&2; exit 1; }
+echo "$out"
+# A *.vercel.app SITE_URL may be pinned to an older deployment; point it at this one. (Custom domains follow
+# production on their own once they're added to the project.)
+host="${SITE_URL#https://}"; host="${host%%/*}"
+if [[ "$host" == *.vercel.app ]]; then
+  dep="$(grep -o -E 'https://[a-z0-9-]+\.vercel\.app' <<<"$out" | grep -v -F "https://$host" | head -1)"
+  if [ -n "$dep" ]; then
+    vercel alias set "$dep" "$host" < /dev/null
+  else
+    echo "note: couldn't find the deployment URL; run: vercel alias set <deployment-url> $host" >&2
+  fi
+fi
